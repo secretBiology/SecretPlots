@@ -1,3 +1,3 @@
-from SecretPlots.objects.histogram import run
+from SecretPlots.objects.barplot import run
 
 run()

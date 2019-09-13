@@ -45,5 +45,48 @@ def log(message: str,
         raise Exception(message)
 
 
+def __check(data):
+    try:
+        iter(data)
+        return True
+    except TypeError:
+        return False
+
+
+def __count(data):
+    k = []
+    for x in data:
+        if __check(x):
+            k.append(len(x))
+        else:
+            k.append(0)
+    return k
+
+
+def __largest(data):
+    d = [len(x) for x in data]
+    return max(d)
+
+
+def calculate_dimensions(data):
+    """Calculates dimension of the data
+
+    :param data: Input Data
+    :return: (Number of Samples, Number of Groups)
+    """
+    samples = 0
+    groups = 0
+
+    if __check(data):
+        if 0 in __count(data):
+            samples = 1
+        else:
+            samples = len(data)
+            groups = __largest(data)
+
+    return samples, groups
+
+
 def run():
-    log("something else here")
+    c = calculate_dimensions([2, 2, 33, None, 3])
+    print(c)
