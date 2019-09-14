@@ -32,7 +32,8 @@ class BarPlot(Base):
                  missing: bool = False,
                  show_legends: bool = False,
                  legends_options=None,
-                 missing_options=None):
+                 missing_options=None
+                 ):
         super().__init__(data)
 
         self.positions = []
@@ -79,7 +80,6 @@ class BarPlot(Base):
 
     @property
     def labels(self):
-        print(self._flatten_samples)
         if self._labels is None:
             if self.no_of_groups > 0:
                 self._labels = ["Sample {}".format(x + 1) for x in
@@ -105,16 +105,32 @@ class BarPlot(Base):
                 self.no_of_groups)]
         return self._group_labels
 
-    def _customize(self, data, positions):
+    def _customize(self):
+
         options = {
             "width": self.width
         }
+
         options = {**options, **self.additional_options}
 
         if self.swap_axis:
-            self.p.barh(positions, data, **options)
+            del options["width"]
+            for i in range(len(self._flatten_values)):
+                if len(self._flatten_groups) != 0:
+                    options["color"] = self.colors[self._flatten_groups[i]]
+                self.p.barh(
+                    self.positions[i],
+                    self._flatten_values[i],
+                    self.width,
+                    **options)
         else:
-            self.p.bar(positions, data, **options)
+            for i in range(len(self._flatten_values)):
+                if len(self._flatten_groups) != 0:
+                    options["color"] = self.colors[self._flatten_groups[i]]
+                self.p.bar(
+                    self.positions[i],
+                    self._flatten_values[i],
+                    **options)
 
     def _update_last(self, sample_change=False):
         self._last_location += self.width
@@ -178,7 +194,11 @@ class BarPlot(Base):
             opts = {"color": self.boundary_color, "alpha": 0.5}
             if self.boundary_options is not None:
                 opts = {**opts, **self.boundary_options}
-            self.p.axvspan(s[0], s[1], **opts)
+
+            if self.swap_axis:
+                self.p.axhspan(s[0], s[1], **opts)
+            else:
+                self.p.axvspan(s[0], s[1], **opts)
 
     def _draw_missing(self):
         opts = {
@@ -192,8 +212,13 @@ class BarPlot(Base):
 
         for i, s in enumerate(self._flatten_missing):
             if s == 1:
-                self.p.axvspan(self.positions[i] - self.width / 2,
-                               self.positions[i] + self.width / 2, **opts)
+                p1 = self.positions[i] - self.width / 2
+                p2 = self.positions[i] + self.width / 2
+
+                if self.swap_axis:
+                    self.p.axhspan(p1, p2, **opts)
+                else:
+                    self.p.axvspan(p1, p2, **opts)
 
     def _draw_axis(self):
         if self.swap_axis:
@@ -220,7 +245,7 @@ class BarPlot(Base):
         self.show_legend = True
         self.legend_options = kwargs
 
-    def get_raw(self):
+    def raw(self):
         return self.p
 
     def get_legend_patches(self):
@@ -246,19 +271,6 @@ class BarPlot(Base):
 
         return patches
 
-    def customize(self):
-        options = {
-            "width": self.width,
-            "color": self.colors[0]
-        }
-        for i in range(len(self._flatten_values)):
-            if len(self._flatten_groups) != 0:
-                options["color"] = self.colors[self._flatten_groups[i]]
-            self.p.bar(
-                self.positions[i],
-                self._flatten_values[i],
-                **options)
-
     def draw(self):
         self._flatten()
         if self.boundary:
@@ -267,7 +279,7 @@ class BarPlot(Base):
             self._draw_missing()
         if self.show_legend:
             self._draw_legends()
-        self.customize()
+        self._customize()
         self._draw_axis()
 
     def show(self):
@@ -276,6 +288,8 @@ class BarPlot(Base):
 
 
 def run():
-    data = [[5,  4, 8], [9, 7]]
-    b = BarPlot(data)
+    data = [[5, 4, 8], [9, None, 7]]
+    b = BarPlot(data, swap_axis=True)
+    b.draw_missing()
+    b.draw_boundaries()
     b.show()
