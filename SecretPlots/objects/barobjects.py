@@ -18,7 +18,8 @@ from matplotlib.patches import Patch
 DEFAULT_MISSING = {
     "fill": False,
     "hatch": "//",
-    "label": "Missing"
+    "label": "Missing",
+    "zorder": 0
 }
 
 
@@ -121,12 +122,17 @@ class GroupObject:
 
 
 class BarLocations:
-    def __init__(self, items, show_missing: bool, start_location: float = 0):
+    def __init__(self, items,
+                 is_stacked: bool,
+                 show_missing: bool,
+                 start_location: float = 0,
+                 start_bottom: float = 0):
         self._original_items = items
         self.show_missing = show_missing
+        self._is_stacked = is_stacked
         self._items = []
         self.start_location = start_location
-
+        self.start_bottom = start_bottom
         self._last_location = None
 
     @property
@@ -164,7 +170,32 @@ class BarLocations:
             self._last_location = self.start_location
         loc = self._last_location
         self._last_location += item.width + item.margin_next
-        return loc, item
+        bottom = 0
+        return loc, item, bottom
+
+    def _get_stacked_location(self, group: GroupObject):
+        if self._last_location is None:
+            self._last_location = self.start_location
+        out = []
+        loc = None
+        bottom = None
+        last = 0
+        for item in group.items:
+            if not item.allowed(self.show_missing):
+                continue
+            if loc is None:
+                loc = self._last_location
+            if bottom is None:
+                bottom = self.start_bottom
+            out.append((loc, item, bottom))
+            # Save margin to update next sample
+            last = item.width + item.margin_next
+            # Update bottom for stacked
+            if not item.is_null:
+                bottom += item.value
+
+        self._last_location += last
+        return out
 
     def _add_gap(self, group: GroupObject, last_margin: float):
         self._last_location += group.gap - last_margin
@@ -173,14 +204,25 @@ class BarLocations:
         self._flatten_items()
         out = []
         for item in self.items:
+            # If these are just simple ValuObjects, just get locations
             if type(item) == ValueObject:
                 out.append(self._get_location(item))
             elif type(item) == GroupObject:
                 temp_margin = 0
-                for g in item.items:
-                    if g.allowed(self.show_missing):
-                        temp_margin = g.margin_next
-                        out.append(self._get_location(g))
+                if self._is_stacked:
+                    # Use extend instead append because following will
+                    # return list of locations instead single
+                    out.extend(self._get_stacked_location(item))
+                    # Get extra margin
+                    for g in item.items:
+                        if g.allowed(self.show_missing):
+                            temp_margin = g.margin_next
+                else:
+                    for g in item.items:
+                        if g.allowed(self.show_missing):
+                            # Get extra margin
+                            temp_margin = g.margin_next
+                            out.append(self._get_location(g))
                 self._add_gap(item, temp_margin)
 
         return out
@@ -239,11 +281,15 @@ class ColorManager:
 
 
 class AxisObject:
-    def __init__(self, data, show_missing=None):
+    def __init__(self, data,
+                 is_stacked: bool,
+                 show_missing=None,
+                 labels=None):
         self._data = data
         self.show_missing = show_missing
+        self.is_stacked = is_stacked
         self._ticks = None
-        self._labels = None
+        self._labels = labels
         self._bars = None
         self._boundaries = None
 
@@ -296,7 +342,8 @@ class AxisObject:
 
     def calculate_boundaries(self):
         if self.bars is None:
-            self._bars = BarLocations(self._data, self.show_missing).get()
+            self._bars = BarLocations(self._data, self.is_stacked,
+                                      self.show_missing).get()
 
         sizes = []
         for d in self._data:
@@ -338,7 +385,9 @@ class AxisObject:
 
     def calculate_ticks(self):
         if self.bars is None:
-            self._bars = BarLocations(self._data, self.show_missing).get()
+            self._bars = BarLocations(self._data,
+                                      self.is_stacked,
+                                      self.show_missing).get()
 
         if any([type(x) == ValueObject for x in self._data]):
             self._ticks = self.raw_locations
@@ -415,7 +464,7 @@ def data_converter(data):
 class AssembleBars:
     def __init__(self, data, pylab):
         self.data = data
-        self.plt = pylab
+        self._plt = pylab  # type : matplotlib.pylab
         self._color_list = None
         self._color_manager = None  # type: ColorManager
         self._axis = None
@@ -428,7 +477,8 @@ class AssembleBars:
         self._boundaries_options = None
         self._show_value = False
         self._value_options = None
-        self._max_value = 0
+        self._is_stacked = False
+        self._tick_labels = None
 
     @property
     def missing_allowed(self):
@@ -436,6 +486,10 @@ class AssembleBars:
             return False
         else:
             return self._show_missing
+
+    @property
+    def plt(self):
+        return self._plt
 
     @property
     def orientation(self):
@@ -450,7 +504,10 @@ class AssembleBars:
         self._color_manager.update_colors(self.data)
 
     def _prepare_axis(self):
-        self._axis = AxisObject(self.data, show_missing=self.missing_allowed)
+        self._axis = AxisObject(self.data,
+                                is_stacked=self._is_stacked,
+                                show_missing=self.missing_allowed,
+                                labels=self._tick_labels)
         self._axis.calculate_ticks()
 
     def _prepare_legend(self):
@@ -490,12 +547,16 @@ class AssembleBars:
         }
 
         for b in self._axis.bars:
+
+            # Do not annotate null values
+            if b[1].is_null:
+                continue
+
             loc = self._value_options["position"]
+            if "secret" in self._value_options.keys() and self._is_stacked:
+                loc = 0.5
 
-            if b[1].value > self._max_value:
-                self._max_value = b[1].value
-
-            loc = loc * b[1].value + self._value_options["offset"]
+            loc = loc * b[1].value + self._value_options["offset"] + b[2]
             val = b[1].value
 
             op = {**opts, **self._value_options}
@@ -506,24 +567,14 @@ class AssembleBars:
             try:
                 del op["position"]
                 del op["offset"]
+                del op["secret"]
             except KeyError:
                 pass
-
-            if loc > self._max_value:
-                self._max_value = loc
 
             if self.orientation == "x":
                 self.plt.text(b[0], loc, "{}".format(val), **op)
             else:
                 self.plt.text(loc, b[0], "{}".format(val), **op)
-
-    def _adjust(self):
-
-        if self._show_value:
-            if self.orientation == "x":
-                self.plt.ylim(0, self._max_value + 1)
-            else:
-                self.plt.xlim(0, self._max_value + 1)
 
     def barplot(self):
         main = self.plt.bar
@@ -537,13 +588,15 @@ class AssembleBars:
         for m in self._axis.bars:
 
             opts = {
-                "color": m[1].color,
+                "color": m[1].color
             }
 
             if self.orientation == "y":
                 opts["height"] = m[1].width
+                opts["left"] = m[2]
             else:
                 opts["width"] = m[1].width
+                opts["bottom"] = m[2]
 
             if m[1].is_null:
                 span(m[0] - m[1].width / 2, m[0] + m[1].width / 2,
@@ -560,7 +613,6 @@ class AssembleBars:
         self._prepare_boundaries()
         self._prepare_values()
         self.barplot()
-        self._adjust()
 
     def show_missing(self, **kwargs):
         self._show_missing = True
@@ -605,11 +657,25 @@ class AssembleBars:
         for d in self.data:
             d.update_width(value)
 
-    def show_values(self, position: float = 1, offset: float = 0.01):
+    def show_values(self, position: float = None, offset: float = 0.01,
+                    **kwargs):
         self._show_value = True
         self._value_options = {
             "position": position,
             "offset": offset}
+        self._value_options = {**self._value_options, **kwargs}
+        if position is None:
+            self._value_options["position"] = 0.5
+            self._value_options["secret"] = True
+
+    def stack_bars(self):
+        self._is_stacked = True
+
+    def reversed(self):
+        self.data = list(reversed(self.data))
+
+    def add_tick_labels(self, labels: list):
+        self._tick_labels = labels
 
     def show(self):
         self.draw()
@@ -618,9 +684,11 @@ class AssembleBars:
 
 
 def run():
-    raw = [[40, 50], [50, 30, 20]]
+    raw = [[50, 50, 20], [20, 30]]
     data = data_converter(raw)
     a = AssembleBars(data, plt)
-    a.show_values(position=0, offset=5)
+    a.sample_gap(0.5)
+    a.show_legend()
+    a.add_tick_labels(["first", "second"])
 
     a.show()
