@@ -4,13 +4,9 @@
 #
 # Histogram Object
 
-import functools
-import operator
-
 import matplotlib.pylab as plt
 import numpy as np
 from SecretColors import Palette
-from matplotlib.patches import Patch
 
 
 class Histogram:
