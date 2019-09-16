@@ -10,10 +10,12 @@
 #
 # All bar related objects
 
-import matplotlib.pylab as plt
+import matplotlib.pyplot as plt
 from SecretColors import Palette
 from SecretColors.utils import text_color
 from matplotlib.patches import Patch
+
+plt.rcParams.update({'figure.autolayout': True})
 
 DEFAULT_MISSING = {
     "fill": False,
@@ -462,9 +464,9 @@ def data_converter(data):
 
 
 class AssembleBars:
-    def __init__(self, data, pylab):
+    def __init__(self, data, pyplot):
         self.data = data
-        self._plt = pylab  # type : matplotlib.pylab
+        self._plt = pyplot  # type : matplotlib.pylab
         self._color_list = None
         self._color_manager = None  # type: ColorManager
         self._axis = None

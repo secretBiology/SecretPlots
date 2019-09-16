@@ -1,3 +1,3 @@
-from SecretPlots.objects.barobjects import run
+from SecretPlots.objects.custom import run
 
 run()
