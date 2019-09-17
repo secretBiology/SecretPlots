@@ -41,6 +41,10 @@ class Bar:
     def value(self):
         return self._value
 
+    @value.setter
+    def value(self, val):
+        self._value = val
+
     @property
     def thickness(self):
         return self._thickness
@@ -52,6 +56,10 @@ class Bar:
     @property
     def baseline(self):
         return self._baseline
+
+    @baseline.setter
+    def baseline(self, value):
+        self._baseline = value
 
     @property
     def axis(self):
@@ -68,6 +76,15 @@ class Bar:
         else:
             raise Exception("Unknown Shape {}".format(self._shape))
 
+    def set_orientation(self, value):
+        self._axis = value
+
+    def set_shape(self, shape):
+        self._shape = shape
+
+    def add_option(self, key, value):
+        self._options[key] = value
+
     @property
     def path(self):
         correction = 0
@@ -82,20 +99,127 @@ class Bar:
                           **self._options).path
 
 
+class Axis:
+    def __init__(self,
+                 items,
+                 orientation="x",
+                 xlim=None,
+                 ylim=None):
+        self.items = items
+        self.orientation = orientation
+        self._ticks = []
+        self._values = []
+        self._labels = []
+        self._xlim = xlim
+        self._ylim = ylim
+
+    @property
+    def ticks(self):
+        return self._ticks
+
+    @property
+    def values(self):
+        return self._values
+
+    @property
+    def labels(self):
+        if len(self._labels) == 0:
+            self._labels = ["{}".format(x) for x in range(len(self.items))]
+        return self._labels
+
+    def _add_to_axis(self, item: Bar):
+        self._ticks.append(item.start)
+        self._values.append(item.value + item.baseline)
+
+    def _prepare(self):
+
+        for m in self.items:
+            self._add_to_axis(m)
+            m.set_orientation(self.orientation)
+
+    def _draw_bars(self, ax):
+        for p in self.items:
+            pp = patches.PathPatch(p.path)
+            ax.add_patch(pp)
+
+    def _calculate_limit(self):
+        loc = (min(self.ticks) - 1, 1 + max(self.ticks))
+        val = (min(self.values) - 1, 1 + max(self.values))
+        if self.orientation == "x":
+            if self._xlim is None:
+                self._xlim = loc
+            if self._ylim is None:
+                self._ylim = val
+        else:
+            if self._ylim is None:
+                self._ylim = loc
+            if self._xlim is None:
+                self._xlim = val
+
+    def _draw_axis(self, ax):
+
+        if self._xlim is None or self._ylim is None:
+            self._calculate_limit()
+
+        if self._xlim is not None:
+            ax.set_xlim(self._xlim)
+
+        if self._ylim is not None:
+            ax.set_ylim(self._ylim)
+
+    def _draw_ticks(self, ax):
+        if self.orientation == "x":
+            ax.set_xticks(self.ticks)
+            ax.set_xticklabels(self.labels)
+        else:
+            ax.set_yticks(self.ticks)
+            ax.set_yticklabels(self.labels)
+
+    def draw(self, ax):
+        self._prepare()
+        self._draw_bars(ax)
+        self._draw_axis(ax)
+        self._draw_ticks(ax)
+
+
+class Assemble:
+    def __init__(self, pyplot, axis, rows=None, cols=None):
+        self.plt = pyplot
+        self._axis = axis
+        self._drawing_axis = []
+        self.rows = rows or 1
+        self.cols = cols or 1
+        self._fig = None
+
+    @property
+    def fig(self):
+        if self._fig is None:
+            self._fig = plt.figure()
+        return self._fig
+
+    def _make_grid(self):
+        for i in range(len(self._axis)):
+            self._drawing_axis.append(self.fig.add_subplot(self.rows,
+                                                           self.cols,
+                                                           i + 1))
+
+    def _draw_all(self):
+        for x in range(len(self._axis)):
+            self._axis[x].draw(self._drawing_axis[x])
+
+    def draw(self):
+        self._make_grid()
+        self._draw_all()
+        self.plt.show()
+
+
 def test():
-    fig = plt.figure()
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
-    b = Bar(2, 1, baseline=3.2, axis="x", cut_position="b", shape="tri")
-    b2 = Bar(2, 3, axis="x", cut_position="t", cut_outward=False)
-    p = patches.PathPatch(b.path)
-    p2 = patches.PathPatch(b2.path)
-    ax.set(xlim=(0, 5), ylim=(-1, 5))
-    ax.add_patch(p)
-    ax.add_patch(p2)
-    ax.axhline(0)
-    ax.axvline(0)
-    ax.axvline(4)
-    plt.show()
+    orientation = "y"
+    b = Bar(0, 5)
+    b2 = Bar(1, 3)
+    a = Axis([b, b2], orientation=orientation)
+    k = Assemble(plt, [a])
+    k.draw()
 
 
 def run():
