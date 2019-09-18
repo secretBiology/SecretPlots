@@ -1,3 +1,3 @@
-from SecretPlots.objects.custom import run
+from SecretPlots.objects.booleanplot import run
 
 run()

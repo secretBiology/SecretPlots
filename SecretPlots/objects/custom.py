@@ -15,6 +15,11 @@ import matplotlib.pyplot as plt
 
 from SecretPlots.objects.shapes import *
 
+import matplotlib as mpl
+from SecretColors import Palette
+
+mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=Palette().get_color_list)
+
 
 class Bar:
     def __init__(self, start, value,
@@ -213,8 +218,34 @@ class Assemble:
         self.plt.show()
 
 
+class AssembleBroken:
+    def __init__(self,
+                 pyplot,
+                 items,
+                 broken_from=None,
+                 broken_till=None,
+                 broken_gap=0.1):
+        self.plt = pyplot
+        self.items = items
+        self.broken_from = broken_from
+        self.broken_till = broken_till
+        self.broken_gap = broken_gap
+
+        if self.broken_from is None or self.broken_till is None:
+            raise Exception(
+                "For broken axis, 'broken_from' and 'broken_till' parameters "
+                "should be provided")
+
+    def _divide_items(self):
+        for m in self.items:
+            print(m.value)
+
+    def draw(self):
+        self._divide_items()
+
+
 def test():
-    orientation = "y"
+    orientation = "x"
     b = Bar(0, 5)
     b2 = Bar(1, 3)
     a = Axis([b, b2], orientation=orientation)
