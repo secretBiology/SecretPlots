@@ -5,45 +5,146 @@
 #  Organisation: SecretBiology
 #  Website: https://github.com/secretBiology/SecretPlots
 #  Licence: MIT License
-#  Creation: 15/09/19, 3:41 PM
+#  Creation: 19/09/19, 10:41 AM
 #
 #
-# All shapes
+# All Shapes will be accessed from this script
 
 
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
+from SecretColors import Palette
 from matplotlib.path import Path
 
+palette = Palette()
 
-class Shape:
-    def __init__(self, origin, height, width, axis,
-                 cuts=3,
-                 cut_depth=0.2,
-                 cut_outward=False,
-                 cut_position=None,
+
+class Rectangle:
+    def __init__(self, x, y, width, height,
+                 rotation: float = 0.0,
+                 align: str = "center",
                  **kwargs):
-        self.x = origin[0]
-        self.y = origin[1]
-        self.height = height
-        self.width = width
-        self.axis = axis
-        self.cuts = cuts
+        self._x = x
+        self._y = y
+        self._height = height
+        self._width = width
+        self._rotation = rotation
+        self._align = align
+        self._options = kwargs
+
+    @property
+    def align(self):
+        return self._align
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def height(self):
+        return self._height
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @property
+    def options(self):
+        if "color" not in self._options.keys():
+            self._options["color"] = palette.blue()
+        return self._options
+
+    def get(self):
+        return patches.Rectangle((self.x, self.y),
+                                 self.width,
+                                 self.height,
+                                 self.rotation, **self.options)
+
+
+class Cuts:
+    def __init__(self, obj,
+                 no_of_cuts: int = 3,
+                 cut_direction: str = None,
+                 cut_depth: float = 1,
+                 position: str = "top",
+                 **kwargs):
+        self._object = obj
+        self.no_of_cuts = no_of_cuts
+        self._cut_direction = cut_direction
         self.cut_depth = cut_depth
-        self.cut_outward = cut_outward
-        self.cut_position = cut_position
-        self.options = kwargs
+        self.position = position
+        self._options = kwargs
 
     @property
-    def path(self):
-        return Path(self.vert, self.code)
+    def object(self):
+        return self._object
 
     @property
-    def vert(self):
-        raise NotImplementedError("Must have vert property")
+    def options(self):
+        return self._options
+
+    @staticmethod
+    def _real_quadrant(angle):
+        return abs(angle % 360)
 
     @property
-    def code(self):
-        raise NotImplementedError("Must have code property")
+    def cut_direction(self):
+        if self._cut_direction is None:
+            if self.position == "top":
+                if 0 < self._real_quadrant(self.object.rotation) <= 180:
+                    self._cut_direction = "in"
+                else:
+                    self._cut_direction = "out"
+            elif self.position == "right":
+                if 0 <= self._real_quadrant(self.object.rotation) < 180:
+                    self._cut_direction = "out"
+                else:
+                    self._cut_direction = "in"
+            elif self.position == "bottom":
+                if 0 < self._real_quadrant(self.object.rotation) <= 180:
+                    self._cut_direction = "out"
+                else:
+                    self._cut_direction = "in"
+            elif self.position == "left":
+                if 0 <= self._real_quadrant(self.object.rotation) < 180:
+                    self._cut_direction = "in"
+                else:
+                    self._cut_direction = "out"
+            else:
+                raise Exception("Unknown cut position {}".format(
+                    self.position))
+        return self._cut_direction
+
+    @property
+    def start(self):
+        if self.position in ["bottom", "left"]:
+            return self.object.get().get_verts()[0]
+        elif self.position == "right":
+            return self.object.get().get_verts()[1]
+        elif self.position == "top":
+            return self.object.get().get_verts()[3]
+        else:
+            raise Exception("Unknown cut position {}".format(self.position))
+
+    @property
+    def end(self):
+        if self.position == "bottom":
+            return self.object.get().get_verts()[1]
+        elif self.position == "left":
+            return self.object.get().get_verts()[3]
+        elif self.position in ["top", "right"]:
+            return self.object.get().get_verts()[2]
+        else:
+            raise Exception("Unknown cut position {}".format(self.position))
 
     @staticmethod
     def simple_connect(vert: list):
@@ -52,171 +153,134 @@ class Shape:
         code.append(Path.CLOSEPOLY)
         return code
 
+    def _calculate_points(self):
+        p = get_points_between(self.start,
+                               self.end,
+                               self.no_of_cuts,
+                               self.cut_depth,
+                               self.cut_direction)
+        p.append(self.start)
+        self._options = self.object.options
+        return Path(p, self.simple_connect(p))
 
-class Triangle(Shape):
-    BOTTOM_POSITIONS = ["bottom", "b", "right", "r", "all", "a", "both"]
-
-    @property
-    def vert(self):
-        if self.axis == "x":
-            out = [(self.x, self.y),
-                   (self.x + self.width / 2, self.height + self.y),
-                   (self.x + self.width, self.y)]
-
-            if self.cut_position in Triangle.BOTTOM_POSITIONS:
-                out.extend(list(reversed(get_points_between(
-                    (self.x + self.width, self.y),
-                    (self.x, self.y),
-                    self.cuts,
-                    self.cut_depth,
-                    self.cut_outward
-                ))))
-            else:
-                out.append((self.x, self.y))
-
-            return out
-        else:
-            if self.cut_position in self.BOTTOM_POSITIONS:
-                out = get_points_between(
-                    (self.x, self.y),
-                    (self.x, self.y + self.width),
-                    self.cuts,
-                    self.cut_depth,
-                    self.cut_outward
-                )
-            else:
-                out = [(self.x, self.y)]
-
-            out.extend(
-                [(self.x, self.y + self.width),
-                 (self.x + self.height, self.y + self.width / 2),
-                 (self.x, self.y)]
-            )
-            return out
-
-    @property
-    def code(self):
-        return self.simple_connect(self.vert)
+    def get(self):
+        p = self._calculate_points()
+        return patches.PathPatch(p, **self.options)
 
 
-class Diamond(Shape):
-    @property
-    def vert(self):
-        if self.axis == "x":
-            return [(self.x + self.width / 2, self.y),
-                    (self.x, self.height / 2 + self.y),
-                    (self.x + self.width / 2, self.height + self.y),
-                    (self.x + self.width, self.height / 2 + self.y),
-                    (self.x, self.y)]
-        else:
-            return [(self.x, self.y + self.width / 2),
-                    (self.x + self.height / 2, self.y + self.width),
-                    (self.x + self.height, self.y + self.width / 2),
-                    (self.x + self.height / 2, self.y),
-                    (self.x, self.y + self.width / 2)]
+def get_points_between(start, end, cuts, depth, direction):
+    x1, y1 = start
+    x2, y2 = end
 
-    @property
-    def code(self):
-        return self.simple_connect(self.vert)
-
-
-def get_points_between(start, end, cuts, size, direction):
-    out = []
-    i = 1
-    j = 0
-    if start[1] == end[1]:
-        i = 0
-        j = 1
-
-    if start[i] > end[i]:
-        start, end = end, start
+    x = np.linspace(x1, x2, cuts + 1)
+    y = np.linspace(y1, y2, cuts + 1)
 
     points = []
-    for p in np.linspace(start[i], end[i], cuts + 1):
-        temp = [None, None]
-        temp[i] = p
-        temp[j] = start[j]
-        points.append((temp[0], temp[1]))
 
-    for m in range(0, len(points) - 1):
-        out.append(points[m])
-        loc = abs(points[m][i] - points[m + 1][i]) / 2
-        loc += points[m][i]
-        temp = [None, None]
-        temp[i] = loc
-        if direction:
-            temp[j] = points[m][j] + size
-        else:
-            temp[j] = points[m][j] - size
-        out.append((temp[0], temp[1]))
+    for i in range(len(x))[:-1]:
+        points.append((x[i], y[i]))
+        tx, ty = _get_cut_point((x[i], y[i]), (x[i + 1], y[i + 1]),
+                                depth,
+                                direction=direction)
+        points.append((tx, ty))
 
-    out.append(points[-1])
-
-    return out
+    points.append((x[-1], y[-1]))
+    return points
 
 
-class Rectangle(Shape):
-    TOP_POSITIONS = ["top", "t", "left", "l", "all", "a", "both"]
-    BOTTOM_POSITIONS = ["bottom", "b", "right", "r", "all", "a", "both"]
+def _get_cut_point(p1, p2, height, direction="out"):
+    x1, y1 = p1
+    x2, y2 = p2
 
-    @property
-    def vert(self):
-        if self.axis == "x":
-            out = [(self.x, self.y), (self.x, self.height + self.y)]
-            if self.cut_position in Rectangle.TOP_POSITIONS:
-                out.extend(get_points_between(
-                    (self.x, self.height + self.y),
-                    (self.x + self.width, self.height + self.y),
-                    self.cuts,
-                    self.cut_depth,
-                    self.cut_outward
-                ))
-            else:
-                out.append((self.x + self.width, self.height + self.y))
+    factor = 1
+    if direction == "in":
+        factor = -1
 
-            if self.cut_position in Rectangle.BOTTOM_POSITIONS:
-                out.extend(list(reversed(get_points_between(
-                    (self.x + self.width, self.y),
-                    (self.x, self.y),
-                    self.cuts,
-                    self.cut_depth,
-                    not self.cut_outward
-                ))))
-            else:
-                out.append((self.x + self.width, self.y))
+    if x2 - x1 == 0:
+        return x1 + factor * height, (y1 + y2) / 2
 
-            out.append((self.x, self.y))
+    # Find slope
+    slope = (y2 - y1) / (x2 - x1)
 
-            return out
-        else:
-            out = []
-            if self.cut_position in Rectangle.TOP_POSITIONS:
-                out.extend(get_points_between(
-                    (self.x, self.y),
-                    (self.x, self.y + self.width),
-                    self.cuts,
-                    self.cut_depth,
-                    not self.cut_outward
-                ))
-            else:
-                out.extend([(self.x, self.y), (self.x, self.y + self.width)])
+    if slope == 0:
+        return (x1 + x2) / 2, y1 + factor * height
 
-            out.append((self.x + self.height, self.y + self.width))
+    # Perpendicular line slope
+    slope = -1 / slope
 
-            if self.cut_position in Rectangle.BOTTOM_POSITIONS:
-                out.extend(list(reversed(get_points_between(
-                    (self.x + self.height, self.y + self.width),
-                    (self.x + self.height, self.y),
-                    self.cuts,
-                    self.cut_depth,
-                    self.cut_outward
-                ))))
-            else:
-                out.append((self.x + self.height, self.y))
-            out.append((self.x, self.y))
+    # Mid point will be on that line
+    mid_x = (x1 + x2) / 2
+    mid_y = (y1 + y2) / 2
 
-            return out
+    # Find C intercept of this line
+    c = mid_y - (slope * mid_x)
+
+    # After solving equation for slop and circle
+    x = mid_x + height * factor / (np.sqrt(np.square(slope) + 1))
+    y = x * slope + c
+
+    return x, y
+
+
+class Triangle:
+    def __init__(self, x, y, height, width, rotation=0, **kwargs):
+        self._x = x
+        self._y = y
+        self._height = height
+        self._width = width
+        self._rotation = rotation
+        self._options = kwargs
 
     @property
-    def code(self):
-        return self.simple_connect(self.vert)
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def height(self):
+        return self._height
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @property
+    def options(self):
+        if "color" not in self._options.keys():
+            self._options["color"] = palette.blue()
+        return self._options
+
+    def _get_rect(self):
+        return patches.Rectangle((self.x, self.y), self.width, self.height,
+                                 self.rotation)
+
+    def get(self):
+        p = self._get_rect()
+        vert = p.get_verts()
+        t1 = vert[2]
+        t2 = vert[3]
+        vert = [x for x in vert[:2]]
+        vert.append(np.asarray([(t1[0] + t2[0]) / 2, (t1[1] + t2[1]) / 2]))
+        vert.append(vert[0])
+        return patches.Polygon(vert, **self.options)
+
+
+def run():
+    fig, ax = plt.subplots()
+    p = Triangle(0, 0, 1.5, 1, rotation=45)
+    c = Cuts(p, cut_direction="out", cut_depth=0.3, position="bottom")
+    ax.add_patch(p.get())
+    ax.add_patch(c.get())
+    ax.set_xlim(-3, 3)
+    ax.set_ylim(-3, 3)
+    ax.axhline(0)
+    ax.axvline(0)
+
+    plt.show()
