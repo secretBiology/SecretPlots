@@ -1,3 +1,3 @@
-from SecretPlots.objects.network import run
+from SecretPlots.objects.matrix import run
 
 run()

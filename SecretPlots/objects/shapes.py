@@ -223,7 +223,7 @@ def _get_cut_point(p1, p2, height, direction="out"):
 
 
 class Triangle:
-    def __init__(self, x, y, height, width, rotation=0, **kwargs):
+    def __init__(self, x, y, width, height, rotation=0, **kwargs):
         self._x = x
         self._y = y
         self._height = height
@@ -272,12 +272,76 @@ class Triangle:
         return patches.Polygon(vert, **self.options)
 
 
+class Circle:
+    def __init__(self, x, y, width, height, rotation=0, **kwargs):
+        self._x = x
+        self._y = y
+        self._height = height
+        self._width = width
+        self._rotation = rotation
+        self._options = kwargs
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def height(self):
+        return self._height
+
+    @property
+    def width(self):
+        return self._width
+
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @property
+    def options(self):
+        if "color" not in self._options.keys():
+            self._options["color"] = palette.blue()
+        return self._options
+
+    def _get_rect(self):
+        return patches.Rectangle((self.x, self.y), self.width, self.height,
+                                 self.rotation)
+
+    @staticmethod
+    def _get_diagonal_mid(points):
+        p1, p2, p3, p4 = points
+
+        m1 = (p3[1] - p1[1]) / (p3[0] - p1[0])
+        m2 = (p4[1] - p2[1]) / (p4[0] - p2[0])
+
+        c1 = p3[1] - m1 * p3[0]
+        c2 = p4[1] - m2 * p4[0]
+
+        x = (c2 - c1) / (m1 - m2)
+        y = m1 * x + c1
+
+        return x, y
+
+    def get(self):
+        verts = self._get_rect().get_verts()
+        x, y = self._get_diagonal_mid(verts[:-1])
+        return patches.Ellipse((x, y),
+                               self.width,
+                               self.height,
+                               self.rotation,
+                               **self.options)
+
+
 def run():
     fig, ax = plt.subplots()
-    p = Triangle(0, 0, 1.5, 1, rotation=45)
-    c = Cuts(p, cut_direction="out", cut_depth=0.3, position="bottom")
+    p = Circle(0, 0, 1, 1)
+    p2 = Rectangle(0, 0, 1, 1, fill=False)
     ax.add_patch(p.get())
-    ax.add_patch(c.get())
+    ax.add_patch(p2.get())
     ax.set_xlim(-3, 3)
     ax.set_ylim(-3, 3)
     ax.axhline(0)
