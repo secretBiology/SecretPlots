@@ -10,9 +10,13 @@
 #
 #  All Matrix visualization objects
 
+import matplotlib
+from SecretColors import ColorMap
+
+from SecretPlots.objects.base import Section, CategoryPlot
 from SecretPlots.objects.shapes import *
 
-p = Palette()
+p = Palette(show_warning=False)
 ON_COLOR = p.peach(shade=30)
 OFF_COLOR = p.ultramarine(shade=60)
 
@@ -548,7 +552,262 @@ class BooleanPlot:
         plt.savefig(filename, **kwargs)
 
 
+class HeatPlot(CategoryPlot):
+
+    def __init__(self, data):
+        super().__init__()
+        self._raw_data = data
+        self._additional_data = []
+        self._section_gap = None
+        self._width = None
+        self._height = None
+        self._major_pos = None
+        self._minor_pos = None
+        self._positions = None
+        self.rotations = 0
+        self._cmap = None
+        self._colorbar = False
+
+    @property
+    def positions(self):
+        if self._positions is None:
+            self._positions = []
+            x = self.major_pos
+            y = self.minor_pos
+            if self.orientation == "y":
+                x, y = y, x
+
+            x_count = 0
+            y_count = 0
+
+            def _update(xx, yy):
+                if self.orientation == "x":
+                    return xx + 1, 0
+                else:
+                    return 0, yy + 1
+
+            def _minor(xx, yy):
+                if self.orientation == "x":
+                    return xx, yy + 1
+                else:
+                    return xx + 1, yy
+
+            for s in self.sections:
+                for d in s.data:
+                    if d.is_single_valued:
+                        self._positions.append((x[x_count], y[y_count]))
+                        x_count, y_count = _update(x_count, y_count)
+                    else:
+                        if d.columns == 1:
+                            for m in d.value:
+                                self._positions.append((x[x_count],
+                                                        y[y_count]))
+                                x_count, y_count = _minor(x_count, y_count)
+                            x_count, y_count = _update(x_count, y_count)
+                        else:
+                            for m in d.value:
+                                for k in m:
+                                    self._positions.append(
+                                        (x[x_count], y[y_count]))
+                                    x_count, y_count = _minor(x_count, y_count)
+                                x_count, y_count = _update(x_count, y_count)
+
+        return self._positions
+
+    @property
+    def width(self):
+        if self._width is None:
+            self._width = 1
+        return self._width
+
+    @width.setter
+    def width(self, value: float):
+        self._width = value
+
+    @property
+    def height(self):
+        if self._height is None:
+            self._height = 1
+        return self._height
+
+    @height.setter
+    def height(self, value):
+        self._height = value
+
+    @property
+    def cmap(self):
+        if self._cmap is None:
+            c = ColorMap(matplotlib, p).greens()
+            self._cmap = c
+        return self._cmap
+
+    @property
+    def section_gap(self):
+        if self._section_gap is None:
+            self._section_gap = 1
+        return self._section_gap
+
+    @property
+    def major_pos(self):
+        if self._major_pos is None:
+            self._set_positions()
+        return self._major_pos
+
+    @property
+    def minor_pos(self):
+        if self._minor_pos is None:
+            self._set_positions()
+        return self._minor_pos
+
+    @property
+    def sections(self):
+        if len(self._sections) == 0:
+            s = Section(margin=self.section_gap)
+            s.add_data(self._raw_data)
+            self._sections.append(s)
+            for d in self._additional_data:
+                s2 = Section(margin=self.section_gap)
+                s2.add_data(d)
+                self._sections.append(s2)
+        return self._sections
+
+    def _calculate_pos(self, gap, value, is_column):
+        current_pos = None
+        major_pos = []
+        for s in self.sections:
+            if not is_column:
+                current_pos = None
+            for d in s.data:
+                if current_pos is None:
+                    current_pos = 0
+                else:
+                    current_pos += gap + value
+                if d.is_single_valued:
+                    major_pos.append(current_pos)
+                    current_pos += self.section_gap
+                else:
+                    no = d.rows
+                    if is_column:
+                        no = d.columns
+                    for k in range(no):
+                        if current_pos not in major_pos:
+                            major_pos.append(current_pos)
+                        current_pos += gap + value
+
+            current_pos += self.section_gap - gap - value
+
+        return major_pos
+
+    def _set_positions(self):
+        if self.orientation == "x":
+            major_pos = self._calculate_pos(self.x_gap, self.width, True)
+            minor_pos = self._calculate_pos(self.y_gap, self.height, False)
+        else:
+            major_pos = self._calculate_pos(self.y_gap, self.height, True)
+            minor_pos = self._calculate_pos(self.x_gap, self.width, False)
+
+        self._major_pos = major_pos
+        self._minor_pos = minor_pos
+
+    @property
+    def shape(self):
+        return Rectangle
+
+    def get_color(self, value):
+        try:
+            m = max([x.max for x in self.sections])
+            n = min([x.min for x in self.sections])
+            norm = matplotlib.colors.Normalize(vmin=n, vmax=m)
+            return self.cmap(norm(value))
+        except TypeError:
+            return p.red(shade=40)
+
+    def _draw_axis(self, ax):
+        x_pos = [x[0] for x in self.positions]
+        y_pos = [x[1] for x in self.positions]
+
+        ax.set_xlim(min(x_pos) - self.x_padding[0],
+                    max(x_pos) + self.width + self.x_padding[1])
+        ax.set_ylim(min(y_pos) - self.y_padding[1],
+                    max(y_pos) + self.height + self.y_padding[0])
+        # ax.set_aspect("equal")
+
+        ticks = list(set([x + self.width / 2 for x in self.major_pos]))
+        ticks_other = list(set([x + self.height / 2 for x in self.minor_pos]))
+        major_label = ["S{}".format(x) for x in range(len(ticks))]
+        minor_label = ["{}".format(x) for x in range(len(ticks_other))]
+
+        self.check_labels(major_label, minor_label)
+
+        if self.orientation == "y":
+            ticks, ticks_other = ticks_other, ticks
+            major_label, minor_label = minor_label, major_label
+
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(self.x_labels, **self.x_label_options)
+        ax.set_yticks(ticks_other)
+        ax.set_yticklabels(self.y_labels, **self.y_label_options)
+
+    def _draw_colorbar(self, ax):
+
+        if not self._colorbar:
+            return
+
+        m = max([x.max for x in self.sections])
+        n = min([x.min for x in self.sections])
+        norm = matplotlib.colors.Normalize(vmin=n, vmax=m)
+        sm = plt.cm.ScalarMappable(cmap=self.cmap, norm=norm)
+        sm.set_array([])
+        plt.colorbar(sm, ax=ax)
+
+    def _draw_sections(self, ax):
+
+        def __add(i, options):
+            ax.add_patch(
+                self.shape(
+                    self.positions[i][0],
+                    self.positions[i][1],
+                    self.width,
+                    self.height,
+                    self.rotations,
+                    **options
+                ).get()
+            )
+
+        def __options(value):
+            return {"color": self.get_color(value)}
+
+        count = 0
+        for s in self.sections:
+            for d in s.data:
+                if d.is_single_valued:
+                    __add(count, __options(d.value))
+                    count += 1
+                else:
+                    for c in d.value:
+                        try:
+                            for v in c:
+                                __add(count, __options(v))
+                                count += 1
+                        except TypeError:
+                            __add(count, __options(c))
+                            count += 1
+
+    def add_data(self, data):
+        self._additional_data.append(data)
+
+    def add_cmap(self, name):
+        self._cmap = matplotlib.cm.get_cmap(name)
+
+    def draw(self, ax):
+        self._draw_sections(ax)
+        self._draw_axis(ax)
+        self._draw_colorbar(ax)
+        plt.show()
+
+
 def run():
-    data = [np.random.uniform(-100, 100, 10) for x in range(6)]
-    m = BooleanPlot(data)
-    m.show()
+    data = [np.random.uniform(-100, 100, 5) for x in range(3)]
+    h = HeatPlot(data)
+    fig, ax = plt.subplots()
+    h.draw(ax)
