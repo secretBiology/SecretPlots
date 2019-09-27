@@ -149,8 +149,9 @@ class CategoryPlot:
         self.y_gap = 0
         self.x_padding = (1, 1)
         self.y_padding = (1, 0)
-        self.x_lines = None
-        self.y_lines = None
+        self._padding_defined = False
+        self.x_lines = False
+        self.y_lines = False
         self._sections = []
         self.x_fills = []
         self.y_fills = []
@@ -169,6 +170,8 @@ class CategoryPlot:
         self._x_fills_options = None
         self._y_fills_options = None
         self._background_options = None
+        self._text_options = None
+        self._shape_options = None
 
     def add_section(self, section: Section):
         self._sections.append(section)
@@ -268,6 +271,18 @@ class CategoryPlot:
             self._y_lines_options = {}
         return self._y_lines_options
 
+    @property
+    def text_options(self):
+        if self._text_options is None:
+            self._text_options = {}
+        return self._text_options
+
+    @property
+    def shape_options(self):
+        if self._shape_options is None:
+            self._shape_options = {}
+        return self._shape_options
+
     def padding(self, start, end=None, top=None, bottom=None):
         if end is None and top is None and bottom is None:
             end, top, bottom = start, start, start
@@ -277,6 +292,7 @@ class CategoryPlot:
             bottom = 0
         self.x_padding = (start, end)
         self.y_padding = (top, bottom)
+        self._padding_defined = True
 
     def add_x_label_options(self, **kwargs):
         self._x_label_options = {**self.x_label_options, **kwargs}
@@ -304,6 +320,12 @@ class CategoryPlot:
 
     def add_background_options(self, **kwargs):
         self._background_options = {**self.background_options, **kwargs}
+
+    def add_text_options(self, **kwargs):
+        self._text_options = {**self.text_options, **kwargs}
+
+    def add_shape_options(self, **kwargs):
+        self._shape_options = {**self.shape_options, **kwargs}
 
 
 def run():

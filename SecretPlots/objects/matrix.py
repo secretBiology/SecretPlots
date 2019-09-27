@@ -12,6 +12,8 @@
 
 import matplotlib
 from SecretColors import ColorMap
+from SecretColors.utils import text_color, rgb_to_hex
+from matplotlib.gridspec import GridSpec
 
 from SecretPlots.objects.base import Section, CategoryPlot
 from SecretPlots.objects.shapes import *
@@ -554,8 +556,11 @@ class BooleanPlot:
 
 class HeatPlot(CategoryPlot):
 
-    def __init__(self, data):
+    def __init__(self, data, fig=None):
         super().__init__()
+        if fig is None:
+            fig = plt.figure()
+        self.fig = fig
         self._raw_data = data
         self._additional_data = []
         self._section_gap = None
@@ -567,6 +572,17 @@ class HeatPlot(CategoryPlot):
         self.rotations = 0
         self._cmap = None
         self._colorbar = False
+        self._colorbar_loc = "right"
+        self._colorbar_options = {}
+        self.gs = None
+        self.ax = None
+        self._colorbar_ax = None
+        self._remove_frame = False
+        self._fig_drawn = False
+        self.aspect = None
+        self._text = False
+        self._invert_axis = None
+        self._shape = "r"
 
     @property
     def positions(self):
@@ -609,8 +625,10 @@ class HeatPlot(CategoryPlot):
                                 for k in m:
                                     self._positions.append(
                                         (x[x_count], y[y_count]))
-                                    x_count, y_count = _minor(x_count, y_count)
-                                x_count, y_count = _update(x_count, y_count)
+                                    x_count, y_count = _minor(x_count,
+                                                              y_count)
+                                x_count, y_count = _update(x_count,
+                                                           y_count)
 
         return self._positions
 
@@ -637,7 +655,10 @@ class HeatPlot(CategoryPlot):
     @property
     def cmap(self):
         if self._cmap is None:
-            c = ColorMap(matplotlib, p).greens()
+            colors = [p.lime(shade=30), p.lime(),
+                      p.brown(shade=40), p.brown(shade=80),
+                      p.black()]
+            c = ColorMap(matplotlib, p).from_list(colors)
             self._cmap = c
         return self._cmap
 
@@ -670,6 +691,21 @@ class HeatPlot(CategoryPlot):
                 s2.add_data(d)
                 self._sections.append(s2)
         return self._sections
+
+    @property
+    def shape(self):
+        if self._shape.strip().lower() in ["r", "rectangle", "rect"]:
+            return Rectangle
+        elif self._shape.strip().lower() in ["t", "triangle", "tri"]:
+            return Triangle
+        elif self._shape.strip().lower() in ["c", "circle", "cir"]:
+            return Circle
+        else:
+            raise Exception("Shape '{}' not available ".format(self._shape))
+
+    @shape.setter
+    def shape(self, value):
+        self._shape = value
 
     def _calculate_pos(self, gap, value, is_column):
         current_pos = None
@@ -709,10 +745,6 @@ class HeatPlot(CategoryPlot):
         self._major_pos = major_pos
         self._minor_pos = minor_pos
 
-    @property
-    def shape(self):
-        return Rectangle
-
     def get_color(self, value):
         try:
             m = max([x.max for x in self.sections])
@@ -722,6 +754,41 @@ class HeatPlot(CategoryPlot):
         except TypeError:
             return p.red(shade=40)
 
+    def _draw_lines(self, ax):
+
+        x, y = self.major_pos, self.minor_pos
+
+        if self.orientation == "y":
+            x, y = y, x
+
+        elements = 0
+        if self.x_lines:
+            for s in self.sections:
+                for k in s.data:
+                    no = k.columns
+                    if self.orientation == "y":
+                        no = k.rows
+                        elements = 0
+                    for pos in list(range(no))[1:]:
+                        self.ax.axvline(x[pos + elements] - self.x_gap / 2,
+                                        **self.x_lines_options)
+                    elements += no
+
+        elements = 0
+        if self.y_lines:
+            for s in self.sections:
+                for k in s.data:
+                    no = k.rows
+                    if self.orientation == "y":
+                        no = k.columns
+                    else:
+                        elements = 0
+                    for pos in range(no):
+                        if pos != 0:
+                            self.ax.axhline(y[elements] - self.y_gap / 2,
+                                            **self.y_lines_options)
+                        elements += 1
+
     def _draw_axis(self, ax):
         x_pos = [x[0] for x in self.positions]
         y_pos = [x[1] for x in self.positions]
@@ -730,25 +797,40 @@ class HeatPlot(CategoryPlot):
                     max(x_pos) + self.width + self.x_padding[1])
         ax.set_ylim(min(y_pos) - self.y_padding[1],
                     max(y_pos) + self.height + self.y_padding[0])
-        # ax.set_aspect("equal")
+
+        if self.aspect is not None:
+            ax.set_aspect(self.aspect)
 
         ticks = list(set([x + self.width / 2 for x in self.major_pos]))
-        ticks_other = list(set([x + self.height / 2 for x in self.minor_pos]))
+        ticks_other = list(
+            set([x + self.height / 2 for x in self.minor_pos]))
         major_label = ["S{}".format(x) for x in range(len(ticks))]
         minor_label = ["{}".format(x) for x in range(len(ticks_other))]
 
-        self.check_labels(major_label, minor_label)
-
         if self.orientation == "y":
             ticks, ticks_other = ticks_other, ticks
-            major_label, minor_label = minor_label, major_label
+
+        self.check_labels(major_label, minor_label)
 
         ax.set_xticks(ticks)
         ax.set_xticklabels(self.x_labels, **self.x_label_options)
         ax.set_yticks(ticks_other)
         ax.set_yticklabels(self.y_labels, **self.y_label_options)
 
-    def _draw_colorbar(self, ax):
+        if self._remove_frame:
+            ax.spines['left'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+
+        if self._invert_axis is not None:
+            k = list(self._invert_axis)
+            if "y" in k:
+                self.ax.invert_yaxis()
+            if "x" in k:
+                self.ax.invert_xaxis()
+
+    def _draw_colorbar(self):
 
         if not self._colorbar:
             return
@@ -757,22 +839,85 @@ class HeatPlot(CategoryPlot):
         n = min([x.min for x in self.sections])
         norm = matplotlib.colors.Normalize(vmin=n, vmax=m)
         sm = plt.cm.ScalarMappable(cmap=self.cmap, norm=norm)
-        sm.set_array([])
-        plt.colorbar(sm, ax=ax)
+
+        if self._colorbar_loc in ["right", "left"]:
+            ori = "vertical"
+        else:
+            ori = "horizontal"
+        plt.colorbar(sm, cax=self._colorbar_ax, orientation=ori,
+                     **self._colorbar_options)
+
+        if self._colorbar_loc == "left":
+            self._colorbar_ax.yaxis.set_ticks_position('left')
+        elif self._colorbar_loc == "top":
+            self._colorbar_ax.xaxis.set_ticks_position("top")
+
+    def _adjust_axis(self):
+        self.gs = GridSpec(3, 3,
+                           width_ratios=[1, 15, 1],
+                           height_ratios=[1, 15, 1],
+                           figure=self.fig)
+        if not self._colorbar:
+            self.ax = self.fig.add_subplot(111)
+        else:
+            if self._colorbar_loc == "right":
+                main = self.gs[:, :-1]
+                col = self.gs[:, -1]
+            elif self._colorbar_loc == "left":
+                main = self.gs[:, 1:]
+                col = self.gs[:, 0]
+            elif self._colorbar_loc == "top":
+                main = self.gs[1:, :]
+                col = self.gs[0, :]
+            elif self._colorbar_loc == "bottom":
+                main = self.gs[:-1, :]
+                col = self.gs[-1, :]
+            else:
+                raise Exception("'{}' position for colorbar is not valid "
+                                "".format(self._colorbar_loc))
+
+            self.ax = self.fig.add_subplot(main)
+            self._colorbar_ax = self.fig.add_subplot(col)
+
+    def _add_text(self, shape, text):
+        if not self._text:
+            return
+
+        r, g, b, _ = self.get_color(text)
+
+        opts = {"ha": "center",
+                "color": text_color(rgb_to_hex(r, g, b))
+                }
+
+        opts = {**opts, **self.text_options}
+
+        x = shape.x + self.width * opts["anchor"][0]
+        y = shape.y + self.height * opts["anchor"][1]
+
+        if opts["anchor"][0] != 0.5 and opts["anchor"][1] != 0.5:
+            del opts["ha"]
+
+        del opts["anchor"]
+
+        self.ax.text(x, y,
+                     "{}".format(round(text, 2)),
+                     **opts)
 
     def _draw_sections(self, ax):
 
-        def __add(i, options):
-            ax.add_patch(
-                self.shape(
-                    self.positions[i][0],
-                    self.positions[i][1],
-                    self.width,
-                    self.height,
-                    self.rotations,
-                    **options
-                ).get()
+        def __add(i, options, value):
+            sp = self.shape(
+                self.positions[i][0],
+                self.positions[i][1],
+                self.width,
+                self.height,
+                self.rotations,
+                **options
             )
+            ax.add_patch(
+                sp.get()
+            )
+            self._add_text(sp, value)
 
         def __options(value):
             return {"color": self.get_color(value)}
@@ -781,16 +926,16 @@ class HeatPlot(CategoryPlot):
         for s in self.sections:
             for d in s.data:
                 if d.is_single_valued:
-                    __add(count, __options(d.value))
+                    __add(count, __options(d.value), d.value)
                     count += 1
                 else:
                     for c in d.value:
                         try:
                             for v in c:
-                                __add(count, __options(v))
+                                __add(count, __options(v), v)
                                 count += 1
                         except TypeError:
-                            __add(count, __options(c))
+                            __add(count, __options(c), c)
                             count += 1
 
     def add_data(self, data):
@@ -799,15 +944,71 @@ class HeatPlot(CategoryPlot):
     def add_cmap(self, name):
         self._cmap = matplotlib.cm.get_cmap(name)
 
-    def draw(self, ax):
-        self._draw_sections(ax)
-        self._draw_axis(ax)
-        self._draw_colorbar(ax)
+    def add_colorbar(self, location: str = "right", **kwargs):
+        self._colorbar = True
+        self._colorbar_loc = location
+        self._colorbar_options = {**self._colorbar_options, **kwargs}
+
+    def add_xlines(self, **kwargs):
+        self.x_lines = True
+        self.add_x_lines_options(**kwargs)
+
+    def add_ylines(self, **kwargs):
+        self.y_lines = True
+        self.add_y_lines_options(**kwargs)
+
+    def add_lines(self, **kwargs):
+        self.x_lines = True
+        self.y_lines = True
+        self.add_x_lines_options(**kwargs)
+        self.add_y_lines_options(**kwargs)
+
+    def show_values(self, anchor=None, **kwargs):
+        self._text = True
+        if anchor is None:
+            anchor = (0.5, 0.5)
+        self.add_text_options(anchor=anchor)
+        self.add_text_options(**kwargs)
+
+    def add_values(self, anchor=None, **kwargs):
+        self.show_values(anchor, **kwargs)
+
+    def remove_frame(self):
+        self._remove_frame = True
+
+    def switch_axis(self):
+        if self.orientation == "x":
+            self.orientation = "y"
+            if not self._padding_defined:
+                self.padding(0, 1, 1, 1)
+        else:
+            self.orientation = "x"
+            if not self._padding_defined:
+                self.padding(1, 1, 1, 0)
+
+    def invert_axis(self, which="x"):
+        self._invert_axis = which
+
+    def draw(self):
+        self._adjust_axis()
+        self._draw_sections(self.ax)
+        self._draw_axis(self.ax)
+        self._draw_lines(self.ax)
+        self._draw_colorbar()
+        self._fig_drawn = True
+        self.ax.set(**self.background_options)
+        return self.ax, self._colorbar_ax
+
+    def show(self, tight=False):
+        if not self._fig_drawn:
+            self.draw()
+        if tight:
+            plt.tight_layout()
         plt.show()
 
 
 def run():
-    data = [np.random.uniform(-100, 100, 5) for x in range(3)]
+    data = [np.random.uniform(0, 100, 5) for x in range(3)]
+
     h = HeatPlot(data)
-    fig, ax = plt.subplots()
-    h.draw(ax)
+    h.show(tight=True)
