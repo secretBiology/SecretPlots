@@ -15,7 +15,7 @@ from SecretColors import ColorMap
 from SecretColors.utils import hex_to_rgba
 from matplotlib.gridspec import GridSpec
 
-from SecretPlots.objects.base2 import *
+from SecretPlots.objects.base import *
 
 
 class HeatMap(Assembler):
@@ -137,7 +137,7 @@ class HeatMap(Assembler):
         return self.cmap(norm(value))
 
     def _draw_axis(self):
-
+        # TODO: Handle this in the axis object
         if self.x.show_ticks:
             self.ax.set_xticks(self.am.x.ticks)
         else:
@@ -170,7 +170,13 @@ class HeatMap(Assembler):
         if self.aspect_ratio is not None:
             self.ax.set_aspect(self.aspect_ratio)
 
+        if self.x.is_inverted:
+            self.ax.invert_xaxis()
+        if self.y.is_inverted:
+            self.ax.invert_yaxis()
+
     def _draw_elements(self):
+        # TODO : Need some cleaner way
         x_ticks = []
         y_ticks = []
         self._all_x = []
@@ -182,7 +188,6 @@ class HeatMap(Assembler):
                                                        self.width,
                                                        self.height)
             all_shapes = []
-            missing_count = 0
             for p, v in zip(pos, section.sequence):
                 x_ticks.append(p[0] + self.width / 2)
                 y_ticks.append(p[1] + self.height / 2)
@@ -209,6 +214,9 @@ class HeatMap(Assembler):
                 else:
                     self._log.warn("Skipped Missing at location {}".format(p))
 
+            nx = next_boundary[0] - section.section_gap
+            ny = next_boundary[1] - section.section_gap
+            self._draw_boundaries((x, y), (nx, ny))
             x, y = next_boundary
 
             # Set Ticks
@@ -279,8 +287,14 @@ class HeatMap(Assembler):
             if loc_y is not None:
                 self.ax.axhline(loc_y, **self.am.y.midline_options)
 
-    def remove_frame(self):
-        self._remove_frame = True
+    def _draw_boundaries(self, start, end):
+        if not self.section_boundary:
+            return
+
+        if self.am.orientation == "x":
+            self.ax.axvspan(start[0], end[0], **self.section_boundary_options)
+        else:
+            self.ax.axhspan(start[1], end[1], **self.section_boundary_options)
 
     def draw(self):
         self._prepare_data()
@@ -292,6 +306,9 @@ class HeatMap(Assembler):
             return self.ax
         else:
             return self.ax, self.ax_colorbar
+
+    def remove_frame(self):
+        self._remove_frame = True
 
     def add_data(self, data):
         self._additional_data.append(data)
@@ -328,6 +345,5 @@ class HeatMap(Assembler):
 def run():
     data = [np.random.uniform(0, 10, 5) for x in range(3)]
     h = HeatMap(data)
-    h.show_missing = True
-    h.add_values()
+    h.add_data([[3, 6, 9], [1, 2]])
     h.show()
