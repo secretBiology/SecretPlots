@@ -474,7 +474,7 @@ class BooleanPlot:
         Vertical Lines in between xticks
         :param kwargs: Standard matplotlib artists
 
-        >>> b.add_xlines(linestyle="--", color="r")
+        >>> b.add_x_midlines(linestyle="--", color="r")
         """
         self._x_lines = True
         self._x_lines_options = {**self.x_lines_option, **kwargs}
@@ -484,7 +484,7 @@ class BooleanPlot:
         Horizontal Lines in betweeb yticks
         :param kwargs: Standard matplotlib artists
 
-        >>> b.add_ylines(linestyle="--", color="r")
+        >>> b.add_y_lines(linestyle="--", color="r")
         """
         self._y_lines = True
         self._y_lines_options = {**self.y_lines_option, **kwargs}
@@ -494,7 +494,7 @@ class BooleanPlot:
         Adds both vertical and horizontal lines between ticks
         :param kwargs: Standard matplotlib artists
 
-        >>> b.add_lines(linestyle="--", color="b")
+        >>> b.add_midlines(linestyle="--", color="b")
         """
         self.add_xlines(**kwargs)
         self.add_ylines(**kwargs)

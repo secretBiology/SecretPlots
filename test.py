@@ -1,3 +1,3 @@
-from SecretPlots.objects.matrix import run
+from SecretPlots.objects.categorical import run
 
 run()

@@ -592,7 +592,7 @@ class NetworkPlot:
         Options which will be passed to the connection lines
         These are global options and will be applied to all connection lines
 
-        >>> n.line_options(linestyle="--")
+        >>> n.midline_options(linestyle="--")
         """
         self.network.line_options(**kwargs)
 
