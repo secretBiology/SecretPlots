@@ -15,7 +15,7 @@ from SecretColors import ColorMap
 from SecretColors.utils import text_color, rgb_to_hex
 from matplotlib.gridspec import GridSpec
 
-from SecretPlots.objects.base import Section, CategoryPlot
+from SecretPlots.objects.base import Section
 from SecretPlots.objects.shapes import *
 
 p = Palette(show_warning=False)
@@ -554,7 +554,7 @@ class BooleanPlot:
         plt.savefig(filename, **kwargs)
 
 
-class HeatPlot(CategoryPlot):
+class HeatPlot():
 
     def __init__(self, data, fig=None):
         super().__init__()
