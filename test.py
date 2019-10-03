@@ -1,3 +1,3 @@
-from SecretPlots.objects.managers import run
+from SecretPlots.objects._graphs import run
 
 run()

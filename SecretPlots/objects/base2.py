@@ -10,7 +10,8 @@
 #
 # Basic Objects
 
-from SecretPlots.objects.managers import *
+import numpy as np
+
 from SecretPlots.utils import Log
 
 
@@ -32,7 +33,6 @@ class Data:
     2: Simple Categorical
     Iterator with length more than 2 with no sub-iterators
     e.g. [1,2,3,4]
-
 
     3: Matrix
     Iterator with sub-iterators with same length (and are not points)
@@ -56,15 +56,61 @@ class Data:
         self._raw_data = data
         self._log = log
         self._type = None
+        self._value = None
+        self._positions = None
 
     @property
-    def type(self):
+    def value(self):
+        """
+        Flatten values of the entire dataset
+        """
+        if self._value is None:
+            if self.type != Data.COMPLEX_CATEGORICAL:
+                self._value = np.asarray(self._raw_data).flatten()
+            else:
+                self._value = []
+                for k in self._raw_data:
+                    try:
+                        self._value.extend(np.asarray(k))
+                    except TypeError:
+                        self._value.append(k)
+                self._value = np.asarray(self._value)
+        return self._value
+
+    @property
+    def positions(self):
+        """
+        Returns flatten array of positions of the (row, column) in given
+        dataset
+        """
+        if self._positions is None:
+            if self.type == Data.SINGLE_VALUED:
+                self._positions = [(0, 0)]
+            elif self.type == Data.POINTS:
+                self._assign_point_locations()
+            elif self.type == Data.SIMPLE_CATEGORICAL:
+                self._positions = [(0, x) for x in range(len(self._raw_data))]
+            elif self.type == Data.MATRIX:
+                self._positions = []
+                row, cols = np.asarray(self._raw_data).shape
+                for r in range(row):
+                    for c in range(cols):
+                        self._positions.append((r, c))
+            elif self.type == Data.COMPLEX_CATEGORICAL:
+                self._assign_complex_locations()
+
+            self._log.info("Locations assigned to the data points")
+
+        return self._positions
+
+    @property
+    def type(self) -> int:
         if self._type is None:
             self._assign_type()
         return self._type
 
     @property
-    def type_name(self):
+    def type_name(self) -> str:
         if self.type == Data.SINGLE_VALUED:
             return "Single Valued"
         elif self.type == Data.POINTS:
@@ -77,6 +123,31 @@ class Data:
             return "Matrix"
         else:
             self._log.error("No such category found {}".format(self.type))
+
+    @property
+    def raw_data(self):
+        return self._raw_data
+
+    def _assign_point_locations(self):
+        self._positions = []
+        for i, x in enumerate(self._raw_data):
+            try:
+                iter(x)
+                for k in range(len(x)):
+                    self.positions.append((i, k))
+            except TypeError:
+                self.positions.append((0, i))
+
+    def _assign_complex_locations(self):
+        self._positions = []
+        for i, x in enumerate(self._raw_data):
+            try:
+                for j, k in enumerate(x):
+                    self._positions.append((i, j))
+            except TypeError:
+                self._log.warn("Non-iterable element ({}) found in the "
+                               "Complex Categorical dataset".format(x))
+                self._positions.append((i, 0))
 
     def _assign_type(self):
         try:
@@ -134,6 +205,63 @@ class Element:
         self._options = {**self.options, **kwargs}
 
 
+class Axis:
+    def __init__(self, name: str, log: Log):
+        self.name = name
+        self._log = log
+        self._ticks_show = True
+        self._ticks = None
+        self._tick_labels = None
+        self._tick_directions = None
+        self._tick_options = None
+        self._gap = None
+        self._gap_options = None
+        self._midlines_show = False
+        self._midlines_options = None
+        self._label = None
+
+        self.limit = (0, 1)
+        self.padding_start = 1
+        self.padding_end = 1
+
+        self._log.info("{} axis instance is generated".format(name))
+
+    @property
+    def ticks(self) -> list:
+        if self._ticks is None:
+            self._ticks = []
+        return self._ticks
+
+    @ticks.setter
+    def ticks(self, values):
+        self._ticks = values
+
+    @property
+    def tick_labels(self) -> list:
+        if self._tick_labels is None:
+            self._tick_labels = []
+        return self._tick_labels
+
+    @tick_labels.setter
+    def tick_labels(self, values):
+        self._tick_labels = values
+
+    @property
+    def gap(self) -> float:
+        if self._gap is None:
+            self._gap = 0
+        return self._gap
+
+    @gap.setter
+    def gap(self, value: float):
+        self._gap = value
+
+    def update(self, locations, increment):
+        self._ticks = [x + increment / 2 for x in locations]
+        self._tick_labels = ["{}".format(x) for x in range(len(locations))]
+        self.limit = (
+            min(locations) - self.padding_start,
+            max(locations) + increment + self.padding_end)
 
 
 def run():

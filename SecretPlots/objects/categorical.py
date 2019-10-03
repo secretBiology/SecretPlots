@@ -95,19 +95,19 @@ class HeatMap(Assembler):
 
     @property
     def xtickslabels(self):
-        return self.am.x.ticks_labels
+        return self.am.x.tick_labels
 
     @xtickslabels.setter
     def xtickslabels(self, values):
-        self.am.x.ticks_labels = values
+        self.am.x.tick_labels = values
 
     @property
     def ytickslabels(self):
-        return self.am.y.ticks_labels
+        return self.am.y.tick_labels
 
     @ytickslabels.setter
     def ytickslabels(self, values):
-        self.am.y.ticks_labels = values
+        self.am.y.tick_labels = values
 
     @property
     def x(self):
@@ -148,8 +148,8 @@ class HeatMap(Assembler):
         else:
             self.ax.set_yticks([])
 
-        self.ax.set_xticklabels(self.am.x.ticks_labels)
-        self.ax.set_yticklabels(self.am.y.ticks_labels)
+        self.ax.set_xticklabels(self.am.x.tick_labels)
+        self.ax.set_yticklabels(self.am.y.tick_labels)
 
         self.ax.set_xlim(
             min(self._all_x) - self.am.x.padding[0],
