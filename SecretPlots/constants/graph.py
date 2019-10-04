@@ -13,3 +13,4 @@
 PLOT_BAR = "bar"
 PLOT_HIST = "hist"
 PLOT_COLOR_MAP = "colormap"
+PLOT_STACKED_BAR = "stacked_bar"

@@ -499,9 +499,7 @@ class Assembler:
 
         del opts["anchor"]
 
-        self.ax.text(x, y,
-                     "{}".format(round(text, 2)),
-                     **opts)
+        self.ax.text(x, y, "{}".format(round(text, 2)), **opts)
 
     def add_text_options(self, **kwargs):
         self._text_options = {**self.text_options, **kwargs}

@@ -10,8 +10,7 @@
 #
 # Basic Objects
 
-import numpy as np
-
+from SecretPlots.objects.shapes import *
 from SecretPlots.utils import Log
 
 
@@ -128,6 +127,17 @@ class Data:
     def raw_data(self):
         return self._raw_data
 
+    @property
+    def is_single_point(self) -> bool:
+        if self.type != Data.POINTS:
+            return False
+        else:
+            try:
+                iter(self.raw_data[0])
+                return False
+            except TypeError:
+                return True
+
     def _assign_point_locations(self):
         self._positions = []
         for i, x in enumerate(self._raw_data):
@@ -193,7 +203,22 @@ class Element:
         self.value = None
         self.rotation = 0
         self._options = None
-        self.shape = "r"
+        self._shape = "r"
+
+    @property
+    def shape(self):
+        if self._shape in ["r", "rectangle", "rect"]:
+            return Rectangle
+        elif self._shape in ["t", "triangle", "tri"]:
+            return Triangle
+        elif self._shape in ["c", "circle", "cir"]:
+            return Circle
+        else:
+            self._log.error("Shape {} not found".format(self._shape))
+
+    @shape.setter
+    def shape(self, value: str):
+        self._shape = value.strip().lower()
 
     @property
     def options(self):
@@ -204,25 +229,34 @@ class Element:
     def add_options(self, **kwargs):
         self._options = {**self.options, **kwargs}
 
+    def get(self, x, y):
+        return self.shape(x, y, self.width, self.height, self.rotation,
+                          **self.options)
+
 
 class Axis:
     def __init__(self, name: str, log: Log):
         self.name = name
         self._log = log
-        self._ticks_show = True
+        self.show_ticks = True
         self._ticks = None
         self._tick_labels = None
         self._tick_directions = None
         self._tick_options = None
         self._gap = None
         self._gap_options = None
-        self._midlines_show = False
+        self.show_midlines = False
+        self.show_edgelines = False
         self._midlines_options = None
+        self._midlines = None
+        self._edgelines_options = None
+        self._edgelines = None
         self._label = None
 
         self.limit = (0, 1)
         self.padding_start = 1
         self.padding_end = 1
+        self.is_inverted = False
 
         self._log.info("{} axis instance is generated".format(name))
 
@@ -235,6 +269,38 @@ class Axis:
     @ticks.setter
     def ticks(self, values):
         self._ticks = values
+
+    @property
+    def midlines(self):
+        if self._midlines is None:
+            self._midlines = []
+        return self._midlines
+
+    @property
+    def edgelines(self):
+        if self._edgelines is None:
+            self._edgelines = []
+        return self._edgelines
+
+    @midlines.setter
+    def midlines(self, values):
+        self._midlines = values
+
+    @edgelines.setter
+    def edgelines(self, values):
+        self._edgelines = values
+
+    @property
+    def midlines_options(self):
+        if self._midlines_options is None:
+            self._midlines_options = {}
+        return self._midlines_options
+
+    @property
+    def edgelines_options(self):
+        if self._edgelines_options is None:
+            self._edgelines_options = {}
+        return self._edgelines_options
 
     @property
     def tick_labels(self) -> list:
@@ -256,12 +322,27 @@ class Axis:
     def gap(self, value: float):
         self._gap = value
 
-    def update(self, locations, increment):
-        self._ticks = [x + increment / 2 for x in locations]
-        self._tick_labels = ["{}".format(x) for x in range(len(locations))]
-        self.limit = (
-            min(locations) - self.padding_start,
-            max(locations) + increment + self.padding_end)
+    def add_midlines_options(self, **kwargs):
+        self._midlines_options = {**self.midlines_options, **kwargs}
+
+    def add_edgelines_options(self, **kwargs):
+        self._edgelines_options = {**self.edgelines_options, **kwargs}
+
+    def make_labels(self):
+        self._tick_labels = ["{}".format(x) for x in range(len(self.ticks))]
+        self._log.info("{} tick_labels automatically generated".format(
+            self.name))
+
+    def make_midlines(self):
+        self._midlines = []
+        if len(self.ticks) == 1:
+            self._log.warn("{} midlines could not be generated because only "
+                           "1 bar is present".format(self.name))
+            return
+
+        for i, x in enumerate(self.ticks[:-1]):
+            self._midlines.append((x + self.ticks[i + 1]) / 2)
+        self._log.info("{} midlines automatically generated".format(self.name))
 
 
 def run():

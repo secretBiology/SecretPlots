@@ -12,20 +12,28 @@
 import numpy as np
 
 from SecretPlots.constants.graph import *
+from SecretPlots.objects._managers import AxisManager
 from SecretPlots.objects.base2 import Data
 from SecretPlots.utils import Log
 
 
 class LocationManager:
-    def __init__(self, log: Log):
+    def __init__(self, am: AxisManager, log: Log):
         self._log = log
         self._major = None
         self._minor = None
-        self.major_gap = 0
-        self.minor_gap = 0
         self.width = 1
         self.height = 1
         self.start_point = (0, 0)
+        self.am = am
+
+    @property
+    def major_gap(self):
+        return self.am.major.gap
+
+    @property
+    def minor_gap(self):
+        return self.am.minor.gap
 
     @property
     def plot_type(self):
@@ -95,10 +103,52 @@ class BarLocations(LocationManager):
 
         if data.type in [Data.SINGLE_VALUED, Data.SIMPLE_CATEGORICAL]:
             return self._simple_bars(data)
-        elif data.type in [Data.POINTS, Data.COMPLEX_CATEGORICAL, Data.MATRIX]:
+        elif data.type in [Data.COMPLEX_CATEGORICAL, Data.MATRIX]:
             return self._stacked_bars(data)
+        elif data.type == Data.POINTS:
+            if data.is_single_point:
+                return self._simple_bars(data)
+            else:
+                return self._stacked_bars(data)
         else:
             self._log.error("This data type is nor supported for BarPlot")
+
+
+class ColorMapLocations(LocationManager):
+
+    @property
+    def plot_type(self):
+        return PLOT_COLOR_MAP
+
+    def validate(self, data: Data):
+        if data.type == Data.COMPLEX_CATEGORICAL:
+            self._log.error("Invalid data type for ColorMap")
+        self._log.info("Valid data is provided for the ColorMap")
+        return True
+
+    def _bars(self, data: Data):
+        self._log.info("Calculating positions for ColorMap")
+        points = []
+        stack = None
+        last_col = 0
+        for loc in data.positions:
+            m1, m2 = loc
+            if stack is None:
+                stack = self.minor
+            if m1 != last_col:
+                stack = self.minor
+                last_col += 1
+
+            points.append((
+                self.major + m1 * (self.width + self.major_gap),
+                stack
+            ))
+            stack += self.height + self.minor_gap
+        return points
+
+    def get(self, data: Data) -> list:
+        self.validate(data)
+        return self._bars(data)
 
 
 class HistLocations(LocationManager):
@@ -107,10 +157,10 @@ class HistLocations(LocationManager):
     def plot_type(self):
         return PLOT_HIST
 
-    def __init__(self, log: Log, bins=None):
-        super().__init__(log)
+    def __init__(self, am: AxisManager, log: Log, bins=None):
+        super().__init__(am, log)
         if bins is None:
-            bins = "auto"
+            bins = "autp"
         self.bins = bins
         self._hist_options = {}
 
