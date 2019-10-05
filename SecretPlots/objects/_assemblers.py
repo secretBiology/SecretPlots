@@ -34,6 +34,9 @@ class BarManager(Assembler):
         self.am.major.gap = 0.2
         self.am.minor.padding_start = 0
 
+        if self.type == PLOT_STACKED_BAR:
+            self.em.show_legends = True
+
     def _draw_elements(self):
         locations = self.lm.get(self.data)
         for loc, val, pos in zip(locations, self.data.value,
@@ -65,6 +68,7 @@ class BarManager(Assembler):
         self._adjust_defaults()
         self._draw_elements()
         self._draw_axis()
+        self._draw_extra()
 
 
 class ColorMapManager(Assembler):
@@ -77,11 +81,12 @@ class ColorMapManager(Assembler):
         return PLOT_COLOR_MAP
 
     def _adjust_defaults(self):
+        self.gm.has_colorbar = True
+        self.gm.colorbar_location = "right"
         # self.am.minor.padding_start = 1
         # self.am.minor.padding_end = 1
         # self.am.major.padding_start = 1
         # self.am.major.padding_end = 1
-        pass
 
     def _draw_elements(self):
         locations = self.lm.get(self.data)
@@ -126,6 +131,7 @@ class ColorMapManager(Assembler):
         self._adjust_defaults()
         self._draw_elements()
         self._draw_axis()
+        self._draw_extra()
 
 
 class BarPlot:
@@ -162,5 +168,5 @@ class ColorPlot:
 
 def run():
     data = [[2, 1, 4], [5, 3, 1]]
-    b = ColorPlot(data)
+    b = BarPlot(data)
     b.show()

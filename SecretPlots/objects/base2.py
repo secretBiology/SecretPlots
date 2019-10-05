@@ -253,6 +253,7 @@ class Axis:
         self._edgelines = None
         self._label = None
 
+        self.scale = None
         self.limit = (0, 1)
         self.padding_start = 1
         self.padding_end = 1

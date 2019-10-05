@@ -13,6 +13,8 @@
 import matplotlib
 from SecretColors import ColorMap
 from SecretColors.utils import text_color, rgb_to_hex
+from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Patch
 from matplotlib.pyplot import Axes, Figure
 
 from SecretPlots.constants.graph import *
@@ -109,6 +111,11 @@ class Assembler:
         if self.am.y.is_inverted:
             self.ax.invert_yaxis()
 
+        if self.am.x.scale is not None:
+            self.ax.set_xscale(self.am.x.scale)
+        if self.am.y.scale is not None:
+            self.ax.set_yscale(self.am.y.scale)
+
     def _draw_axis(self):
         self._set_auto_limit()
         if len(self.am.x.ticks) != 0:
@@ -118,11 +125,25 @@ class Assembler:
             self.ax.set_yticks(self.am.y.ticks)
             self.ax.set_yticklabels(self.am.y.tick_labels)
 
+        left, right, top, bottom = self.am.frame_visibility
+        self.ax.spines['left'].set_visible(left)
+        self.ax.spines['right'].set_visible(right)
+        self.ax.spines['top'].set_visible(top)
+        self.ax.spines['bottom'].set_visible(bottom)
+
+        if self.am.aspect_ratio is not None:
+            self.ax.set_aspect(self.am.aspect_ratio)
+
+        self._check_axis_transformations()
+
+    def _draw_extra(self):
         self.am.major.make_midlines()
         self.am.minor.make_midlines()
+
         self.em.draw_midlines()
         self.em.draw_edgelines()
-        self._check_axis_transformations()
+        self.em.draw_colorbar(self.data)
+        self.em.draw_legends()
 
 
 class GridManager:
@@ -131,20 +152,67 @@ class GridManager:
         self._log = log
         self._log.info("GridManager is initialized with default values")
         self._main = None
+        self._cb = None
+        self.has_colorbar = False
+        self._cb_location = None
+        self._ax_grid = None
+
+    @property
+    def colorbar_location(self):
+        if self._cb_location is None:
+            self._cb_location = "right"
+        return self._cb_location
+
+    @colorbar_location.setter
+    def colorbar_location(self, value):
+        self._cb_location = value
+
+    @property
+    def ax_grid(self):
+        if self._ax_grid is None:
+            self._log.info("Default GridSpec with 3 rows and 3 columns is "
+                           "generated")
+            self._ax_grid = GridSpec(3, 3,
+                                     width_ratios=[1, 15, 1],
+                                     height_ratios=[1, 15, 1],
+                                     figure=self.fig)
+        return self._ax_grid
 
     def _generate_axes(self, plot_type):
-        if self._main is None:
-            if plot_type != PLOT_COLOR_MAP:
-                self._log.info("Plot Grid is set to normal.")
-                self._main = self.fig.add_subplot(111)
-            else:
-                self._log.info("Plot Grid with colormap is generated")
-                self._main = self.fig.add_subplot(111)
+        if not self.has_colorbar:
+            self._main = self.fig.add_subplot(111)
+            self._log.info("Plot Grid is set to normal.")
+            return
+
+        if self._cb_location in ["right", "r"]:
+            main = self.ax_grid[:, :-1]
+            cb = self.ax_grid[:, -1]
+        elif self._cb_location in ["left", "l"]:
+            main = self.ax_grid[:, 1:]
+            cb = self.ax_grid[:, 0]
+        elif self._cb_location in ["top", "t"]:
+            main = self.ax_grid[1:, :]
+            cb = self.ax_grid[0, :]
+        elif self._cb_location in ["bottom", "b"]:
+            main = self.ax_grid[:-1, :]
+            cb = self.ax_grid[-1, :]
+        else:
+            self._log.error("No such colorbar location found : {}".format(
+                self._cb_location))
+
+        self._main = self.fig.add_subplot(main)
+        self._cb = self.fig.add_subplot(cb)
+        self._log.info("Plot Grid is set according to colorbar location")
 
     def get_main_axis(self, plot_type) -> Axes:
         if self._main is None:
             self._generate_axes(plot_type)
         return self._main
+
+    def get_colorbar_axis(self, plot_type) -> Axes:
+        if self._main is None:
+            self._generate_axes(plot_type)
+        return self._cb
 
 
 class AxisManager:
@@ -158,6 +226,29 @@ class AxisManager:
         self._y = Axis("y", self._log)
         self._ax = ax
         self.is_reversed = False
+        self.aspect_ratio = None
+        self._frame_visibility = None
+
+    @property
+    def frame_visibility(self):
+        if self._frame_visibility is None:
+            self._frame_visibility = (1, 1, 1, 1)
+        return self._frame_visibility
+
+    @frame_visibility.setter
+    def frame_visibility(self, value):
+        if type(value) == bool:
+            if value:
+                self._frame_visibility = (1, 1, 1, 1)
+            else:
+                self._frame_visibility = (0, 0, 0, 0)
+        elif type(value) == tuple:
+            if len(value) == 4:
+                self._frame_visibility = value
+            else:
+                self._log.error("Frame visibility should be either Bool or "
+                                "tuple with length 4 (left, right, top , "
+                                "bottom)")
 
     @property
     def orientation(self):
@@ -225,6 +316,10 @@ class ColorManager:
         if self._palette is None:
             self._palette = Palette(show_warning=False)
         return self._palette
+
+    @property
+    def all_colors(self):
+        return self._all_colors
 
     @property
     def cmap(self):
@@ -337,7 +432,9 @@ class ExtraManager:
         self.am = am
         self._log = log
         self.show_values = False
+        self.show_legends = False
         self._value_options = None
+        self._legends_options = None
 
         self._log.info("ExtraManager is initialized with default values")
 
@@ -351,8 +448,17 @@ class ExtraManager:
             }
         return self._value_options
 
+    @property
+    def legends_options(self):
+        if self._legends_options is None:
+            self._legends_options = {}
+        return self._legends_options
+
     def add_value_options(self, **kwargs):
         self._value_options = {**self.value_options, **kwargs}
+
+    def add_legends_options(self, **kwargs):
+        self._legends_options = {**self.legends_options, **kwargs}
 
     def draw_values(self, shape, text, bg_color):
         if not self.show_values:
@@ -378,6 +484,7 @@ class ExtraManager:
 
         self.gm.get_main_axis(self.cm.plot_type).text(x, y, "{}".format(text),
                                                       **opts)
+        self._log.info("Values are shown in the plot")
 
     def draw_midlines(self):
         if self.am.x.show_midlines:
@@ -388,6 +495,8 @@ class ExtraManager:
             for y in self.am.y.midlines:
                 self.am.ax.axhline(y, **self.am.y.midlines_options)
 
+        self._log.info("Midlines are added to the plot")
+
     def draw_edgelines(self):
         if self.am.x.show_edgelines:
             for x in self.am.x.edgelines:
@@ -396,6 +505,53 @@ class ExtraManager:
         if self.am.y.show_edgelines:
             for y in self.am.y.edgelines:
                 self.am.ax.axhline(y, **self.am.y.edgelines_options)
+
+        self._log.info("Edgelines are added the plot")
+
+    def draw_colorbar(self, data: Data):
+
+        if not self.gm.has_colorbar:
+            return
+
+        norm = matplotlib.colors.Normalize(vmin=min(data.value), vmax=max(
+            data.value))
+        sm = plt.cm.ScalarMappable(cmap=self.cm.cmap, norm=norm)
+
+        if self.gm.colorbar_location in ["right", "left", "r", "l"]:
+            ori = "vertical"
+        else:
+            ori = "horizontal"
+
+        plt.colorbar(sm, cax=self.gm.get_colorbar_axis(self.cm.plot_type),
+                     orientation=ori)
+
+        if self.gm.colorbar_location in ["left", "l"]:
+            self.gm.get_colorbar_axis(
+                self.cm.plot_type).yaxis.set_ticks_position(
+                'left')
+        elif self.gm.colorbar_location in ["top", "t"]:
+            self.gm.get_colorbar_axis(
+                self.cm.plot_type).xaxis.set_ticks_position("top")
+
+        self._log.info("Colorbar is added the plot")
+
+    def draw_legends(self):
+        if not self.show_legends:
+            return
+
+        p = []
+        for key in self.cm.all_colors:
+            p.append(Patch(
+                facecolor=self.cm.all_colors[key],
+                label="{}".format(key)
+            ))
+
+        opts = {
+            "handles": p
+        }
+        opts = {**opts, **self.legends_options}
+        plt.legend(**opts)
+        self._log.info("Legends are added to the plot")
 
 
 def run():
