@@ -1,3 +1,3 @@
-from SecretPlots.objects._assemblers import run
+from SecretPlots.graphs.categorical import run
 
 run()

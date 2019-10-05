@@ -10,5 +10,4 @@
 #  All Objects
 
 
-from SecretPlots.objects.matrix import BooleanPlot
-from SecretPlots.objects.network import NetworkPlot, Network
+from SecretPlots.graphs.network import NetworkPlot, Network

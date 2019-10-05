@@ -335,6 +335,11 @@ class Axis:
             self.name))
 
     def make_midlines(self):
+        if self.midlines is not None:
+            self._log.info("Generation of midlines ignored because they are "
+                           "already generated")
+            return
+
         self._midlines = []
         if len(self.ticks) == 1:
             self._log.warn("{} midlines could not be generated because only "
