@@ -57,6 +57,7 @@ class Data:
         self._type = None
         self._value = None
         self._positions = None
+        self.threshold = None
 
     @property
     def value(self):

@@ -11,6 +11,7 @@
 
 from SecretPlots.assemblers import (Assembler,
                                     BarAssembler,
+                                    BooleanAssembler,
                                     BarGroupedAssembler,
                                     ColorMapAssembler)
 from SecretPlots.graphs._graphs import SecretPlot
@@ -37,7 +38,19 @@ class ColorPlot(SecretPlot):
         return ColorMapAssembler(self.fig, self._log)
 
 
+class BooleanPlot(SecretPlot):
+
+    def __init__(self, data, threshold):
+        super().__init__(data)
+        self.assembler.data.threshold = threshold
+
+    @property
+    def main_assembler(self) -> Assembler:
+        return BooleanAssembler(self.fig, self._log)
+
+
 def run():
-    data = [1, 2, 3]
+    data = [[1, 2, 1, 7], [6, 3]]
     h = ColorPlot(data)
+    h.cmap_location = "top"
     h.show()

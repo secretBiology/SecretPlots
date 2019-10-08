@@ -25,12 +25,17 @@ class ColorMapAssembler(Assembler):
         return PLOT_COLOR_MAP
 
     def _adjust_defaults(self):
-        self.gm.has_colorbar = True
-        self.gm.colorbar_location = "right"
-        # self.am.minor.padding_start = 1
-        # self.am.minor.padding_end = 1
-        # self.am.major.padding_start = 1
-        # self.am.major.padding_end = 1
+        if self.type != PLOT_BOOLEAN_PLOT:
+            if self.gm.has_colorbar is None:
+                self.gm.has_colorbar = True
+            if self.gm.colorbar_location is None:
+                self.gm.colorbar_location = "right"
+            else:
+                if self.gm.has_colorbar is None:
+                    self.gm.has_colorbar = True
+
+        else:
+            self.em.show_legends = True
 
     def _draw_elements(self):
         locations = self.lm.get(self.data)
@@ -40,7 +45,15 @@ class ColorMapAssembler(Assembler):
             if self.am.orientation == "y":
                 x, y = y, x
 
-            shape = self.om.get(x, y, val / max(self.data.value), pos)
+            if self.type == PLOT_BOOLEAN_PLOT:
+                if self.data.threshold is None:
+                    self._log.error("For BooleanPlot, you should specify "
+                                    "threshold")
+                v = 1 if val >= self.data.threshold else 0
+                shape = self.om.get(x, y, v, pos)
+            else:
+                shape = self.om.get(x, y, val / max(self.data.value), pos)
+
             self.ax.add_patch(shape.get())
             self.em.draw_values(shape, val, self.cm.color(pos, val / max(
                 self.data.value)))
@@ -76,3 +89,10 @@ class ColorMapAssembler(Assembler):
         self._draw_elements()
         self._draw_axis()
         self._draw_extra()
+
+
+class BooleanAssembler(ColorMapAssembler):
+
+    @property
+    def type(self):
+        return PLOT_BOOLEAN_PLOT

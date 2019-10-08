@@ -25,6 +25,11 @@ class ColorManager:
         self._unique_colors = []
         self._all_colors = {}
         self._cmap = None
+        self.on_color = self.palette.blue()
+        self.off_color = self.palette.red()
+        self.user_colors = None
+        self.user_cmap = None
+        self._cycle = None
 
         self._log.info("ColorManager is initialized with default values.")
 
@@ -40,6 +45,8 @@ class ColorManager:
 
     @property
     def cmap(self):
+        if self.user_cmap is not None:
+            self._cmap = matplotlib.cm.get_cmap(self.user_cmap)
         if self._cmap is None:
             colors = [self.palette.lime(shade=30), self.palette.lime(),
                       self.palette.brown(shade=40),
@@ -48,7 +55,20 @@ class ColorManager:
             self._cmap = ColorMap(matplotlib, self.palette).from_list(colors)
         return self._cmap
 
-    def _get_color(self, index, value):
+    @staticmethod
+    def cycle(color_list):
+        while True:
+            for c in color_list:
+                yield c
+
+    def _get_color(self, index):
+
+        if self.user_colors is not None:
+            if self._cycle is None:
+                self._cycle = self.cycle(self.user_colors)
+            if index not in self._all_colors.keys():
+                self._all_colors[index] = next(self._cycle)
+
         if index not in self._all_colors.keys():
             if index < len(self.palette.get_color_list):
                 self._all_colors[index] = self.palette.get_color_list[index]
@@ -63,9 +83,21 @@ class ColorManager:
 
     def color(self, position, value):
         row, col = position
+        if self.plot_type == PLOT_BAR:
+            if len(self.user_colors) > 1:
+                return self._get_color(position[1])
+            else:
+                return self._get_color(0)
         if self.plot_type in [PLOT_STACKED_BAR, PLOT_GROUPED_BAR]:
-            return self._get_color(col, value)
+            return self._get_color(col)
         elif self.plot_type == PLOT_COLOR_MAP:
             return self._get_from_map(value)
+        elif self.plot_type == PLOT_BOOLEAN_PLOT:
+            self._all_colors["ON"] = self.on_color
+            self._all_colors["OFF"] = self.off_color
+            if value == 0:
+                return self.off_color
+            else:
+                return self.on_color
         else:
-            return self._get_color(row, value)
+            return self._get_color(row)

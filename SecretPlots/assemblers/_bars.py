@@ -10,9 +10,10 @@
 #
 # Bar Assemblers
 
-from SecretPlots.assemblers._base import Assembler
-from SecretPlots.objects._base import Data
+from SecretPlots.assemblers import Assembler
+from SecretPlots.objects import Data
 from SecretPlots.constants.graph import *
+from SecretPlots.managers import BarLocations, BarGroupLocations
 
 
 class BarAssembler(Assembler):
@@ -35,7 +36,8 @@ class BarAssembler(Assembler):
         self.am.minor.padding_start = 0
 
         if self.type == PLOT_STACKED_BAR:
-            self.em.show_legends = True
+            if self.em.show_legends is None:
+                self.em.show_legends = True
 
     def _draw_elements(self):
         locations = self.lm.get(self.data)

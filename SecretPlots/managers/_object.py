@@ -82,5 +82,8 @@ class ObjectManager:
     def get(self, x, y, value, pos):
         if self.cm.plot_type in [PLOT_BAR, PLOT_STACKED_BAR, PLOT_GROUPED_BAR]:
             return self._get_bar_object(x, y, value, pos)
-        elif self.cm.plot_type == PLOT_COLOR_MAP:
+        elif self.cm.plot_type in [PLOT_COLOR_MAP, PLOT_BOOLEAN_PLOT]:
             return self._get_heatmap_object(x, y, value, pos)
+        else:
+            self._log.error("ObjectManager for {} is not set".format(
+                self.cm.plot_type))

@@ -23,7 +23,7 @@ class GridManager:
         self._log.info("GridManager is initialized with default values")
         self._main = None
         self._cb = None
-        self.has_colorbar = False
+        self.has_colorbar = None
         self._cb_location = None
         self._ax_grid = None
 
@@ -49,7 +49,7 @@ class GridManager:
         return self._ax_grid
 
     def _generate_axes(self, plot_type):
-        if not self.has_colorbar:
+        if self.has_colorbar is None:
             self._main = self.fig.add_subplot(111)
             self._log.info("Plot Grid is set to normal.")
             return

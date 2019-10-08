@@ -20,11 +20,12 @@ class Assembler:
 
     def __init__(self, fig: plt.Figure, log: Log):
         self._log = log
+        self._fig = fig
+
         self._type = None
         self._data = None
         self._am = None
         self._lm = None
-        self._fig = fig
         self._gm = None
         self._om = None
         self._cm = None
