@@ -9,20 +9,28 @@
 #
 # All Location Managers will go here
 
-from SecretPlots.managers import AxisManager
+from SecretPlots.managers._axis import AxisManager
+from SecretPlots.managers._object import ObjectManager
 from SecretPlots.objects import Data
 from SecretPlots.utils import Log
 
 
 class LocationManager:
-    def __init__(self, am: AxisManager, log: Log):
+    def __init__(self, am: AxisManager, om: ObjectManager, log: Log):
         self._log = log
         self._major = None
         self._minor = None
-        self.width = 1
-        self.height = 1
+        self.om = om
         self.start_point = (0, 0)
         self.am = am
+
+    @property
+    def width(self):
+        return self.om.width
+
+    @property
+    def height(self):
+        return self.om.height
 
     @property
     def major_gap(self):

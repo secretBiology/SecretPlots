@@ -9,6 +9,8 @@
 #
 # Object Manager
 
+import numpy as np
+
 from SecretPlots.constants import *
 from SecretPlots.managers._axis import AxisManager
 from SecretPlots.managers._color import ColorManager
@@ -26,11 +28,14 @@ class ObjectManager:
         self.height = 1
         self.rotation = 0
         self._options = None
+        self._missing_options = None
         self.shape = "r"
         self.max_x = 0
         self.max_y = 0
         self.min_x = 0
         self.min_y = 0
+        self.show_missing = True
+        self._no_of_missing = 0
         self._log.info("ObjectManager is initialized with default values")
 
     @property
@@ -39,8 +44,21 @@ class ObjectManager:
             self._options = {}
         return self._options
 
+    @property
+    def missing_options(self):
+        if self._missing_options is None:
+            self._missing_options = {
+                "fill": False,
+                "hatch": "//",
+                "zorder":0
+            }
+        return self._missing_options
+
     def add_options(self, **kwargs):
         self._options = {**self.options, **kwargs}
+
+    def add_missing_options(self, **kwargs):
+        self._missing_options = {**self.missing_options, **kwargs}
 
     def _check_limits(self, x, y):
         if x > self.max_x:
@@ -55,7 +73,12 @@ class ObjectManager:
     def _get_bar_object(self, x, y, value, pos):
         e = Element(self._log)
         e.add_options(**self.options)
-        e.add_options(color=self.cm.color(pos, value))
+
+        if np.isnan(value):
+            self._no_of_missing += 1
+            value = 0
+        else:
+            e.add_options(color=self.cm.color(pos, value))
         e.shape = self.shape
         if self.am.orientation == "x":
             e.width = self.width
@@ -68,9 +91,13 @@ class ObjectManager:
         self._check_limits(x + e.width, y + e.height)
         return e.get(x, y)
 
-    def _get_heatmap_object(self, x, y, value, pos):
+    def _get_colormap_object(self, x, y, value, pos):
         e = Element(self._log)
-        e.add_options(**self.options)
+        if np.isnan(value):
+            self._no_of_missing += 1
+            e.add_options(**self.missing_options)
+        else:
+            e.add_options(**self.options)
         e.add_options(color=self.cm.color(pos, value))
         e.shape = self.shape
         e.width = self.width
@@ -83,7 +110,7 @@ class ObjectManager:
         if self.cm.plot_type in [PLOT_BAR, PLOT_STACKED_BAR, PLOT_GROUPED_BAR]:
             return self._get_bar_object(x, y, value, pos)
         elif self.cm.plot_type in [PLOT_COLOR_MAP, PLOT_BOOLEAN_PLOT]:
-            return self._get_heatmap_object(x, y, value, pos)
+            return self._get_colormap_object(x, y, value, pos)
         else:
             self._log.error("ObjectManager for {} is not set".format(
                 self.cm.plot_type))

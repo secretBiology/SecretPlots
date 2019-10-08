@@ -26,6 +26,7 @@ class ColorMapLocations(LocationManager):
         return True
 
     def _single_column(self, data: Data):
+
         self._log.info("Calculating positions for simple Bars")
         points = []
         for loc in data.positions:

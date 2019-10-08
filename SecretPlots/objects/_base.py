@@ -60,13 +60,24 @@ class Data:
         self.threshold = None
 
     @property
+    def max(self):
+        return np.nanmax(self.value)
+
+    @property
+    def min(self):
+        return np.nanmin(self.value)
+
+    @property
     def value(self):
         """
         Flatten values of the entire dataset
+
+        Argument 'dtype=np.float' is required for replacement of None
         """
         if self._value is None:
             if self.type != Data.COMPLEX_CATEGORICAL:
-                self._value = np.asarray(self._raw_data).flatten()
+                self._value = np.asarray(self._raw_data,
+                                         dtype=np.float).flatten()
             else:
                 self._value = []
                 for k in self._raw_data:
@@ -74,7 +85,7 @@ class Data:
                         self._value.extend(np.asarray(k))
                     except TypeError:
                         self._value.append(k)
-                self._value = np.asarray(self._value)
+                self._value = np.asarray(self._value, dtype=np.float)
         return self._value
 
     @property
@@ -236,12 +247,14 @@ class Element:
 
 
 class Axis:
-    def __init__(self, name: str, log: Log):
+    def __init__(self, name: str, index: int, log: Log):
         self.name = name
+        self.index = index
         self._log = log
         self.show_ticks = True
         self._ticks = None
         self._tick_labels = None
+        self._ticklabels_options = None
         self._tick_directions = None
         self._tick_options = None
         self._gap = None
@@ -253,12 +266,14 @@ class Axis:
         self._edgelines_options = None
         self._edgelines = None
         self._label = None
+        self._label_options = None
 
         self.scale = None
         self.limit = (0, 1)
-        self.padding_start = 1
-        self.padding_end = 1
+        self.padding_start = None
+        self.padding_end = None
         self.is_inverted = False
+        self._missing_region = []
 
         self._log.info("{} axis instance is generated".format(name))
 
@@ -273,9 +288,19 @@ class Axis:
         self._ticks = values
 
     @property
+    def label(self):
+        return self._label
+
+    @label.setter
+    def label(self, value):
+        self._label = value
+
+    @property
+    def missing_regions(self):
+        return self._missing_region
+
+    @property
     def midlines(self):
-        if self._midlines is None:
-            self._midlines = []
         return self._midlines
 
     @property
@@ -293,6 +318,12 @@ class Axis:
         self._edgelines = values
 
     @property
+    def label_options(self):
+        if self._label_options is None:
+            self._label_options = {}
+        return self._label_options
+
+    @property
     def midlines_options(self):
         if self._midlines_options is None:
             self._midlines_options = {}
@@ -303,6 +334,18 @@ class Axis:
         if self._edgelines_options is None:
             self._edgelines_options = {}
         return self._edgelines_options
+
+    @property
+    def ticklabels_options(self):
+        if self._ticklabels_options is None:
+            self._ticklabels_options = {}
+        return self._ticklabels_options
+
+    @property
+    def tick_options(self):
+        if self._tick_options is None:
+            self._tick_options = {}
+        return self._tick_options
 
     @property
     def tick_labels(self) -> list:
@@ -330,7 +373,31 @@ class Axis:
     def add_edgelines_options(self, **kwargs):
         self._edgelines_options = {**self.edgelines_options, **kwargs}
 
+    def add_ticklabels_options(self, **kwargs):
+        self._ticklabels_options = {**self.ticklabels_options, **kwargs}
+
+    def add_tick_options(self, **kwargs):
+        self._tick_options = {**self.tick_options, **kwargs}
+
+    def add_label_options(self, **kwargs):
+        self._label_options = {**self.label_options, **kwargs}
+
+    def add_missing_region(self, p1, length):
+        self._missing_region.append((p1, p1 + length))
+
+    def make_ticks(self, values):
+        if self._ticks is not None:
+            self._log.info("Ticks for {} have already been set by "
+                           "user".format(self.name))
+            return
+        self._ticks = values
+        self._log.info("Ticks for {} automatically set".format(self.name))
+
     def make_labels(self):
+        if self._tick_labels is not None:
+            self._log.info("Tick labels for {} are already defined".format(
+                self.name))
+            return
         self._tick_labels = ["{}".format(x) for x in range(len(self.ticks))]
         self._log.info("{} tick_labels automatically generated".format(
             self.name))

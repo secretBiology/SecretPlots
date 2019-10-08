@@ -10,26 +10,25 @@
 #
 # Axis Manager
 
-import matplotlib.pyplot as plt
-
 from SecretPlots.objects import Axis
 from SecretPlots.utils import Log
 
 
 class AxisManager:
-    def __init__(self, ax: plt.Axes, log: Log):
+    def __init__(self, gm, log: Log):
+        self.gm = gm
         self._log = log
-        self._orientation = "x"
 
-        self._log.info("AxisManager is initialized with default values")
-
-        self._x = Axis("x", self._log)
-        self._y = Axis("y", self._log)
-        self._ax = ax
+        self._orientation = None
+        self._x = None
+        self._y = None
+        self._ax = None
         self.is_reversed = False
         self.aspect_ratio = None
         self.group_gap = 1
         self._frame_visibility = None
+
+        self._log.info("AxisManager is initialized with default values")
 
     @property
     def frame_visibility(self):
@@ -54,6 +53,8 @@ class AxisManager:
 
     @property
     def orientation(self):
+        if self._orientation is None:
+            self._orientation = "x"
         return self._orientation.replace("-", "").replace("+", "")
 
     @orientation.setter
@@ -73,30 +74,36 @@ class AxisManager:
 
     @property
     def is_reflected(self):
-        return "-" in self._orientation
+        return "-" in self.orientation
 
     @property
     def ax(self):
+        if self._ax is None:
+            self._ax = self.gm.get_main_axis()
         return self._ax
 
     @property
     def x(self):
+        if self._x is None:
+            self._x = Axis("x", 0, self._log)
         return self._x
 
     @property
     def y(self):
+        if self._y is None:
+            self._y = Axis("y", 1, self._log)
         return self._y
 
     @property
     def major(self):
         if self.orientation == "x":
-            return self._x
+            return self.x
         else:
-            return self._y
+            return self.y
 
     @property
     def minor(self):
         if self.orientation == "x":
-            return self._y
+            return self.y
         else:
-            return self._x
+            return self.x

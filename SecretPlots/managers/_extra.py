@@ -40,8 +40,10 @@ class ExtraManager:
         self._log = log
         self.show_values = False
         self.show_legends = False
+        self.show_grid = False
         self._value_options = None
         self._legends_options = None
+        self._grid_options = None
 
         self._log.info("ExtraManager is initialized with default values")
 
@@ -56,6 +58,12 @@ class ExtraManager:
         return self._value_options
 
     @property
+    def grid_options(self):
+        if self._grid_options is None:
+            self._grid_options = {}
+        return self._grid_options
+
+    @property
     def legends_options(self):
         if self._legends_options is None:
             self._legends_options = {}
@@ -66,6 +74,9 @@ class ExtraManager:
 
     def add_legends_options(self, **kwargs):
         self._legends_options = {**self.legends_options, **kwargs}
+
+    def add_grid_options(self, **kwargs):
+        self._grid_options = {**self.grid_options, **kwargs}
 
     def draw_values(self, shape, text, bg_color):
         if not self.show_values:
@@ -89,8 +100,7 @@ class ExtraManager:
         del opts["relative"]
         del opts["offset"]
 
-        self.gm.get_main_axis(self.cm.plot_type).text(x, y, "{}".format(text),
-                                                      **opts)
+        self.gm.get_main_axis().text(x, y, "{}".format(text), **opts)
         self._log.info("Values are shown in the plot")
 
     def draw_midlines(self):
@@ -120,8 +130,7 @@ class ExtraManager:
         if not self.gm.has_colorbar:
             return
 
-        norm = matplotlib.colors.Normalize(vmin=min(data.value), vmax=max(
-            data.value))
+        norm = matplotlib.colors.Normalize(vmin=data.min, vmax=data.max)
         sm = plt.cm.ScalarMappable(cmap=self.cm.cmap, norm=norm)
 
         if self.gm.colorbar_location in ["right", "left", "r", "l"]:
@@ -129,22 +138,24 @@ class ExtraManager:
         else:
             ori = "horizontal"
 
-        plt.colorbar(sm, cax=self.gm.get_colorbar_axis(self.cm.plot_type),
+        plt.colorbar(sm, cax=self.gm.get_colorbar_axis(),
                      orientation=ori)
 
         if self.gm.colorbar_location in ["left", "l"]:
-            self.gm.get_colorbar_axis(
-                self.cm.plot_type).yaxis.set_ticks_position(
-                'left')
+            self.gm.get_colorbar_axis().yaxis.set_ticks_position('left')
         elif self.gm.colorbar_location in ["top", "t"]:
-            self.gm.get_colorbar_axis(
-                self.cm.plot_type).xaxis.set_ticks_position("top")
+            self.gm.get_colorbar_axis().xaxis.set_ticks_position("top")
 
         self._log.info("Colorbar is added the plot")
 
     def draw_legends(self):
         if not self.show_legends:
             return
+
+        if len(self.cm.all_colors) == 0:
+            self._log.warn("No legends were created because no color patches "
+                           "found. Most likely, your plot is using colormap "
+                           "for getting colors. Use 'show_cmap' instead. ")
 
         p = []
         for key in self.cm.all_colors:
@@ -159,3 +170,13 @@ class ExtraManager:
         opts = {**opts, **self.legends_options}
         plt.legend(**opts)
         self._log.info("Legends are added to the plot")
+
+    def draw_grid(self):
+        if not self.show_grid:
+            return
+        plt.grid(**self.grid_options)
+        self._log.info("Plot grid is generated")
+
+    def draw_missing(self, **kwargs):
+        for x in self.am.x.missing_regions:
+            plt.axvspan(x[0], x[1], **kwargs)

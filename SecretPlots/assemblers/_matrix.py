@@ -16,15 +16,17 @@ from SecretPlots.managers import ColorMapLocations
 
 
 class ColorMapAssembler(Assembler):
+
     @property
-    def lm(self):
-        return ColorMapLocations(self.am, self._log)
+    def main_location_manager(self):
+        return ColorMapLocations(self.am, self.om, self._log)
 
     @property
     def type(self):
         return PLOT_COLOR_MAP
 
     def _adjust_defaults(self):
+
         if self.type != PLOT_BOOLEAN_PLOT:
             if self.gm.has_colorbar is None:
                 self.gm.has_colorbar = True
@@ -52,11 +54,11 @@ class ColorMapAssembler(Assembler):
                 v = 1 if val >= self.data.threshold else 0
                 shape = self.om.get(x, y, v, pos)
             else:
-                shape = self.om.get(x, y, val / max(self.data.value), pos)
+                shape = self.om.get(x, y, val / self.data.max, pos)
 
             self.ax.add_patch(shape.get())
-            self.em.draw_values(shape, val, self.cm.color(pos, val / max(
-                self.data.value)))
+            self.em.draw_values(shape, val,
+                                self.cm.color(pos, val / self.data.max))
 
         ticks_major = []
         ticks_minor = []
@@ -76,13 +78,13 @@ class ColorMapAssembler(Assembler):
             if temp_minor not in ticks_minor:
                 ticks_minor.append(temp_minor)
 
-        self.am.major.ticks = ticks_major
-        self.am.minor.ticks = ticks_minor
+        self.am.major.make_ticks(ticks_major)
+        self.am.minor.make_ticks(ticks_minor)
         self.am.major.edgelines = edge_major
         self.am.minor.edgelines = edge_minor
 
-        self.am.major.make_labels()  # TODO: Remove if user uses own
-        self.am.minor.make_labels()  # TODO: Remove if user uses own
+        self.am.major.make_labels()
+        self.am.minor.make_labels()
 
     def draw(self):
         self._adjust_defaults()

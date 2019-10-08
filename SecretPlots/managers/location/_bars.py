@@ -44,6 +44,9 @@ class BarLocations(LocationManager):
         stack = None
         last_col = 0
         for loc, value in zip(data.positions, data.value):
+            if np.isnan(value):
+                value = 0
+                self._log.warn("NaN value found, ignoring its effect")
             m1, m2 = loc
             if stack is None:
                 stack = self.minor
@@ -76,9 +79,9 @@ class BarLocations(LocationManager):
 
 class BarGroupLocations(LocationManager):
 
-    def __init__(self, am: AxisManager, log: Log, group_gap: float):
-        super().__init__(am, log)
-        self.group_gap = group_gap
+    def __init__(self, am: AxisManager, om, log: Log):
+        super().__init__(am, om, log)
+        self.group_gap = am.group_gap
 
     @property
     def plot_type(self):
@@ -135,8 +138,8 @@ class HistLocations(LocationManager):
     def plot_type(self):
         return PLOT_HIST
 
-    def __init__(self, am: AxisManager, log: Log, bins=None):
-        super().__init__(am, log)
+    def __init__(self, am: AxisManager, om, log: Log, bins=None):
+        super().__init__(am, om, log)
         if bins is None:
             bins = "autp"
         self.bins = bins

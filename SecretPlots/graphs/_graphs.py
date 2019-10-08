@@ -32,18 +32,39 @@ class SecretPlot:
         self.fig = fig
         self._raw_data = data
         if log is None:
-            log = Log(show_log=True)
+            log = Log()
         self._log = log
         self._assembler = None
+        self._figure_drawn = False
+
         self.orientation = None
         self.x_gap = None
         self.y_gap = None
+        self.x_ticks = None
+        self.y_ticks = None
+        self.x_label = None
+        self.y_label = None
+        self.x_ticklabels = None
+        self.y_ticklabels = None
         self.group_gap = None
         self.colors = None
         self.cmap = None
         self.cmap_location = None
         self.show_cmap = None
         self.show_legend = None
+        self.width = None
+        self.height = None
+        self.shape = None
+        self.show_x_midlines = None
+        self.show_y_midlines = None
+        self.show_x_edgelines = None
+        self.show_y_edgelines = None
+        self.show_values = None
+        self.show_grid = None
+        self.x_inverted = None
+        self.y_inverted = None
+        self.on_color = None
+        self.off_color = None
 
         self._log.info(
             "'{}' initialization complete ".format(self.assembler.type))
@@ -65,6 +86,47 @@ class SecretPlot:
         self.assembler.gm.has_colorbar = self.show_cmap
         self.assembler.gm.colorbar_location = self.cmap_location
         self.assembler.em.show_legends = self.show_legend
+        self.assembler.am.x.label = self.x_label
+        self.assembler.am.y.label = self.y_label
+
+        if self.width is not None:
+            self.assembler.om.width = self.width
+        if self.height is not None:
+            self.assembler.om.height = self.height
+        if self.shape is not None:
+            self.assembler.om.shape = self.shape
+        if self.show_values is not None:
+            self.assembler.em.show_values = self.show_values
+        if self.show_grid is not None:
+            self.assembler.em.show_grid = self.show_grid
+
+        if self.show_x_midlines is not None:
+            self.assembler.am.x.show_midlines = self.show_x_midlines
+        if self.show_y_midlines is not None:
+            self.assembler.am.y.show_midlines = self.show_y_midlines
+        if self.show_x_edgelines is not None:
+            self.assembler.am.x.show_edgelines = self.show_x_edgelines
+        if self.show_y_edgelines is not None:
+            self.assembler.am.y.show_edgelines = self.show_y_edgelines
+
+        if self.x_ticklabels is not None:
+            self.assembler.am.x.tick_labels = self.x_ticklabels
+        if self.y_ticklabels is not None:
+            self.assembler.am.y.tick_labels = self.y_ticklabels
+        if self.x_ticks is not None:
+            self.assembler.am.x.ticks = self.x_ticks
+        if self.y_ticks is not None:
+            self.assembler.am.y.ticks = self.y_ticks
+
+        if self.x_inverted is not None:
+            self.assembler.am.x.is_inverted = self.x_inverted
+        if self.y_inverted is not None:
+            self.assembler.am.y.is_inverted = self.y_inverted
+
+        if self.on_color is not None:
+            self.assembler.cm.on_color = self.on_color
+        if self.off_color is not None:
+            self.assembler.cm.off_color = self.off_color
 
     @property
     def main_assembler(self) -> Assembler:
@@ -79,7 +141,7 @@ class SecretPlot:
         return self.assembler.am.y
 
     @property
-    def ax(self):
+    def ax(self) -> plt.Axes:
         return self.assembler.am.ax
 
     @property
@@ -93,6 +155,140 @@ class SecretPlot:
         self._check_settings()
         self.assembler.draw()
 
-    def show(self):
+    def draw(self):
+        if self._figure_drawn:
+            return
         self._assemble_components()
+        self._figure_drawn = True
+
+    def show(self, tight=False):
+        self.draw()
+        if tight:
+            plt.tight_layout()
         plt.show()
+
+    def save(self, filename, **kwargs):
+        self.draw()
+        plt.savefig(filename, **kwargs)
+
+    def add_grid(self, **kwargs):
+        self.show_grid = True
+        self.assembler.em.add_grid_options(**kwargs)
+        return self
+
+    def add_values(self, **kwargs):
+        self.show_values = True
+        self.assembler.em.add_value_options(**kwargs)
+        return self
+
+    def add_legends(self, **kwargs):
+        self.show_legend = True
+        self.assembler.em.add_legends_options(**kwargs)
+        return self
+
+    def add_x_ticklabels(self, labels, **kwargs):
+        self.x_ticklabels = labels
+        self.assembler.am.x.add_ticklabels_options(**kwargs)
+        return self
+
+    def add_y_ticklabels(self, labels, **kwargs):
+        self.y_ticklabels = labels
+        self.assembler.am.y.add_ticklabels_options(**kwargs)
+        return self
+
+    def add_x_gap(self, value):
+        self.x_gap = value
+        return self
+
+    def add_y_gap(self, value):
+        self.y_gap = value
+        return self
+
+    def add_x_midlines(self, **kwargs):
+        self.show_x_midlines = True
+        self.assembler.am.x.add_midlines_options(**kwargs)
+        return self
+
+    def add_y_midlines(self, **kwargs):
+        self.show_y_midlines = True
+        self.assembler.am.y.add_midlines_options(**kwargs)
+        return self
+
+    def add_x_edgelines(self, **kwargs):
+        self.show_x_edgelines = True
+        self.assembler.am.x.add_edgelines_options(**kwargs)
+        return self
+
+    def add_y_edgelines(self, **kwargs):
+        self.show_y_edgelines = True
+        self.assembler.am.y.add_edgelines_options(**kwargs)
+        return self
+
+    def add_aspect_ratio(self, value):
+        self.assembler.am.aspect_ratio = value
+        return self
+
+    def add_group_gap(self, value):
+        self.group_gap = value
+        return self
+
+    def add_orientation(self, value):
+        self.orientation = value
+        return self
+
+    def invert_x(self):
+        self.x_inverted = True
+        return self
+
+    def invert_y(self):
+        self.y_inverted = True
+        return self
+
+    def add_x_label(self, label, **kwargs):
+        self.x_label = label
+        self.assembler.am.x.add_label_options(**kwargs)
+        return self
+
+    def add_y_label(self, label, **kwargs):
+        self.y_label = label
+        self.assembler.am.y.add_label_options(**kwargs)
+        return self
+
+    def add_cmap(self, name=None, loc="right"):
+        self.show_cmap = True
+        if name is not None:
+            self.cmap = name
+
+        self.cmap_location = loc
+        return self
+
+    def add_colors(self, values):
+        self.colors = values
+        return self
+
+    def add_on_color(self, value):
+        self.on_color = value
+        return self
+
+    def add_off_color(self, value):
+        self.off_color = value
+        return self
+
+    def add_frame_visibility(self, left, right, top, bottom):
+        self.assembler.am.frame_visibility = (left, right, top, bottom)
+        return self
+
+    def remove_cmap(self):
+        self.show_cmap = False
+        return self
+
+    def remove_x_ticks(self):
+        self.assembler.am.x.show_ticks = False
+        return self
+
+    def remove_y_ticks(self):
+        self.assembler.am.y.show_ticks = False
+
+    def remove_frame(self):
+        self.assembler.am.frame_visibility = (0, 0, 0, 0)
+        return self

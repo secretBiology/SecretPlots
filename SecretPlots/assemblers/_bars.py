@@ -10,10 +10,14 @@
 #
 # Bar Assemblers
 
+import numpy as np
+
 from SecretPlots.assemblers import Assembler
-from SecretPlots.objects import Data
 from SecretPlots.constants.graph import *
-from SecretPlots.managers import BarLocations, BarGroupLocations
+from SecretPlots.managers import (BarLocations,
+                                  BarGroupLocations,
+                                  LocationManager)
+from SecretPlots.objects import Data
 
 
 class BarAssembler(Assembler):
@@ -28,12 +32,14 @@ class BarAssembler(Assembler):
             return PLOT_STACKED_BAR
 
     @property
-    def lm(self):
-        return BarLocations(self.am, self._log)
+    def main_location_manager(self) -> LocationManager:
+        return BarLocations(self.am, self.om, self._log)
 
     def _adjust_defaults(self):
-        self.am.major.gap = 0.2
-        self.am.minor.padding_start = 0
+        if self.am.major.gap is None:
+            self.am.major.gap = 0.2
+
+        self.am.minor.padding_start = self.am.minor.padding_start or 0
 
         if self.type == PLOT_STACKED_BAR:
             if self.em.show_legends is None:
@@ -48,7 +54,12 @@ class BarAssembler(Assembler):
                 x, y = y, x
 
             shape = self.om.get(x, y, val, pos)
-            self.ax.add_patch(shape.get())
+            if not np.isnan(val) or self.om.show_missing:
+                if np.isnan(val):
+                    self.am.major.add_missing_region(
+                        [x, y][self.am.major.index], self.om.width)
+                else:
+                    self.ax.add_patch(shape.get())
             self.em.draw_values(shape, val, self.cm.color(pos, val))
 
         ticks = []
@@ -62,9 +73,9 @@ class BarAssembler(Assembler):
             if temp not in ticks:
                 ticks.append(temp)
 
-        self.am.major.ticks = ticks
+        self.am.major.make_ticks(ticks)
         self.am.major.edgelines = edge
-        self.am.major.make_labels()  # TODO: Remove if user uses own
+        self.am.major.make_labels()
 
     def draw(self):
         self._adjust_defaults()
@@ -79,13 +90,15 @@ class BarGroupedAssembler(Assembler):
         return PLOT_GROUPED_BAR
 
     @property
-    def lm(self):
-        return BarGroupLocations(self.am, self._log, self.am.group_gap)
+    def main_location_manager(self) -> LocationManager:
+        return BarGroupLocations(self.am, self.om, self._log)
 
     def _adjust_defaults(self):
-        self.am.major.gap = 0.2
-        self.am.minor.padding_start = 0
-        self.em.show_legends = True
+
+        self.am.minor.padding_start = self.am.minor.padding_start or 0
+
+        if self.em.show_legends is None:
+            self.em.show_legends = True
 
     def _draw_elements(self):
         locations = self.lm.get(self.data)
@@ -96,7 +109,12 @@ class BarGroupedAssembler(Assembler):
                 x, y = y, x
 
             shape = self.om.get(x, y, val, pos)
-            self.ax.add_patch(shape.get())
+            if not np.isnan(val) or self.om.show_missing:
+                if np.isnan(val):
+                    self.am.major.add_missing_region(
+                        [x, y][self.am.major.index], self.om.width)
+                else:
+                    self.ax.add_patch(shape.get())
             self.em.draw_values(shape, val, self.cm.color(pos, val))
 
         ticks = []
@@ -122,11 +140,11 @@ class BarGroupedAssembler(Assembler):
                 except IndexError:
                     pass
 
-        self.am.major.ticks = ticks
+        self.am.major.make_ticks(ticks)
         self.am.major.edgelines = edge
         self.am.major.midlines = midlines
 
-        self.am.major.make_labels()  # TODO: Remove if user uses own
+        self.am.major.make_labels()
 
     def draw(self):
         self._adjust_defaults()

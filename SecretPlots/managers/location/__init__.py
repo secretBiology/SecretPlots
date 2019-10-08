@@ -9,6 +9,8 @@
 #
 #
 
+from SecretPlots.managers.location._base import LocationManager
+
 from SecretPlots.managers.location._bars import (BarLocations,
                                                  BarGroupLocations,
                                                  HistLocations)

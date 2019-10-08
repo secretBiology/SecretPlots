@@ -34,46 +34,51 @@ class Assembler:
         self._log.info("Assembler is initialized with default values")
 
     @property
-    def gm(self):
+    def gm(self) -> GridManager:
         if self._gm is None:
             self._gm = GridManager(self._fig, self._log)
         return self._gm
 
     @property
-    def om(self):
-        if self._om is None:
-            self._om = ObjectManager(self.am, self.cm, self._log)
-        return self._om
-
-    @property
-    def am(self):
-        if self._am is None:
-            a = AxisManager(self.gm.get_main_axis(self.type), self._log)
-            self._am = a
-        return self._am
-
-    @property
-    def cm(self):
+    def cm(self) -> ColorManager:
         if self._cm is None:
             self._cm = ColorManager(self.type, self._log)
         return self._cm
 
     @property
-    def em(self):
+    def am(self) -> AxisManager:
+        if self._am is None:
+            self._am = AxisManager(self.gm, self._log)
+        return self._am
+
+    @property
+    def om(self) -> ObjectManager:
+        if self._om is None:
+            self._om = ObjectManager(self.am, self.cm, self._log)
+        return self._om
+
+    @property
+    def em(self) -> ExtraManager:
         if self._em is None:
             self._em = ExtraManager(self.gm, self.am, self.cm, self._log)
         return self._em
 
     @property
-    def ax(self):
+    def main_location_manager(self) -> LocationManager:
+        raise NotImplementedError
+
+    @property
+    def lm(self) -> LocationManager:
+        if self._lm is None:
+            self._lm = self.main_location_manager
+        return self._lm
+
+    @property
+    def ax(self) -> plt.Axes:
         return self.am.ax
 
     @property
     def type(self):
-        raise NotImplementedError
-
-    @property
-    def lm(self):
         raise NotImplementedError
 
     def draw(self):
@@ -92,6 +97,16 @@ class Assembler:
         self._data = Data(value, self._log)
 
     def _set_auto_limit(self):
+
+        if self.am.x.padding_start is None:
+            self.am.x.padding_start = 1
+        if self.am.y.padding_start is None:
+            self.am.y.padding_start = 1
+        if self.am.x.padding_end is None:
+            self.am.x.padding_end = 1
+        if self.am.y.padding_end is None:
+            self.am.y.padding_end = 1
+
         self.ax.set_xlim(self.om.min_x - self.am.x.padding_start,
                          self.om.max_x + self.am.x.padding_end)
 
@@ -114,11 +129,13 @@ class Assembler:
     def _draw_axis(self):
         self._set_auto_limit()
         if len(self.am.x.ticks) != 0:
-            self.ax.set_xticks(self.am.x.ticks)
-            self.ax.set_xticklabels(self.am.x.tick_labels)
+            self.ax.set_xticks(self.am.x.ticks, **self.am.x.tick_options)
+            self.ax.set_xticklabels(self.am.x.tick_labels,
+                                    **self.am.x.ticklabels_options)
         if len(self.am.y.ticks) != 0:
-            self.ax.set_yticks(self.am.y.ticks)
-            self.ax.set_yticklabels(self.am.y.tick_labels)
+            self.ax.set_yticks(self.am.y.ticks, **self.am.y.tick_options)
+            self.ax.set_yticklabels(self.am.y.tick_labels,
+                                    **self.am.y.ticklabels_options)
 
         left, right, top, bottom = self.am.frame_visibility
         self.ax.spines['left'].set_visible(left)
@@ -128,6 +145,16 @@ class Assembler:
 
         if self.am.aspect_ratio is not None:
             self.ax.set_aspect(self.am.aspect_ratio)
+
+        if not self.am.x.show_ticks:
+            self.ax.set_xticks([])
+        if not self.am.y.show_ticks:
+            self.ax.set_yticks([])
+
+        if self.am.x.label is not None:
+            self.ax.set_xlabel(self.am.x.label, **self.am.x.label_options)
+        if self.am.y.label is not None:
+            self.ax.set_ylabel(self.am.y.label, **self.am.y.label_options)
 
         self._check_axis_transformations()
 
@@ -139,6 +166,9 @@ class Assembler:
         self.em.draw_edgelines()
         self.em.draw_colorbar(self.data)
         self.em.draw_legends()
+        self.em.draw_grid()
+        if self.om.show_missing:
+            self.em.draw_missing(**self.om.missing_options)
 
 
 def run():

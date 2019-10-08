@@ -48,8 +48,8 @@ class GridManager:
                                      figure=self.fig)
         return self._ax_grid
 
-    def _generate_axes(self, plot_type):
-        if self.has_colorbar is None:
+    def _generate_axes(self):
+        if not self.has_colorbar:
             self._main = self.fig.add_subplot(111)
             self._log.info("Plot Grid is set to normal.")
             return
@@ -74,12 +74,12 @@ class GridManager:
         self._cb = self.fig.add_subplot(cb)
         self._log.info("Plot Grid is set according to colorbar location")
 
-    def get_main_axis(self, plot_type) -> plt.Axes:
+    def get_main_axis(self) -> plt.Axes:
         if self._main is None:
-            self._generate_axes(plot_type)
+            self._generate_axes()
         return self._main
 
-    def get_colorbar_axis(self, plot_type) -> plt.Axes:
+    def get_colorbar_axis(self) -> plt.Axes:
         if self._main is None:
-            self._generate_axes(plot_type)
+            self._generate_axes()
         return self._cb

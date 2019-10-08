@@ -25,13 +25,33 @@ class ColorManager:
         self._unique_colors = []
         self._all_colors = {}
         self._cmap = None
-        self.on_color = self.palette.blue()
-        self.off_color = self.palette.red()
+        self._on_color = None
+        self._off_color = None
         self.user_colors = None
         self.user_cmap = None
         self._cycle = None
 
         self._log.info("ColorManager is initialized with default values.")
+
+    @property
+    def on_color(self):
+        if self._on_color is None:
+            self._on_color = self.palette.blue()
+        return self._on_color
+
+    @on_color.setter
+    def on_color(self, value):
+        self._on_color = value
+
+    @property
+    def off_color(self):
+        if self._off_color is None:
+            self._off_color = self.palette.red()
+        return self._off_color
+
+    @off_color.setter
+    def off_color(self, value):
+        self._off_color = value
 
     @property
     def palette(self) -> Palette:
@@ -84,10 +104,12 @@ class ColorManager:
     def color(self, position, value):
         row, col = position
         if self.plot_type == PLOT_BAR:
-            if len(self.user_colors) > 1:
-                return self._get_color(position[1])
-            else:
-                return self._get_color(0)
+            if self.user_colors is not None:
+                if len(self.user_colors) > 1:
+                    return self._get_color(position[1])
+                else:
+                    return self._get_color(0)
+            return self._get_color(row)
         if self.plot_type in [PLOT_STACKED_BAR, PLOT_GROUPED_BAR]:
             return self._get_color(col)
         elif self.plot_type == PLOT_COLOR_MAP:
