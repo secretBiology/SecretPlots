@@ -15,4 +15,8 @@ __email__ = "rohitsuratekar@gmail.com"
 __license__ = "MIT License"
 __status__ = "Prototype"
 
+from SecretPlots.graphs.categorical import (BarPlot,
+                                            ColorPlot,
+                                            BooleanPlot,
+                                            BarGroupedPlot)
 from SecretPlots.graphs.network import NetworkPlot, Network

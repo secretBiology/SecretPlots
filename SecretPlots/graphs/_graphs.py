@@ -46,6 +46,10 @@ class SecretPlot:
         self.y_label = None
         self.x_ticklabels = None
         self.y_ticklabels = None
+        self.x_padding_start = None
+        self.x_padding_end = None
+        self.y_padding_start = None
+        self.y_padding_end = None
         self.group_gap = None
         self.colors = None
         self.cmap = None
@@ -127,6 +131,15 @@ class SecretPlot:
             self.assembler.cm.on_color = self.on_color
         if self.off_color is not None:
             self.assembler.cm.off_color = self.off_color
+
+        if self.x_padding_start is not None:
+            self.assembler.am.x.padding_start = self.x_padding_start
+        if self.x_padding_end is not None:
+            self.assembler.am.x.padding_end = self.x_padding_end
+        if self.y_padding_start is not None:
+            self.assembler.am.y.padding_start = self.y_padding_start
+        if self.y_padding_end is not None:
+            self.assembler.am.y.padding_end = self.y_padding_end
 
     @property
     def main_assembler(self) -> Assembler:
@@ -224,16 +237,8 @@ class SecretPlot:
         self.assembler.am.y.add_edgelines_options(**kwargs)
         return self
 
-    def add_aspect_ratio(self, value):
-        self.assembler.am.aspect_ratio = value
-        return self
-
     def add_group_gap(self, value):
         self.group_gap = value
-        return self
-
-    def add_orientation(self, value):
-        self.orientation = value
         return self
 
     def invert_x(self):
@@ -252,6 +257,16 @@ class SecretPlot:
     def add_y_label(self, label, **kwargs):
         self.y_label = label
         self.assembler.am.y.add_label_options(**kwargs)
+        return self
+
+    def add_x_padding(self, start, end):
+        self.x_padding_start = start
+        self.x_padding_end = end
+        return self
+
+    def add_y_padding(self, start, end):
+        self.y_padding_start = start
+        self.y_padding_end = end
         return self
 
     def add_cmap(self, name=None, loc="right"):
@@ -274,8 +289,20 @@ class SecretPlot:
         self.off_color = value
         return self
 
-    def add_frame_visibility(self, left, right, top, bottom):
+    def change_frame_visibility(self, left, right, top, bottom):
         self.assembler.am.frame_visibility = (left, right, top, bottom)
+        return self
+
+    def change_shape(self, value):
+        self.shape = value
+        return self
+
+    def change_orientation(self, value):
+        self.orientation = value
+        return self
+
+    def change_aspect_ratio(self, value):
+        self.assembler.am.aspect_ratio = value
         return self
 
     def remove_cmap(self):

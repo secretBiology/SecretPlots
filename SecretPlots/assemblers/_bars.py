@@ -36,7 +36,7 @@ class BarAssembler(Assembler):
         return BarLocations(self.am, self.om, self._log)
 
     def _adjust_defaults(self):
-        if self.am.major.gap is None:
+        if not self.am.major.is_user_defined_gap:
             self.am.major.gap = 0.2
 
         self.am.minor.padding_start = self.am.minor.padding_start or 0

@@ -1,3 +1,4 @@
-from SecretPlots.graphs.categorical import run
+from SecretPlots import *
 
-run()
+data = [2, 3, 4]
+BarGroupedPlot(data).show()

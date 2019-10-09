@@ -259,6 +259,7 @@ class Axis:
         self._tick_options = None
         self._gap = None
         self._gap_options = None
+        self._user_defined_gap = False
         self.show_midlines = False
         self.show_edgelines = False
         self._midlines_options = None
@@ -365,7 +366,12 @@ class Axis:
 
     @gap.setter
     def gap(self, value: float):
+        self._user_defined_gap = True
         self._gap = value
+
+    @property
+    def is_user_defined_gap(self):
+        return self._user_defined_gap
 
     def add_midlines_options(self, **kwargs):
         self._midlines_options = {**self.midlines_options, **kwargs}

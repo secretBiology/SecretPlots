@@ -50,7 +50,12 @@ class BooleanPlot(SecretPlot):
 
 
 def run():
-    data = [6, 3, 4, None, 3, 2]
-    h = (BarPlot(data)
+    data = [6, 3, None, 2]
+    h = (ColorPlot(data)
+         .add_values()
+         .add_y_padding(0, 1)
+         .change_orientation("-x")
+         .invert_y()
+         .add_cmap("Accent", loc="top")
          .show()
          )
