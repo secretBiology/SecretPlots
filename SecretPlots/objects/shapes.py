@@ -69,6 +69,10 @@ class Rectangle:
                                  self.height,
                                  self.rotation, **self.options)
 
+    @property
+    def color(self):
+        return self.options["color"]
+
 
 class Cuts:
     def __init__(self, obj,

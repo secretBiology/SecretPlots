@@ -1,4 +1,3 @@
-from SecretPlots import *
+from SecretPlots.graphs.network2 import run
 
-data = [2, 3, 4]
-BarGroupedPlot(data).show()
+run()

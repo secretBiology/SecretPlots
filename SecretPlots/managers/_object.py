@@ -50,7 +50,7 @@ class ObjectManager:
             self._missing_options = {
                 "fill": False,
                 "hatch": "//",
-                "zorder":0
+                "zorder": 0
             }
         return self._missing_options
 
@@ -91,6 +91,16 @@ class ObjectManager:
         self._check_limits(x + e.width, y + e.height)
         return e.get(x, y)
 
+    def _get_network_object(self, x, y, value, pos):
+        e = Element(self._log)
+        e.add_options(**self.options)
+        e.width = self.width
+        e.height = self.height
+        e.add_options(color=self.cm.color(pos, value))
+        self._check_limits(x - e.width / 2, y - e.height / 2)
+        self._check_limits(x + e.width / 2, y + e.height / 2)
+        return e.get(x - e.width / 2, y - e.height / 2)
+
     def _get_colormap_object(self, x, y, value, pos):
         e = Element(self._log)
         if np.isnan(value):
@@ -111,6 +121,8 @@ class ObjectManager:
             return self._get_bar_object(x, y, value, pos)
         elif self.cm.plot_type in [PLOT_COLOR_MAP, PLOT_BOOLEAN_PLOT]:
             return self._get_colormap_object(x, y, value, pos)
+        elif self.cm.plot_type in [PLOT_NETWORK]:
+            return self._get_network_object(x, y, value, pos)
         else:
             self._log.error("ObjectManager for {} is not set".format(
                 self.cm.plot_type))
