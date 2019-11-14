@@ -11,4 +11,3 @@
 from SecretPlots.assemblers._base import Assembler
 from SecretPlots.assemblers._bars import BarAssembler, BarGroupedAssembler
 from SecretPlots.assemblers._matrix import ColorMapAssembler, BooleanAssembler
-from SecretPlots.assemblers._network import NetworkAssembler

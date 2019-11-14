@@ -16,4 +16,3 @@ from SecretPlots.managers.location._bars import (BarLocations,
                                                  HistLocations)
 
 from SecretPlots.managers.location._matrix import ColorMapLocations
-from SecretPlots.managers.location._network import NetworkLocation
