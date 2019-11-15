@@ -1,3 +1,3 @@
-from SecretPlots.network.generator import run
+from SecretPlots.network.pathfinder import run
 
 run()
