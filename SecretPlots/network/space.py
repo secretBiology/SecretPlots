@@ -8,168 +8,23 @@
 #  Creation: 11/13/19, 4:03 PM
 #
 #
-from SecretPlots.utils import Log
+from typing import List, Dict, Union
+
 import numpy as np
+
+from SecretPlots.constants.network import *
+from SecretPlots.utils import Log
 
 
 class Edge:
-    def __init__(self, start, end, value, **options):
-        self.start = start
-        self.end = end
-        self.value = value
+    def __init__(self, data, **options):
+        self.start = data[0]
+        self.end = data[1]
+        self.value = data[2]
         self.options = options
 
-
-class Slots:
-    TOP = "top"
-    BOTTOM = "bottom"
-    LEFT = "left"
-    RIGHT = "right"
-    TOP_LEFT = "top_left"
-    TOP_RIGHT = "top_right"
-    BOTTOM_LEFT = "bottom_left"
-    BOTTOM_RIGHT = "bottom_right"
-
-    LOCATIONS = [
-        (TOP, -1, 0),
-        (BOTTOM, 1, 0),
-        (RIGHT, 0, 1),
-        (LEFT, 0, -1),
-        (TOP_LEFT, -1, -1),
-        (TOP_RIGHT, -1, 1),
-        (BOTTOM_LEFT, 1, -1),
-        (BOTTOM_RIGHT, 1, 1)
-    ]
-
-    def __init__(self, start_name, log: Log):
-        # Reshaping to (1,1) is important for later merging
-        self._log = log
-        self.data = np.asanyarray([start_name]).reshape(1, 1)
-        self.row = None
-        self.column = None
-        self._reset_stats()
-        self._current_row = 0
-        self._current_column = 0
-
-        self._log.info("Slots initialized")
-
-    @property
-    def all(self) -> list:
-        return list(self.data.flatten())
-
-    def index(self, element):
-        try:
-            return self.all.index(element)
-        except ValueError:
-            self._log.warn(f"Unknown element : {element}")
-            return None
-
-    def get_row(self, index):
-        return int(index / self.column)
-
-    def get_column(self, index):
-        return index % self.column
-
-    def reset_pointer(self, element):
-        i = self.index(element)
-        if i is None:
-            self._log.error(f"Element {element} not found", True)
-        else:
-            self._current_row = self.get_row(i)
-            self._current_column = self.get_column(i)
-
-    def add_pos(self, name, row, column):
-        if self._current_row == 0 and row == -1:
-            self._add_row(True)
-            self._current_row = 1
-        if self._current_row == self.row - 1 and row == 1:
-            self._add_row(False)
-        if self._current_column == 0 and column == -1:
-            self._add_column(False)
-            self._current_column = 1
-        if self._current_column == self.column - 1 and column == 1:
-            self._add_column(True)
-
-        self._current_row += row
-        self._current_column += column
-        self.data[self._current_row, self._current_column] = name
-
-    def add(self, name, position):
-
-        for pos, row, col in self.LOCATIONS:
-            if pos == position:
-                self.add_pos(name, row, col)
-                return
-        self._log.error(f"Unknown position : {position}", True)
-
-    def is_conflict(self, pos):
-        def _check_none(r, c):
-            return self.data[
-                       self._current_row + r, self._current_column + c
-                   ] is None
-
-        if (pos in [self.TOP_RIGHT, self.TOP, self.TOP_LEFT]) and (
-                self._current_row == 0):
-            return False
-        if (pos in [self.BOTTOM, self.BOTTOM_LEFT, self.BOTTOM_RIGHT]) and (
-                self._current_row == self.row - 1):
-            return False
-        if (pos in [self.LEFT, self.TOP_LEFT, self.BOTTOM_LEFT]) and (
-                self._current_column == 0):
-            return False
-        if (pos in [self.RIGHT, self.TOP_RIGHT, self.BOTTOM_RIGHT]) and (
-                self._current_column == self.column - 1):
-            return False
-
-        for p, row, col in self.LOCATIONS:
-            if p == pos:
-                return not _check_none(row, col)
-
-        self._log.error(f"Unknown position {pos}", True)
-
-    def _reset_stats(self):
-        self.row = self.data.shape[0]
-        try:
-            self.column = self.data.shape[1]
-        except IndexError:
-            self.column = 1
-
-    def _add_row(self, on_top: bool):
-        f = np.array([None] * self.column)
-        if on_top:
-            self.data = np.vstack((f, self.data))
-        else:
-            self.data = np.vstack((self.data, f))
-        self._reset_stats()
-
-    def _add_column(self, on_right: bool):
-        f = np.asanyarray([None] * self.row).reshape(self.row, 1)
-        if on_right:
-            self.data = np.hstack((self.data, f))
-        else:
-            self.data = np.hstack((f, self.data))
-        self._reset_stats()
-
-    def safely_add(self, name):
-        for loc in [self.RIGHT,
-                    self.BOTTOM_RIGHT,
-                    self.BOTTOM,
-                    self.BOTTOM_LEFT,
-                    self.LEFT,
-                    self.TOP_LEFT,
-                    self.TOP,
-                    self.TOP_RIGHT]:
-            if not self.is_conflict(loc):
-                self.add(name, loc)
-                return
-
-        if self._current_column == self.column - 1:
-            self._current_row += 1
-            self._current_column = 0
-        else:
-            self._current_column += 1
-        self._log.info("All slots occupied, going outside")
-        self.safely_add(name)
+    def __repr__(self):
+        return f"{self.start}->{self.end}"
 
 
 class Node:
@@ -177,123 +32,241 @@ class Node:
         self.name = name
         self._inputs = []
         self._outputs = []
-        self.row = None
-        self.column = None
-        self.slots = [None, None, None, None]
 
-    def add_input(self, edge: Edge):
-        self._inputs.append(edge)
+    def add_input(self, value: Edge):
+        self._inputs.append(value)
 
-    def add_output(self, edge: Edge):
-        self._outputs.append(edge)
+    def add_output(self, value: Edge):
+        self._outputs.append(value)
 
     @property
-    def inputs(self):
-        return self._inputs
-
-    @property
-    def outputs(self):
+    def outputs(self) -> List[Edge]:
         return self._outputs
 
     @property
-    def max_links(self):
+    def inputs(self) -> List[Edge]:
+        return self._inputs
+
+    @inputs.setter
+    def inputs(self, values: list):
+        self._inputs = values
+
+    @outputs.setter
+    def outputs(self, values: list):
+        self._outputs = values
+
+    @property
+    def max_links(self) -> int:
         t1 = len(self.outputs)
         t2 = len(self.inputs)
-        return t1 if t1 > t2 else t1
+        return t1 if t1 > t2 else t2
 
-    def __str__(self):
-        return self.name
+    def __repr__(self):
+        return f"Node({self.name})"
+
+
+class Gap:
+    def __init__(self):
+        self._lines = 0
+        self.value = None
+
+    def __repr__(self):
+        return "(     )"
+
+
+class Space:
+    def __init__(self, start_node, log: Log):
+
+        self._start_node = start_node
+        self.data = (
+            np.asanyarray(start_node).reshape(1, 1))  # type:np.ndarray
+        self._log = log
+        self.gap = 1
+        self._initial_setup()
+
+        self._log.info("Blank Space is initialized")
+
+    def _initial_setup(self):
+        self._add_space(RIGHT)
+        self._add_space(TOP)
+        self._add_space(BOTTOM)
+        self._add_space(LEFT)
+        self._log.info(f"Default space is generated with "
+                       f"{self._start_node.name} as middle node")
+
+    def _add_space(self, direction):
+        # Row and column are swapped to fit correct dimension while stacking
+        row = self.data.shape[1]
+        col = self.data.shape[0]
+        row = np.asanyarray([Gap() for _ in range(row)]).reshape(1, row)
+        col = np.asanyarray([Gap() for _ in range(col)]).reshape(col, 1)
+
+        if direction == TOP:
+            for _ in range(self.gap):
+                self.data = np.vstack((row, self.data))
+        elif direction == BOTTOM:
+            for _ in range(self.gap):
+                self.data = np.vstack((self.data, row))
+        elif direction == LEFT:
+            for _ in range(self.gap):
+                self.data = np.hstack((col, self.data))
+        elif direction == RIGHT:
+            for _ in range(self.gap):
+                self.data = np.hstack((self.data, col))
+        elif direction in [TOP_LEFT, TOP_RIGHT]:
+            self._add_space(TOP)
+            if direction == TOP_LEFT:
+                self._add_space(LEFT)
+            else:
+                self._add_space(RIGHT)
+        elif direction in [BOTTOM_LEFT, BOTTOM_RIGHT]:
+            self._add_space(BOTTOM)
+            if direction == BOTTOM_LEFT:
+                self._add_space(LEFT)
+            else:
+                self._add_space(RIGHT)
+        else:
+            self._log.error(f"Unknown direction {direction}")
+
+    def get_location(self, node: Union[Node, Gap]) -> tuple:
+        row, col = np.where(self.data == node)
+        if len(row) == 0:
+            self._log.error(f"No such node found in the Space. Please check "
+                            f"if you have added '{node.name}' into the Space.")
+        if len(row) > 1 or len(col) > 1:
+            self._log.warn(
+                f"Duplicated nodes found in the data : {node.name} ")
+        return row[0], col[0]
+
+    def _item_in_direction(self, node: Node, direction):
+        def _get(r, c):
+            if (r < 0
+                    or c < 0
+                    or r >= self.data.shape[0]
+                    or c >= self.data.shape[1]):
+                return None
+            return self.data[r, c]
+
+        row, col = self.get_location(node)
+        factors = {
+            TOP: (-self.gap - 1, 0),
+            TOP_RIGHT: (-self.gap - 1, self.gap + 1),
+            RIGHT: (0, self.gap + 1),
+            BOTTOM_RIGHT: (self.gap + 1, self.gap + 1),
+            BOTTOM: (self.gap + 1, 0),
+            BOTTOM_LEFT: (self.gap + 1, -self.gap - 1),
+            LEFT: (0, -self.gap - 1),
+            TOP_LEFT: (-self.gap - 1, -self.gap - 1)
+        }
+        if direction is not None:
+            fr, fc = factors[direction]
+            row += fr
+            col += fc
+            return _get(row, col)
+        else:
+            all_loc = []
+            for d in DIRECTIONS:
+                fr, rc = factors[d]
+                row += fr
+                col += rc
+                all_loc.append(_get(row, col))
+            return all_loc
+
+    def _check_clash(self, node: Node, direction: int = None):
+        if direction is not None:
+            return self._item_in_direction(node, direction)
+        return 0
+
+    def add_node(self, node: Node, direction: int, existing_node: Node = None):
+        if existing_node is None:
+            existing_node = self._start_node
+        av = self._check_clash(existing_node, direction)  # type:Gap
+        if av is not None:
+            r, c = self.get_location(av)
+            self.data[r, c] = node
+        else:
+            self._add_space(direction)
+            print("here")
+
+    def test(self):
+        n = Node("c")
+        self.add_node(n, BOTTOM_LEFT)
+        print(self.data)
 
 
 class Network:
     def __init__(self, data, log: Log):
         self.data = data
-        self._nodes = None
         self._log = log
-        self._start_node = None
-        self._slots = None
-        self.max_rows = 5
+        self._nodes = None
+        self._starting_node = None
+        self._space = None
 
     @property
-    def nodes(self) -> dict:
+    def nodes(self) -> Dict[str, Node]:
         if self._nodes is None:
-            self._assign_nodes()
+            self._generate_nodes()
         return self._nodes
 
     @property
-    def slots(self) -> Slots:
-        if self._slots is None:
-            self._slots = Slots(self.start_node, self._log)
-        return self._slots
+    def starting_node(self) -> Node:
+        if self._starting_node is None:
+            self._generate_nodes()
+        return self._starting_node
 
     @property
-    def start_node(self):
-        if self._start_node is None:
-            self._assign_nodes()
-        return self._start_node
+    def space(self):
+        if self._space is None:
+            self._generate_space()
+        return self._space
 
-    def _assign_nodes(self):
+    def _generate_space(self):
+        s = Space(self.starting_node, self._log)
+        s.test()
+
+    def _generate_nodes(self):
         all_nodes = []
         for d in self.data:
             all_nodes.extend(d[:2])
-
-        all_nodes = list(set(all_nodes))
+        # Sort here to get consistent results
+        all_nodes = sorted(list(set(all_nodes)))
         all_nodes = {x: Node(x) for x in all_nodes}
         self._nodes = all_nodes
+        self._generate_edges()
 
-        for n in self.data:
-            e = Edge(n[0], n[1], n[2])
+    def _generate_edges(self):
+        for d in self.data:
+            e = Edge(d)
             self.nodes[e.start].add_output(e)
             self.nodes[e.end].add_input(e)
 
-        if self._start_node is None:
-            temp = [x for x in self.nodes.values()]
-            temp = sorted(temp, key=lambda x: x.max_links, reverse=True)
-            self._start_node = temp[0].name
-
-    def add_slots(self, node: Node):
-        if self.slots.index(node.name) is None:
-            self.slots.safely_add(node.name)
-        else:
-            self.slots.reset_pointer(node.name)
-
-        for out in node.outputs:
-            if out.start not in self.slots.all:
-                self.slots.safely_add(out.start)
-                self.slots.reset_pointer(node.name)
-            if out.end not in self.slots.all:
-                self.slots.safely_add(out.end)
-                self.slots.reset_pointer(node.name)
-
-    def _arrange_slots(self):
-        self.add_slots(self.nodes[self.start_node])
+        # Normalize the input and output
         for n in self.nodes.values():
-            print(self.slots._current_column)
-            self.add_slots(n)
+            outs = n.outputs
+            outs = [(x, len(self.nodes[x.end].outputs)) for x in outs]
+            outs = sorted(outs, key=lambda x: x[1])
+            n.outputs = [x[0] for x in outs]
 
-        print(self.slots.data)
+            ins = n.inputs
+            ins = [(x, len(self.nodes[x.end].inputs)) for x in ins]
+            ins = sorted(ins, key=lambda x: x[1])
+            n.inputs = [x[0] for x in ins]
 
-        for i, s in enumerate(self.slots.all):
-            row = self.slots.get_row(i)
-            col = self.slots.get_column(i)
-            name = self.slots.data[row, col]
-            if name is not None:
-                self.slots.data[row, col] = (name, 1)
+        if self._starting_node is None:
+            temp = [(x.name, x.max_links) for x in self.nodes.values()]
+            temp = sorted(temp, key=lambda x: x[1], reverse=True)
+            self._starting_node = self.nodes[temp[0][0]]
 
     def test(self):
-        self._arrange_slots()
-        print(self.slots.data)
+        n = self.space
 
 
 def run():
     data = [
         ["a", "b", 1],
         ["a", "c", 1],
+        ["b", "c", 1],
         ["x", "b", 1]
     ]
-    Network(data, Log()).test()
 
-    # s = Slots("a", Log())
-    # s.add("ee", s.BOTTOM_LEFT)
-    # print(s.data)
-    # print(s.is_conflict(s.TOP_LEFT))
+    Network(data, Log()).test()
