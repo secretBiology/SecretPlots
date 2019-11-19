@@ -11,10 +11,10 @@
 # Tests for network module
 
 from SecretPlots.utils import Log
-from SecretPlots.network.pathfinder import PathFinder
-from SecretPlots.network.space import Space, Node
+from SecretPlots.network.pathfinder import PathFinder, Space
 import numpy as np
 from SecretPlots.constants.network import *
+import pytest
 
 
 def get_data():
@@ -30,15 +30,17 @@ def test_pathfinder():
 
 
 def test_space():
-    n = Node("a")
-    s = Space(n, Log())
-    # Check if data is properly formatted
-    assert s.data.shape == (3, 3)
-    assert isinstance(s.data, np.ndarray)
-    assert s.data[1, 1] == n
+    data = [
+        ["a", "b", 1],
+        ["a", "c", 1],
+        ["a", "d", 1],
+        ["b", "c", 1],
+    ]
 
-    # Check if node adding function works properly
-    for d in DIRECTIONS:
-        s.add_node(Node(f"b{d}"), d)
+    s = Space(data)
 
-    print(s.data)
+    # Check node placement
+    assert s.max_cols == 2
+    assert len(s.nodes) == 4
+    with pytest.raises(ValueError):
+        s.max_cols = 1.5

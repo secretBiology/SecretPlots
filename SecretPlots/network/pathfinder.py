@@ -10,7 +10,7 @@
 #
 # Path finder functions related to the our network
 
-from typing import List
+from typing import List, Dict, Union
 
 import numpy as np
 
@@ -88,7 +88,7 @@ class PathFinder:
 
     def get_surrounding(self, row, col) -> List[Point]:
         def _get_item(r, c):
-            if r < 0 or c < 0 or r >= self.rows or c >= self.rows:
+            if r < 0 or c < 0 or r >= self.rows or c >= self.columns:
                 return None
             else:
                 return self.graph[r, c]
@@ -194,15 +194,197 @@ class PathFinder:
         return data
 
 
+class MatItem:
+
+    def __init__(self):
+        self.x = None
+        self.y = None
+        self.height = 1
+        self.width = 1
+        self.name = "N/A"
+
+    def assign(self, index: int, width: int):
+        row = int(index / width)
+        col = index % width
+        self.x = col * self.width
+        self.y = row * self.height
+
+    @property
+    def is_gap(self):
+        raise NotImplementedError()
+
+
+class Node(MatItem):
+    @property
+    def is_gap(self):
+        return False
+
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+        self.links = 0
+        self.paths = {}
+
+    def __repr__(self):
+        return f"({self.name} {self.links})"
+
+    def add_paths(self, node_name, indexes):
+        self.paths[node_name] = indexes
+
+
+class Gap(MatItem):
+    @property
+    def is_gap(self):
+        return True
+
+    def __init__(self):
+        super().__init__()
+        self.lines = []
+
+    def add_line(self, node_name: str):
+        if node_name not in self.lines:
+            self.lines.append(node_name)
+
+    def __repr__(self):
+        if len(self.lines) == 0:
+            return f"(   )"
+        else:
+            return f"( {''.join(self.lines)} )"
+
+
+class Space:
+    def __init__(self, data):
+        self._raw_data = data
+        self._nodes = None
+        self._max_cols = None
+        self._matrix = None
+        self.node_gap = 1
+
+    @property
+    def nodes(self) -> Dict[str, Node]:
+        if self._nodes is None:
+            nodes = {}
+            # Create empty nodes
+            for d in self._raw_data:
+                nodes[d[0]] = Node(d[0])
+                nodes[d[1]] = Node(d[1])
+
+            # Add details
+            for d in self._raw_data:
+                nodes[d[0]].links += 1
+                nodes[d[1]].links += 1
+
+            self._nodes = nodes
+        return self._nodes
+
+    @property
+    def max_cols(self) -> int:
+        if self._max_cols is None:
+            self._max_cols = int(np.sqrt(len(self.nodes)))
+        return self._max_cols
+
+    @max_cols.setter
+    def max_cols(self, value: int):
+        if not isinstance(value, int):
+            raise ValueError(f"Column size can not be {type(value)}")
+        self._max_cols = value
+
+    @property
+    def matrix(self) -> np.ndarray:
+        if self._matrix is None:
+            self._place_nodes()
+            self._add_space()
+        return self._matrix
+
+    def _place_nodes(self):
+
+        mat = [x for x in self.nodes.values()]
+        forward_array = []
+        reverse_array = []
+        swap_array = True
+        while len(mat) > 0:
+            mat = sorted(mat, key=lambda x: x.links, reverse=True)
+            if swap_array:
+                forward_array.append(mat[0])
+            else:
+                reverse_array.append(mat[0])
+            mat.pop(0)
+            swap_array = not swap_array
+        mat = forward_array
+        mat.extend(reversed(reverse_array))
+
+        while len(mat) % self.max_cols != 0:
+            mat.insert(-1, None)
+
+        mat = np.array(mat).reshape((-1, self.max_cols))
+
+        self._matrix = mat
+
+    def _add_space(self):
+        ng = self.node_gap + 1
+        rows = self.matrix.shape[0] * ng + (ng - 1)
+        cols = self.matrix.shape[1] * ng + (ng - 1)
+        a = [None] * rows * cols
+        a = np.array(a).reshape((rows, cols))
+        a[(ng - 1)::ng, (ng - 1)::ng] = self.matrix
+        k = [Gap() if x is None else x for x in a.flatten()]
+        k = np.array(k).reshape(a.shape)
+        self._matrix = k
+
+    @property
+    def boolean_matrix(self) -> np.ndarray:
+        x = [0 if m.is_gap else None for m in self.matrix.flatten()]
+        x = np.array(x).reshape(self.matrix.shape)
+        return x
+
+    def _get_node_coord(self, node: Node) -> tuple:
+        k = list(self.matrix.flatten())
+        k = k.index(node)
+        return self._convert_idx(k)
+
+    def _get_node_index(self, node: Node, is_output: bool):
+        row, col = self._get_node_coord(node)
+        if is_output:
+            row += 1
+        else:
+            row -= 1
+        return row * self.matrix.shape[1] + col
+
+    def _get_item_at(self, index: int) -> Union[Gap, Node]:
+        row, col = self._convert_idx(index)
+        return self.matrix[row, col]
+
+    def _convert_idx(self, idx) -> tuple:
+        row = int(idx / self.matrix.shape[1])
+        col = idx % self.matrix.shape[1]
+        return row, col
+
+    def _assign_edges(self):
+        for d in self._raw_data:
+            p = PathFinder(self.boolean_matrix)
+            p.show_blocks = True
+            start_node = self._get_node_index(self.nodes[d[0]], True)
+            end_node = self._get_node_index(self.nodes[d[1]], False)
+            bp = p.boolean_path(start_node, end_node)
+            idx = []
+            for i, m in enumerate(bp.flatten()):
+                if m == 1:
+                    self._get_item_at(i).add_line(d[0])
+                    r, c = self._convert_idx(i)
+                    idx.append((i, r, c))
+
+            self.nodes[d[0]].add_paths(d[1], idx)
+
+    def get(self) -> np.ndarray:
+        self._assign_edges()
+        return self.matrix
+
+
 def run():
     data = [
-        [0, None, 0, 0, 0],
-        [0, 0, 0, None, 0],
-        [0, 0, None, 0, 0],
-        [0, 0, 0, 0, 0]
+        ["a", "b", 1],
+        ["a", "c", 1],
+        ["a", "d", 1],
+        ["c", "d", 1],
+        ["b", "d", 1],
     ]
-
-    pf = PathFinder(data)
-    pf.find_path(2, 10)
-    data = pf.boolean_path(2, 10)
-    print(data)

@@ -1,3 +1,3 @@
-from SecretPlots.network.space import run
+from SecretPlots.network.graphs import run
 
 run()
