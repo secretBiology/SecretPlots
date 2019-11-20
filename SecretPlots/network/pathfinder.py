@@ -152,10 +152,13 @@ class PathFinder:
         col = index % width
         return row, col
 
-    def _trace_path(self, start, end):
+    def _trace_path(self, start, end) -> list:
+        path = []
         row, col = self.split_index(end, self.columns)
         item = self.graph[row, col]  # type:Point
+        path.append(item.index)
         while item != start:
+
             item.mark = self.path_mark
             if item.index == end:
                 item.mark = self.end_mark
@@ -165,6 +168,10 @@ class PathFinder:
                 break
             nr, nc = self.split_index(item.previous_node, self.columns)
             item = self.graph[nr, nc]
+            path.append(item.index)
+
+        path = list(reversed(path))
+        return path
 
     def find_path(self, start, end, *, use_dijkstra=False):
         self._generate_distance_matrix(start, end, use_dijkstra=use_dijkstra)
@@ -193,6 +200,14 @@ class PathFinder:
         data = np.asanyarray(data).reshape(self.graph.shape)
         return data
 
+    def path_index(self, start, end, *,
+                   use_dijkstra=False,
+                   exclude_start=False,
+                   exclude_end=False) -> list:
+
+        self._generate_distance_matrix(start, end, use_dijkstra=use_dijkstra)
+        return self._trace_path(start, end)
+
 
 class MatItem:
 
@@ -202,16 +217,26 @@ class MatItem:
         self.height = 1
         self.width = 1
         self.name = "N/A"
+        self.column = None
+        self.row = None
 
     def assign(self, index: int, width: int):
         row = int(index / width)
         col = index % width
         self.x = col * self.width
         self.y = row * self.height
+        self.column = col
+        self.row = row
 
     @property
     def is_gap(self):
         raise NotImplementedError()
+
+
+class Edge:
+    def __init__(self, start, end, link_type):
+        self.start = start
+        self.end = end
 
 
 class Node(MatItem):
@@ -224,6 +249,7 @@ class Node(MatItem):
         self.name = name
         self.links = 0
         self.paths = {}
+        self.color = None
 
     def __repr__(self):
         return f"({self.name} {self.links})"
@@ -240,6 +266,8 @@ class Gap(MatItem):
     def __init__(self):
         super().__init__()
         self.lines = []
+        self.v_slots = 1
+        self.h_slots = 1
 
     def add_line(self, node_name: str):
         if node_name not in self.lines:
@@ -345,9 +373,9 @@ class Space:
     def _get_node_index(self, node: Node, is_output: bool):
         row, col = self._get_node_coord(node)
         if is_output:
-            row += 1
+            row -= 1  # TODO: Check properly
         else:
-            row -= 1
+            row += 1
         return row * self.matrix.shape[1] + col
 
     def _get_item_at(self, index: int) -> Union[Gap, Node]:
@@ -362,16 +390,12 @@ class Space:
     def _assign_edges(self):
         for d in self._raw_data:
             p = PathFinder(self.boolean_matrix)
-            p.show_blocks = True
             start_node = self._get_node_index(self.nodes[d[0]], True)
             end_node = self._get_node_index(self.nodes[d[1]], False)
-            bp = p.boolean_path(start_node, end_node)
             idx = []
-            for i, m in enumerate(bp.flatten()):
-                if m == 1:
-                    self._get_item_at(i).add_line(d[0])
-                    r, c = self._convert_idx(i)
-                    idx.append((i, r, c))
+            for i in p.path_index(start_node, end_node):
+                r, c = self._convert_idx(i)
+                idx.append((i, r, c))
 
             self.nodes[d[0]].add_paths(d[1], idx)
 

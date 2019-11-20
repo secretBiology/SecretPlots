@@ -31,3 +31,14 @@ DIRECTIONS = [
     TOP,
     TOP_RIGHT
 ]
+
+DIRECTION_TEXT = [
+    "RIGHT",
+    "BOTTOM_RIGHT",
+    "BOTTOM",
+    "BOTTOM_LEFT",
+    "LEFT",
+    "TOP_LEFT",
+    "TOP",
+    "TOP_RIGHT"
+]
