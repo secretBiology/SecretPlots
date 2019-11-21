@@ -211,11 +211,11 @@ class PathFinder:
 
 class MatItem:
 
-    def __init__(self):
+    def __init__(self, height, width):
         self.x = None
         self.y = None
-        self.height = 1
-        self.width = 1
+        self.height = height
+        self.width = width
         self.name = "N/A"
         self.column = None
         self.row = None
@@ -244,8 +244,8 @@ class Node(MatItem):
     def is_gap(self):
         return False
 
-    def __init__(self, name):
-        super().__init__()
+    def __init__(self, name, height, width):
+        super().__init__(height, width)
         self.name = name
         self.links = 0
         self.paths = {}
@@ -263,8 +263,8 @@ class Gap(MatItem):
     def is_gap(self):
         return True
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, height, width):
+        super().__init__(height, width)
         self.lines = []
         self.v_slots = 1
         self.h_slots = 1
@@ -281,12 +281,16 @@ class Gap(MatItem):
 
 
 class Space:
-    def __init__(self, data):
+    def __init__(self, data, height, width):
         self._raw_data = data
         self._nodes = None
         self._max_cols = None
         self._matrix = None
         self.node_gap = 1
+        self.use_dijkstra = True
+        self.node_height = height
+        self.node_width = width
+        self._assignment_done = False
 
     @property
     def nodes(self) -> Dict[str, Node]:
@@ -294,8 +298,10 @@ class Space:
             nodes = {}
             # Create empty nodes
             for d in self._raw_data:
-                nodes[d[0]] = Node(d[0])
-                nodes[d[1]] = Node(d[1])
+                nodes[d[0]] = Node(d[0], height=self.node_height,
+                                   width=self.node_width)
+                nodes[d[1]] = Node(d[1], height=self.node_height,
+                                   width=self.node_width)
 
             # Add details
             for d in self._raw_data:
@@ -321,7 +327,6 @@ class Space:
     def matrix(self) -> np.ndarray:
         if self._matrix is None:
             self._place_nodes()
-            self._add_space()
         return self._matrix
 
     def _place_nodes(self):
@@ -355,7 +360,9 @@ class Space:
         a = [None] * rows * cols
         a = np.array(a).reshape((rows, cols))
         a[(ng - 1)::ng, (ng - 1)::ng] = self.matrix
-        k = [Gap() if x is None else x for x in a.flatten()]
+        k = [Gap(height=self.node_height,
+                 width=self.node_width) if x is None else x
+             for x in a.flatten()]
         k = np.array(k).reshape(a.shape)
         self._matrix = k
 
@@ -393,14 +400,18 @@ class Space:
             start_node = self._get_node_index(self.nodes[d[0]], True)
             end_node = self._get_node_index(self.nodes[d[1]], False)
             idx = []
-            for i in p.path_index(start_node, end_node):
+            for i in p.path_index(start_node, end_node,
+                                  use_dijkstra=self.use_dijkstra):
                 r, c = self._convert_idx(i)
                 idx.append((i, r, c))
 
             self.nodes[d[0]].add_paths(d[1], idx)
 
     def get(self) -> np.ndarray:
-        self._assign_edges()
+        if not self._assignment_done:
+            self._add_space()
+            self._assign_edges()
+            self._assignment_done = True
         return self.matrix
 
 

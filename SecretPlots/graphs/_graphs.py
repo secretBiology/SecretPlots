@@ -83,6 +83,8 @@ class SecretPlot:
         if self.group_gap is not None:
             self.assembler.am.group_gap = self.group_gap
         if self.colors is not None:
+            if isinstance(self.colors, str):
+                self.colors = [self.colors]
             self.assembler.cm.user_colors = self.colors
         if self.cmap is not None:
             self.assembler.cm.user_cmap = self.cmap

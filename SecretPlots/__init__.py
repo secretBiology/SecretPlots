@@ -19,3 +19,5 @@ from SecretPlots.graphs.categorical import (BarPlot,
                                             ColorPlot,
                                             BooleanPlot,
                                             BarGroupedPlot)
+
+from SecretPlots.network.graphs import NetworkPlot, Space
