@@ -1,8 +1,6 @@
 ## SecretPlots
 
-![PyPI](https://img.shields.io/pypi/v/SecretPlots?style=for-the-badge)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/SecretPlots?style=for-the-badge)
-![Status](https://img.shields.io/badge/status-alpha-inactive?style=for-the-badge)
+[![PyPI version](https://badge.fury.io/py/SecretPlots.svg)](https://badge.fury.io/py/SecretPlots)
 
 This library is heavily under development. Hence most of the APIs and
  functions will change until stable version is generated. 

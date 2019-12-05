@@ -343,6 +343,10 @@ class Space:
             new_mat.append(self.nodes[d])
             mat.remove(self.nodes[d])
         new_mat.extend(mat)
+
+        while len(new_mat) % self.max_cols != 0:
+            new_mat.insert(-1, None)
+
         new_mat = np.array(new_mat).reshape((-1, self.max_cols))
         self._matrix = new_mat
 
