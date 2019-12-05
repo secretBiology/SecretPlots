@@ -46,6 +46,8 @@ class SecretPlot:
         self.y_label = None
         self.x_ticklabels = None
         self.y_ticklabels = None
+        self.x_top_ticks = False
+        self.y_right_ticks = False
         self.x_padding_start = None
         self.x_padding_end = None
         self.y_padding_start = None
@@ -123,6 +125,11 @@ class SecretPlot:
             self.assembler.am.x.ticks = self.x_ticks
         if self.y_ticks is not None:
             self.assembler.am.y.ticks = self.y_ticks
+
+        if self.x_top_ticks:
+            self.assembler.am.x.tick_direction = "top"
+        if self.y_right_ticks:
+            self.assembler.am.y.tick_direction = "right"
 
         if self.x_inverted is not None:
             self.assembler.am.x.is_inverted = self.x_inverted
@@ -204,6 +211,14 @@ class SecretPlot:
     def add_x_ticklabels(self, labels, **kwargs):
         self.x_ticklabels = labels
         self.assembler.am.x.add_ticklabels_options(**kwargs)
+        return self
+
+    def add_x_top_ticks(self):
+        self.x_top_ticks = True
+        return self
+
+    def add_y_right_ticks(self):
+        self.y_right_ticks = True
         return self
 
     def add_y_ticklabels(self, labels, **kwargs):

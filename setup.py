@@ -5,7 +5,7 @@ with open("PYPI.md", "r") as fh:
 
 setuptools.setup(
     name="SecretPlots",
-    version="0.1.1",
+    version="0.1.2",
     author="Rohit Suratekar",
     author_email="rohitsuratekar@gmail.com",
     description="Make plotting great again!",

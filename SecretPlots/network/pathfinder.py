@@ -13,6 +13,7 @@
 from typing import List, Dict, Union
 
 import numpy as np
+from SecretPlots.utils import Log
 
 
 # np.set_printoptions(linewidth=300)
@@ -281,8 +282,9 @@ class Gap(MatItem):
 
 
 class Space:
-    def __init__(self, data, height, width):
+    def __init__(self, data, height, width, log: Log):
         self._raw_data = data
+        self._log = log
         self._nodes = None
         self._max_cols = None
         self._matrix = None
@@ -290,6 +292,7 @@ class Space:
         self.use_dijkstra = True
         self.node_height = height
         self.node_width = width
+        self.node_placement = None
         self._assignment_done = False
 
     @property
@@ -329,7 +332,24 @@ class Space:
             self._place_nodes()
         return self._matrix
 
+    def _place_with_arrangement(self):
+        self._log.info("User has defined the node placement")
+        mat = [x for x in self.nodes.values()]
+        new_mat = []
+        for d in self.node_placement:
+            if d not in self.nodes.keys():
+                self._log.warn(f"{d} not found in the current space")
+                continue
+            new_mat.append(self.nodes[d])
+            mat.remove(self.nodes[d])
+        new_mat.extend(mat)
+        new_mat = np.array(new_mat).reshape((-1, self.max_cols))
+        self._matrix = new_mat
+
     def _place_nodes(self):
+        if self.node_placement is not None:
+            self._place_with_arrangement()
+            return
 
         mat = [x for x in self.nodes.values()]
         forward_array = []
@@ -352,6 +372,7 @@ class Space:
         mat = np.array(mat).reshape((-1, self.max_cols))
 
         self._matrix = mat
+        self._log.info("Automatic node placement is done")
 
     def _add_space(self):
         ng = self.node_gap + 1

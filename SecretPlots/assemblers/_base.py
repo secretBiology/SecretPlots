@@ -132,10 +132,20 @@ class Assembler:
             self.ax.set_xticks(self.am.x.ticks, **self.am.x.tick_options)
             self.ax.set_xticklabels(self.am.x.tick_labels,
                                     **self.am.x.ticklabels_options)
+        if self.am.x.tick_direction == "top":
+            self.ax.xaxis.tick_top()
+        elif self.am.x.tick_direction == "bottom":
+            self.ax.xaxis.tick_bottom()
+
         if len(self.am.y.ticks) != 0:
             self.ax.set_yticks(self.am.y.ticks, **self.am.y.tick_options)
             self.ax.set_yticklabels(self.am.y.tick_labels,
                                     **self.am.y.ticklabels_options)
+
+        if self.am.y.tick_direction == "left":
+            self.ax.yaxis.tick_left()
+        elif self.am.y.tick_direction == "right":
+            self.ax.yaxis.tick_right()
 
         left, right, top, bottom = self.am.frame_visibility
         self.ax.spines['left'].set_visible(left)

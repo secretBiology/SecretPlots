@@ -255,7 +255,7 @@ class Axis:
         self._ticks = None
         self._tick_labels = None
         self._ticklabels_options = None
-        self._tick_directions = None
+        self._tick_direction = None
         self._tick_options = None
         self._gap = None
         self._gap_options = None
@@ -357,6 +357,14 @@ class Axis:
     @tick_labels.setter
     def tick_labels(self, values):
         self._tick_labels = values
+
+    @property
+    def tick_direction(self):
+        return self._tick_direction
+
+    @tick_direction.setter
+    def tick_direction(self, value):
+        self._tick_direction = value
 
     @property
     def gap(self) -> float:

@@ -43,6 +43,8 @@ class NetworkPlot:
         self.node_width = 1
         self.node_height = 1
         self.node_gap = 1
+        self.node_placement = None
+        self.line_decoration = True
         self.max_columns = None
         self.aspect_ratio = None
         self.font_size = 13
@@ -66,9 +68,11 @@ class NetworkPlot:
         if self._space is None:
             self._space = Space(self.data,
                                 height=self.node_height,
-                                width=self.node_width)
+                                width=self.node_width,
+                                log=self._log)
             self._space.use_dijkstra = self.use_dijkstra
             self.node_gap = self.node_gap
+            self._space.node_placement = self.node_placement
             if self.max_columns is not None:
                 self._space.max_cols = self.max_columns
         return self._space
@@ -229,7 +233,7 @@ class NetworkPlot:
         line = Line2D(x, y, **opts)
         self.ax.add_line(line)
 
-        if ng is None:
+        if ng is None and self.line_decoration:
             # This is last block, add arrow
             arrow_x = [
                 gap.x + gap.width * row_factor - arrow_width,
@@ -329,8 +333,10 @@ class NetworkPlot:
         self.ax.set_ylim(min(all_y), max(all_y))
         self._log.info("All nodes arranged in the space")
 
-    def draw(self):
+    def draw(self, ax: plt.Axes = None):
         # Sanity check to avoid redrawing
+        if ax is not None:
+            self._ax = ax
         if self._fig_drawn:
             self._log.warn("Figure is already drawn.")
             return
@@ -349,8 +355,10 @@ class NetworkPlot:
             plt.tight_layout()
         plt.show()
 
-    def save(self, filename, **kwargs):
+    def save(self, filename, tight=False, **kwargs):
         self.draw()
+        if tight:
+            plt.tight_layout()
         plt.savefig(filename, **kwargs)
 
 
@@ -359,15 +367,9 @@ def run():
         ["a", "b", 1],
         ["a", "c", 1],
         ["c", "d", 1],
-        ["c", "a", 1],
-        ["c", "a1", 1],
-        ["c", "a2", 1],
-        ["c", "a2", 1],
-        ["c", "ae2", 1],
-        ["c", "ae32", 1],
-        ["c", "ta", 1],
-        ["b", "ta", 1],
     ]
-
     n = NetworkPlot(data)
+    n.node_placement = ["a", "b", "c", "d"]
+    n.max_columns = 4
+    n.aspect_ratio = 1
     n.show()
