@@ -20,9 +20,10 @@ from matplotlib.transforms import ScaledTranslation
 from SecretPlots import presets
 from SecretPlots.core import state
 from SecretPlots.core.chrome import ChromeText, apply_chrome
+from SecretPlots.core.colors import extend_palette
 from SecretPlots.core.resolve import Style, resolve
 from SecretPlots.core.units import Length
-from SecretPlots.errors import FormatWarning, emit
+from SecretPlots.errors import DataShapeError, FormatWarning, emit
 from SecretPlots.presets._schema import coerce_theme_field
 from SecretPlots.theme import (
     STYLE_FIELDS,
@@ -557,6 +558,37 @@ class Plot(ABC):
             ax.set_xscale("log")
         if "y" in self._log_axes:
             ax.set_yscale("log")
+
+    def _group_colors(
+        self, style: Style, groups: list[Any], *, grouped: bool
+    ) -> dict[Any, str]:
+        """Palette colors per ``hue`` group (``{None: primary}`` without groups),
+        with ``.colors()`` mappings and ``.highlight()`` applied."""
+        theme = style.theme
+        highlight = set(self._highlight)
+        if highlight and not grouped:
+            raise DataShapeError(
+                f"highlight() picks hue= groups; this {self.kind} plot has no groups"
+            )
+        unknown = highlight - set(groups)
+        if unknown:
+            raise DataShapeError(
+                f"Cannot highlight {sorted(map(str, unknown))}: not a group. "
+                f"Groups: {', '.join(map(str, groups))}"
+            )
+        if not grouped:
+            return {None: theme.primary or "#4589ff"}
+        base = extend_palette(
+            theme.palette or (),
+            len(groups),
+            background=theme.background or "#ffffff",
+            source=f"the palette from {style.provenance['palette']}",
+        )
+        colors = {g: self._color_map.get(g, base[i]) for i, g in enumerate(groups)}
+        if highlight:
+            muted = theme.muted or "#c6c6c6"
+            colors = {g: c if g in highlight else muted for g, c in colors.items()}
+        return colors
 
     def _legend_position(self, style: Style, n: int) -> LegendPosition:
         position = self._legend or style.theme.legend_position or "auto"

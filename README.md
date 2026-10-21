@@ -26,7 +26,14 @@ sp.use(preset="nature")  # 89 mm wide, 5–7 pt text, embedded fonts
     .preset("ft-like")
     .save("chart.png")
 )
+
+sp.histogram(df, x="age", hue="group", stat="density").kde().show_n()
+sp.heatmap(expr).scale("row").groups(rows="pathway").cluster(cols=False)
 ```
+
+Plot types: `sp.bar`, `sp.scatter`, `sp.histogram`, `sp.heatmap`. Heatmaps use
+[SecretColors](https://github.com/secretBiology/SecretColors) colormaps by name
+(`.cmap("tol_sunset")`; `sp.colormaps()` lists them) as well as matplotlib's.
 
 ## Ideas
 

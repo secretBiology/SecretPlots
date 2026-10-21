@@ -1,11 +1,17 @@
-"""Color helpers: palette extension, derived colormaps, readable text."""
+"""Color helpers: palette extension, colormaps, readable text."""
 
+import difflib
 from collections.abc import Sequence
+from typing import Any
 
+import matplotlib as mpl
+import pandas as pd
 from matplotlib.colors import Colormap, LinearSegmentedColormap, to_hex
+from SecretColors import cmaps as sc_cmaps
+from SecretColors.cmaps.maps import _SPECIAL as _SC_SPECIAL
 from SecretColors.utils import mix, text_color
 
-from SecretPlots.errors import PaletteExtendedWarning, emit
+from SecretPlots.errors import ColormapWarning, PaletteExtendedWarning, emit
 
 #: Beyond this many categories, color alone stops being a useful encoding.
 MANY_CATEGORIES = 8
@@ -61,13 +67,125 @@ def derived_diverging(negative: str, positive: str, background: str) -> tuple[st
     return (to_hex(negative), _mix(background, "#808080", 0.12), to_hex(positive))
 
 
-def colormap(stops: Sequence[str], name: str = "secretplots") -> Colormap:
-    """Matplotlib colormap from color stops, or a named matplotlib colormap."""
-    if len(stops) == 1:
-        import matplotlib as mpl
+#: Colormaps that mislead (uneven lightness) or that readers with red-green
+#: colour blindness cannot read. Nature's figure guide and Crameri et al. 2020
+#: (Nat Commun 11:5444) both ask authors to avoid them.
+_RAINBOW = {
+    "jet",
+    "rainbow",
+    "turbo",
+    "hsv",
+    "gist_rainbow",
+    "nipy_spectral",
+    "gist_ncar",
+    "spectral",
+    "cyclic",
+}
+_RED_GREEN = {
+    "rdylgn",
+    "redgreen",
+    "redgreen_light",
+    "arearedgreen",
+    "redwhitegreen",
+    "redwhitegreen_light",
+    "trafficlight",
+}
 
-        return mpl.colormaps[stops[0]]
-    return LinearSegmentedColormap.from_list(name, list(stops))
+_SC_KINDS = {
+    "seq": "sequential",
+    "div": "diverging",
+    "qual": "qualitative",
+    "regular": "qualitative",
+}
+
+
+def _kind(name: str) -> str:
+    data = _SC_SPECIAL.get(name)
+    return "sequential" if data is None else _SC_KINDS.get(data[1].get("type"), "?")
+
+
+def colormaps(kind: str | None = None) -> pd.DataFrame:
+    """Colormaps you can pass by name to ``.cmap()`` (from SecretColors).
+
+    Any matplotlib colormap name (e.g. ``"viridis"``) works too, as does a
+    SecretColors palette color name (``"teal"``) for a single-hue ramp.
+
+    Args:
+        kind: ``"sequential"``, ``"diverging"`` or ``"qualitative"`` to filter.
+    """
+    rows = []
+    for source in ("standard", "brewer", "tableau", "colorblind"):
+        for name in sc_cmaps.available(source):
+            key = name.lower()
+            note = ""
+            if key in _RAINBOW:
+                note = "rainbow-like; avoid for data"
+            elif key in _RED_GREEN:
+                note = "red-green; not colour-blind safe"
+            rows.append(
+                {"name": name, "kind": _kind(name), "source": source, "note": note}
+            )
+    table = pd.DataFrame(rows)
+    if kind is not None:
+        kinds = ("sequential", "diverging", "qualitative")
+        if kind not in kinds:
+            raise ValueError(f"kind must be one of {kinds}")
+        table = table[table["kind"] == kind]
+    return table.set_index("name")
+
+
+def _check_cmap_name(name: str) -> None:
+    key = name.lower().removeprefix("sc.").removesuffix("_r")
+    if key in _RAINBOW:
+        problem = "is a rainbow map: uneven lightness creates false boundaries"
+    elif key in _RED_GREEN:
+        problem = "mixes red and green, which colour-blind readers cannot tell apart"
+    else:
+        return
+    emit(
+        ColormapWarning,
+        f"Colormap {name!r} {problem}. Journals (e.g. Nature) ask authors to "
+        "avoid it. Use a sequential map such as 'blues' or 'viridis', or a "
+        "diverging one such as 'RdBu' or 'tol_sunset'; sp.colormaps() lists them.",
+        once_key=key,
+        stacklevel=6,
+    )
+
+
+def resolve_cmap(spec: Any, *, reverse: bool = False) -> Colormap:
+    """Matplotlib colormap from a SecretColors name (``"blues"``, ``"RdBu"``,
+    ``"tol_sunset"``, ``"sc.teal"``), a matplotlib name (``"viridis"``), a
+    list of colour stops (low to high) or a ``Colormap``."""
+    if isinstance(spec, Colormap):
+        cmap = spec
+    elif isinstance(spec, str):
+        _check_cmap_name(spec)
+        name = spec.removeprefix("sc.")
+        flipped = name.endswith("_r")
+        if flipped:
+            name = name[:-2]
+        try:
+            cmap = sc_cmaps.cmap(name, reverse=flipped)
+        except ValueError:
+            if spec in mpl.colormaps:
+                cmap = mpl.colormaps[spec]
+            else:
+                options = [*sc_cmaps.available(), *mpl.colormaps]
+                close = difflib.get_close_matches(spec, options, n=3)
+                hint = f" Did you mean {close}?" if close else ""
+                raise ValueError(
+                    f"Unknown colormap {spec!r}.{hint} sp.colormaps() lists the "
+                    "SecretColors maps; matplotlib names like 'viridis' work too."
+                ) from None
+    else:
+        items = list(spec)
+        if len(items) == 1 and isinstance(items[0], str):
+            return resolve_cmap(items[0], reverse=reverse)
+        if len(items) < 2:
+            raise ValueError("A colormap needs a name or at least 2 colors")
+        stops = [to_hex(c) for c in items]
+        cmap = LinearSegmentedColormap.from_list("secretplots", stops)
+    return cmap.reversed() if reverse else cmap
 
 
 def readable_on(background: str, *, dark: str, light: str) -> str:

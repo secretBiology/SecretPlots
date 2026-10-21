@@ -7,6 +7,8 @@ nav:
   - Plots:
       - Bar: plots/bar.md
       - Scatter: plots/scatter.md
+      - Histogram: plots/histogram.md
+      - Heatmap: plots/heatmap.md
   - Presets: presets.md
   - API: api.md
 plugins:

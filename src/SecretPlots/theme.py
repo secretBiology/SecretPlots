@@ -76,6 +76,7 @@ class Theme:
     bar_gap: float | None = None
     bar_edge_width: float | None = None
     errorbar_capsize: float | None = None
+    cell_edge_width: float | None = None
     missing_hatch: str | None = None
     marker: str | None = None
     marker_size: float | None = None
@@ -154,6 +155,7 @@ def _secret() -> Theme:
         bar_gap=0.2,
         bar_edge_width=0.0,
         errorbar_capsize=2.5,
+        cell_edge_width=0.0,
         missing_hatch="////",
         marker="o",
         marker_size=5.0,
@@ -265,11 +267,17 @@ FIELD_DOCS: dict[str, str] = {
     "muted": "Color of de-emphasized items when highlighting",
     "positive": "Color for positive values / increases",
     "negative": "Color for negative values / decreases",
-    "sequential": "Colormap stops for heatmaps, low to high",
+    "sequential": (
+        "Heatmap colormap: color stops low to high, or one colormap name "
+        "(SecretColors or matplotlib, e.g. ['viridis'])"
+    ),
     "diverging": "Colormap stops for diverging data: negative, middle, positive",
     "bar_gap": "Empty fraction of each category slot, 0 to 1",
     "bar_edge_width": "Outline width around bars in pt",
     "errorbar_capsize": "Error bar cap length in pt",
+    "cell_edge_width": (
+        "Background-colored lines between heatmap cells in pt (0 for none)"
+    ),
     "missing_hatch": "Hatch pattern marking missing values",
     "marker": "Scatter marker shape (matplotlib marker): 'o', 's', '^', 'D', 'x', ...",
     "marker_size": "Scatter marker diameter in pt (base size when size= is used)",

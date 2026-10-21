@@ -58,6 +58,14 @@ class LabelsHiddenWarning(SecretPlotsWarning):
     """Some labels did not fit and were hidden."""
 
 
+class ColormapWarning(SecretPlotsWarning):
+    """The colormap misleads (rainbow) or is not colour-blind safe (red-green)."""
+
+
+class SmallSampleWarning(SecretPlotsWarning):
+    """Too few values for the plot to describe the data reliably."""
+
+
 class FormatWarning(SecretPlotsWarning):
     """File format is not one the preset's publisher accepts."""
 

@@ -12,7 +12,6 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.markers import MarkerStyle
 
-from SecretPlots.core.colors import extend_palette
 from SecretPlots.core.data import _order
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
@@ -332,33 +331,6 @@ class ScatterPlot(Plot):
     def _default_labels(self) -> dict[str, str | None]:
         return {"x": self._points.x_name, "y": self._points.y_name}
 
-    def _group_colors(self, style: Style, groups: list[Any]) -> dict[Any, str]:
-        theme = style.theme
-        highlight = set(self._highlight)
-        if highlight and self._points.hue_order is None:
-            raise DataShapeError(
-                "highlight() picks hue= groups; this scatter plot has no groups"
-            )
-        unknown = highlight - set(groups)
-        if unknown:
-            raise DataShapeError(
-                f"Cannot highlight {sorted(map(str, unknown))}: not a group. "
-                f"Groups: {', '.join(map(str, groups))}"
-            )
-        if self._points.hue_order is None:
-            return {None: theme.primary or "#4589ff"}
-        base = extend_palette(
-            theme.palette or (),
-            len(groups),
-            background=theme.background or "#ffffff",
-            source=f"the palette from {style.provenance['palette']}",
-        )
-        colors = {g: self._color_map.get(g, base[i]) for i, g in enumerate(groups)}
-        if highlight:
-            muted = theme.muted or "#c6c6c6"
-            colors = {g: c if g in highlight else muted for g, c in colors.items()}
-        return colors
-
     def _areas(self, values: Any, base: float) -> np.ndarray:
         values = np.asarray(values, dtype=float)
         sizes = self._points.frame.get("size")
@@ -373,7 +345,9 @@ class ScatterPlot(Plot):
         theme = style.theme
         frame = self._points.frame
         groups: list[Any] = list(self._points.hue_order or [None])
-        colors = self._group_colors(style, groups)
+        colors = self._group_colors(
+            style, groups, grouped=self._points.hue_order is not None
+        )
         shapes = _shapes(theme, self._points.style_order or [])
         base = float(theme.marker_size or 5.0)
         areas = self._areas(frame["size"] if "size" in frame else frame["x"], base)

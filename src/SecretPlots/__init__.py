@@ -8,9 +8,11 @@
 from SecretPlots import fonts, presets
 from SecretPlots._config import config
 from SecretPlots._version import __version__
+from SecretPlots.core.colors import colormaps
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.state import reset, use
 from SecretPlots.errors import (
+    ColormapWarning,
     ConstraintAdjustedWarning,
     DataShapeError,
     FontFallbackWarning,
@@ -22,8 +24,11 @@ from SecretPlots.errors import (
     PresetNotFoundError,
     SecretPlotsError,
     SecretPlotsWarning,
+    SmallSampleWarning,
 )
 from SecretPlots.plots.bar import BarPlot, bar
+from SecretPlots.plots.heatmap import HeatmapPlot, heatmap
+from SecretPlots.plots.histogram import HistogramPlot, hist, histogram
 from SecretPlots.plots.scatter import ScatterPlot, scatter
 from SecretPlots.theme import (
     Theme,
@@ -35,10 +40,13 @@ from SecretPlots.theme import (
 
 __all__ = [
     "BarPlot",
+    "ColormapWarning",
     "ConstraintAdjustedWarning",
     "DataShapeError",
     "FontFallbackWarning",
     "FormatWarning",
+    "HeatmapPlot",
+    "HistogramPlot",
     "LabelsHiddenWarning",
     "LimitExceededWarning",
     "PaletteExtendedWarning",
@@ -48,12 +56,17 @@ __all__ = [
     "ScatterPlot",
     "SecretPlotsError",
     "SecretPlotsWarning",
+    "SmallSampleWarning",
     "Theme",
     "__version__",
     "bar",
+    "colormaps",
     "config",
     "fonts",
     "get_theme",
+    "heatmap",
+    "hist",
+    "histogram",
     "list_themes",
     "presets",
     "register_theme",
