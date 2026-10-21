@@ -277,17 +277,45 @@ def test_group_bar_colors_follow_colors_mapping(expr: pd.DataFrame) -> None:
 
 
 def test_tracks_add_legend(expr: pd.DataFrame) -> None:
+    from matplotlib.text import Text
+
     cond = {c: c[:-1] for c in expr.columns[:6]}
     plot = sp.heatmap(expr).tracks(
         rows={"Pathway": "pathway"}, cols={"Condition": cond}
     )
-    legend = plot.ax.get_legend()
-    texts = [t.get_text() for t in legend.get_texts()]
+    plot.render()
+    legend = plot._track_legend
+    assert legend is not None
+    texts = [a.get_text() for a in legend.findobj(Text) if a.get_text()]
     assert texts == ["Pathway", "Signal", "Cycle", "Metab", "Condition", "ctrl", "trt"]
-    assert (
-        sp.heatmap(expr).tracks(rows={"P": "pathway"}).legend(False).ax.get_legend()
-        is None
+    hidden = sp.heatmap(expr).tracks(rows={"P": "pathway"}).legend(False)
+    hidden.render()
+    assert hidden._track_legend is None
+
+
+def test_track_layout_does_not_overlap(expr: pd.DataFrame) -> None:
+    cond = {c: c[:-1] for c in expr.columns[:6]}
+    batch = dict(zip(expr.columns[:6], "ABABAB", strict=True))
+    plot = sp.heatmap(expr).tracks(
+        rows={"Pathway": "pathway"}, cols={"Condition": cond, "Batch": batch}
     )
+    fig = plot.fig
+    renderer = fig.canvas.get_renderer()
+    cells = plot.ax.get_window_extent(renderer)
+    strips = [a.get_window_extent(renderer) for a in plot._body.axes[:3]]
+    row_strip, *col_strips = strips
+    assert row_strip.x1 < cells.x0  # gap between strip and cells
+    assert all(b.y0 > cells.y1 for b in col_strips)
+    assert (
+        abs(col_strips[0].y0 - col_strips[1].y1) > 1
+        or abs(col_strips[1].y0 - col_strips[0].y1) > 1
+    )
+    names = [t.get_window_extent(renderer) for t in plot._body.track_names]
+    cbar = plot._cax.get_window_extent(renderer)
+    assert all(n.x1 < cbar.x0 for n in names)
+    legend = plot._track_legend.get_window_extent(renderer)
+    assert legend.y1 <= cbar.y0
+    assert legend.x1 <= fig.bbox.x1 + 1
 
 
 # -------------------------------------------------------------- clustering
@@ -434,3 +462,23 @@ def test_options_document_every_argument() -> None:
     for verb in ("cmap", "colorbar", "values", "scale", "cluster", "groups", "tracks"):
         assert verb in table.index
         assert (sp.HeatmapPlot.options(verb)["description"] != "").all()
+
+
+@pytest.mark.parametrize("colorbar", ["right", "bottom", "none"])
+def test_layout_is_stable_across_redraws(expr: pd.DataFrame, colorbar: str) -> None:
+    cond = {c: c[:-1] for c in expr.columns[:6]}
+    plot = (
+        sp.heatmap(expr)
+        .scale("row")
+        .groups(rows="pathway", cols=cond)
+        .cluster(cols=False)
+        .tracks(rows={"Pathway": "pathway"}, cols={"Condition": cond})
+        .colorbar(position=colorbar)
+    )
+    fig = plot.fig
+    before = plot.ax.get_position().bounds
+    fig.draw_without_rendering()
+    fig.draw_without_rendering()
+    assert plot.ax.get_position().bounds == pytest.approx(before)
+    renderer = fig.canvas.get_renderer()
+    assert plot._track_legend.get_window_extent(renderer).x1 <= fig.bbox.x1 + 1

@@ -17,9 +17,17 @@ from matplotlib.backend_bases import RendererBase
 from matplotlib.colorbar import Colorbar
 from matplotlib.colors import BoundaryNorm, Colormap, LogNorm, Normalize, to_hex
 from matplotlib.figure import Figure
-from matplotlib.patches import Patch
+from matplotlib.offsetbox import (
+    AnchoredOffsetbox,
+    DrawingArea,
+    HPacker,
+    TextArea,
+    VPacker,
+)
+from matplotlib.patches import Rectangle
 from matplotlib.transforms import (
     Bbox,
+    BboxBase,
     ScaledTranslation,
     Transform,
     blended_transform_factory,
@@ -46,6 +54,7 @@ _DENDROGRAM = 0.35
 _PAD = 0.03
 _COLORBAR_WIDTH = 0.09
 _COLORBAR_MIN_LENGTH = 0.9
+_NAME_OFFSET = 3.0  # pt between a track and its name
 #: Above this many cells, cells are rasterized inside vector files (PDF/SVG)
 #: so the file stays small and fast to open.
 _RASTERIZE_CELLS = 5000
@@ -211,8 +220,10 @@ class _Beside:
 class _ColorbarLocator:
     """Colorbar right of the row labels (or below the column labels)."""
 
-    def __init__(self, parent: Axes, side: str) -> None:
-        self.parent, self.side = parent, side
+    def __init__(
+        self, parent: Axes, side: str, beside: Callable[[], list[Artist]] = list
+    ) -> None:
+        self.parent, self.side, self.beside = parent, side, beside
 
     def __call__(self, child: _AxesBase, renderer: RendererBase | None) -> Bbox:
         fig = self.parent.get_figure(root=True)
@@ -223,7 +234,17 @@ class _ColorbarLocator:
         width, height = fig.bbox.width, fig.bbox.height
         if self.side == "right":
             labels = self.parent.yaxis.get_tightbbox(renderer)
-            x0 = max(box.x1, labels.x1 if labels else box.x1) + 2 * _PAD * dpi
+            edges = [box.x1, labels.x1 if labels else box.x1]
+            # Column track names stick out to the right above the row labels.
+            # Only their width is used: their position may be from the last
+            # draw, and the layout would never settle.
+            edges += [
+                box.x1
+                + _NAME_OFFSET / PT_PER_INCH * dpi
+                + a.get_window_extent(renderer).width
+                for a in self.beside()
+            ]
+            x0 = max(edges) + 2 * _PAD * dpi
             length = min(box.height, max(_COLORBAR_MIN_LENGTH * dpi, box.height / 2))
             y1 = box.y1
             return Bbox.from_extents(
@@ -243,6 +264,30 @@ class _ColorbarLocator:
         )
 
 
+class _BelowColorbar(BboxBase):
+    """Zero-height box just under the colorbar (in pixels), recomputed every
+    time it is read. Anchoring the track legend to the colorbar axes would use
+    their position from the previous draw, and the layout never settles."""
+
+    def __init__(
+        self, parent: Axes, under: bool, beside: Callable[[], list[Artist]]
+    ) -> None:
+        super().__init__()
+        # The right-hand column the colorbar uses, whether or not it is shown.
+        self.locator = _ColorbarLocator(parent, "right", beside)
+        self.parent, self.under = parent, under
+
+    def get_points(self) -> np.ndarray:
+        fig = self.parent.get_figure(root=True)
+        assert fig is not None
+        box = self.locator(self.parent, None).transformed(fig.transFigure)
+        if self.under:  # colorbar on the right: legend under it
+            y = box.y0 - 4 * _PAD * fig.dpi
+        else:  # no colorbar there: legend at the top, right of the row labels
+            y = self.parent.get_window_extent().y1
+        return np.array([[box.x0, y], [box.x0, y]])
+
+
 @dataclass
 class _Body:
     """Everything drawn for the cells; removed and redrawn when the gaps
@@ -252,6 +297,7 @@ class _Body:
     axes: list[_AxesBase] = field(default_factory=list)
     value_texts: list[Any] = field(default_factory=list)
     group_texts: list[tuple[Any, str, float]] = field(default_factory=list)
+    track_names: list[Artist] = field(default_factory=list)
     row_gap: float = 0.0
     col_gap: float = 0.0
 
@@ -287,6 +333,7 @@ class HeatmapPlot(Plot):
         self._body = _Body()
         self._layout_cache: dict[str, _AxisLayout] | None = None
         self._cax: Axes | None = None
+        self._track_legend: AnchoredOffsetbox | None = None
 
     # ----------------------------------------------------------------- verbs
     def cmap(
@@ -986,7 +1033,7 @@ class HeatmapPlot(Plot):
             )
 
         colors = self._category_colors(style)
-        offsets = {"left": 0.0, "top": 0.0}
+        offsets = {"left": _PAD, "top": _PAD}
         for axis, side in (("row", "left"), ("col", "top")):
             layout = layouts[axis]
             starts = row_starts if axis == "row" else col_starts
@@ -1134,31 +1181,25 @@ class HeatmapPlot(Plot):
             else:
                 child.fill_between([start, start + 1], 0, 1, color=color, lw=0)
         if name and style is not None:
-            if side == "left":
-                child.text(
-                    0.5,
-                    0,
-                    name,
-                    transform=child.transAxes,
-                    rotation=90,
-                    ha="center",
-                    va="top",
-                    fontsize=style.sizes.tick,
-                    color=style.theme.text_color,
-                    clip_on=False,
-                )
-            else:
-                child.text(
-                    0,
-                    0.5,
-                    f"{name} ",
-                    transform=child.transAxes,
-                    ha="right",
-                    va="center",
-                    fontsize=style.sizes.tick,
-                    color=style.theme.text_color,
-                    clip_on=False,
-                )
+            # Row tracks: name under the strip, reading upwards (as in
+            # pheatmap). Column tracks: name right of the strip, above the
+            # row labels.
+            below = side == "left"
+            text = child.annotate(
+                name,
+                xy=(0.5, 0) if below else (1, 0.5),
+                xycoords="axes fraction",
+                xytext=(0, -_NAME_OFFSET) if below else (_NAME_OFFSET, 0),
+                textcoords="offset points",
+                rotation=90 if below else 0,
+                ha="center" if below else "left",
+                va="top" if below else "center",
+                fontsize=style.sizes.tick,
+                color=style.theme.text_color,
+                annotation_clip=False,
+            )
+            if not below:
+                self._body.track_names.append(text)
 
     def _draw_dendrogram(
         self,
@@ -1264,7 +1305,9 @@ class HeatmapPlot(Plot):
         theme = style.theme
         position = self._colorbar["position"]
         cax = ax.inset_axes((0, 0, 1, 1))
-        cax.set_axes_locator(_ColorbarLocator(ax, position))
+        cax.set_axes_locator(
+            _ColorbarLocator(ax, position, lambda: self._body.track_names)
+        )
         fmt = self._colorbar.get("fmt")
         formatter = None
         if fmt:
@@ -1304,52 +1347,58 @@ class HeatmapPlot(Plot):
     def _draw_track_legend(
         self, ax: Axes, style: Style, colors: dict[Any, str]
     ) -> None:
+        self._track_legend = None
         if not any(self._tracks.values()):
             return
         position = self._legend or "auto"
         if position == "none":
             return
-        handles: list[Any] = []
-        bold: list[int] = []
+        theme = style.theme
+        size = float(self._legend_options.get("fontsize") or style.sizes.tick)
+        text_props = {"fontsize": size, "color": theme.text_color}
+        sections: list[Any] = []
         for axis in ("row", "col"):
             for name, spec in self._tracks[axis].items():
-                bold.append(len(handles))
-                handles.append(Patch(visible=False, label=name))
-                for value in _appearance(
-                    self._attribute(axis, spec, "tracks").dropna()
-                ):
-                    handles.append(Patch(facecolor=colors[value], label=str(value)))
+                rows: list[Any] = [
+                    TextArea(name, textprops=text_props | {"fontweight": "bold"})
+                ]
+                values = _appearance(self._attribute(axis, spec, "tracks").dropna())
+                for value in values:
+                    swatch = DrawingArea(size, size)
+                    swatch.add_artist(
+                        Rectangle((0, 0), size, size, facecolor=colors[value], lw=0)
+                    )
+                    rows.append(
+                        HPacker(
+                            children=[
+                                swatch,
+                                TextArea(str(value), textprops=text_props),
+                            ],
+                            pad=0,
+                            sep=size * 0.4,
+                            align="center",
+                        )
+                    )
+                sections.append(
+                    VPacker(children=rows, pad=0, sep=size * 0.3, align="left")
+                )
         fig = ax.get_figure(root=True)
         assert fig is not None
-        if self._colorbar["position"] == "right":
-            assert self._cax is not None
-            transform = self._cax.transAxes + ScaledTranslation(
-                0, -3 * _PAD, fig.dpi_scale_trans
-            )
-            point = (0, 0)
-        else:
-            locator_axes = ax.inset_axes((0, 0, 1, 1))
-            locator_axes.set_axes_locator(_ColorbarLocator(ax, "right"))
-            locator_axes.set_axis_off()
-            transform, point = locator_axes.transAxes, (0, 1)
-        options = self._legend_options
-        legend = ax.legend(
-            handles=handles,
-            loc="upper left",
-            bbox_to_anchor=point,
-            bbox_transform=transform,
-            frameon=style.theme.legend_frame,
-            handlelength=1.0,
-            handleheight=1.0,
-            handletextpad=0.4,
-            borderaxespad=0.0,
-            borderpad=0.0,
-            fontsize=options.get("fontsize") or style.sizes.tick,
-            ncols=options.get("ncols") or 1,
+        anchor = _BelowColorbar(
+            ax,
+            self._colorbar["position"] == "right",
+            lambda: self._body.track_names,
         )
-        for i in bold:
-            legend.get_texts()[i].set_fontweight("bold")
-            legend.legend_handles[i].set_width(0)  # type: ignore[union-attr]
+        box = AnchoredOffsetbox(
+            loc="upper left",
+            child=VPacker(children=sections, pad=0, sep=size * 0.9, align="left"),
+            pad=0,
+            borderpad=0,
+            frameon=False,
+            bbox_to_anchor=anchor,
+        )
+        ax.add_artist(box)
+        self._track_legend = box
 
     # -------------------------------------------------------------- adapting
     def _adapt(
