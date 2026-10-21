@@ -6,15 +6,18 @@ field, so style resolution always ends with a complete value. See
 :mod:`SecretPlots.core.merge` for the cascade.
 """
 
+import collections.abc
 import difflib
+import types
 from dataclasses import dataclass, fields
-from typing import Literal
+from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
+import pandas as pd
 from SecretColors import Palette
 
 from SecretPlots.errors import PresetNotFoundError
 
-GridMode = Literal["none", "value", "category", "both"]
+GridMode = Literal["none", "x", "y", "both", "value", "category"]
 Side = Literal["left", "bottom", "right", "top"]
 LegendPosition = Literal["auto", "top", "right", "inside", "none"]
 FontGeneric = Literal["sans-serif", "serif", "monospace"]
@@ -215,3 +218,103 @@ def register_theme(theme: Theme, *, overwrite: bool = False) -> None:
     if theme.name in _THEMES and not overwrite:
         raise ValueError(f"Theme {theme.name!r} exists; pass overwrite=True")
     _THEMES[theme.name] = theme
+
+
+FIELD_DOCS: dict[str, str] = {
+    "font_family": "Preferred fonts, in order; the first installed one is used",
+    "font_generic": (
+        "Generic family used when none of the fonts are installed; set alone "
+        "on a plot, it picks a common font of that kind"
+    ),
+    "font_size": "Base text size in pt (tick labels, legend, values)",
+    "label_scale": "Axis title size, relative to font_size",
+    "title_scale": "Title size, relative to font_size",
+    "subtitle_scale": "Subtitle size, relative to font_size",
+    "note_scale": "Source/note line size, relative to font_size",
+    "title_weight": "Title weight, e.g. 'bold' or 'normal'",
+    "text_color": "Main text color",
+    "muted_text_color": "Color of the source and note lines",
+    "background": "Figure background color",
+    "axes_background": "Plot area background (defaults to background)",
+    "line_width": "Width of data lines in pt",
+    "axis_line_width": "Width of axis lines and ticks in pt",
+    "axis_color": "Color of axis lines and ticks",
+    "spines": "Visible frame lines: any of left, bottom, right, top",
+    "tick_length": "Tick mark length in pt (0 hides tick marks)",
+    "value_axis_side": "Which side the value axis is drawn on",
+    "axis_titles": "Show automatic axis titles taken from column names",
+    "grid": (
+        "Gridlines: 'x' or 'y' (as in matplotlib), 'both', 'none', True/False, "
+        "or 'value'/'category' to follow the bars when you switch orientation"
+    ),
+    "grid_color": "Gridline color",
+    "grid_width": "Gridline width in pt",
+    "grid_style": "Gridline style: '-', '--', ':' or '-.'",
+    "palette": "Colors for groups, in order",
+    "primary": "Color of single-series plots (defaults to first palette color)",
+    "highlight": "Color of highlighted items (defaults to primary)",
+    "neutral": "Neutral grey",
+    "muted": "Color of de-emphasized items when highlighting",
+    "positive": "Color for positive values / increases",
+    "negative": "Color for negative values / decreases",
+    "sequential": "Colormap stops for heatmaps, low to high",
+    "diverging": "Colormap stops for diverging data: negative, middle, positive",
+    "bar_gap": "Empty fraction of each category slot, 0 to 1",
+    "bar_edge_width": "Outline width around bars in pt",
+    "errorbar_capsize": "Error bar cap length in pt",
+    "missing_hatch": "Hatch pattern marking missing values",
+    "legend_frame": "Draw a box around the legend",
+    "legend_position": "Default legend position",
+    "legend_title": "Show the legend title",
+}
+
+
+def _describe_type(tp: Any) -> str:
+    origin = get_origin(tp)
+    if origin in (Union, types.UnionType):
+        args = [a for a in get_args(tp) if a is not type(None)]
+        if float in args and int in args:
+            args.remove(int)
+        return " | ".join(_describe_type(a) for a in args)
+    if origin is Literal:
+        return " | ".join(repr(a) for a in get_args(tp))
+    if origin is tuple:
+        items = get_args(tp)
+        if len(items) == 2 and items[1] is Ellipsis:
+            return f"list of {_describe_type(items[0])}"
+        return "(" + ", ".join(_describe_type(a) for a in items) + ")"
+    if origin is collections.abc.Sequence:
+        return "list"
+    if origin is collections.abc.Mapping:
+        return "mapping"
+    names = {float: "number", int: "integer", str: "text", bool: "True | False"}
+    if tp in names:
+        return names[tp]
+    if tp is Any:
+        return "any"
+    return getattr(tp, "__name__", str(tp))
+
+
+def theme_options(theme: Theme | str | None = None) -> pd.DataFrame:
+    """Every style option you can pass to ``.theme(...)``.
+
+    Shows the allowed values, a description, and the value in ``theme``
+    (default: the built-in ``"secret"`` theme). ``None`` in a partial theme
+    means "inherited from the next layer".
+
+    >>> import SecretPlots as sp
+    >>> sp.theme_options()            # doctest: +SKIP
+    >>> sp.theme_options("dark")      # doctest: +SKIP
+    """
+    chosen = get_theme(theme) if isinstance(theme, str) else (theme or BASE_THEME)
+    hints = get_type_hints(Theme)
+    rows = [
+        {
+            "option": name,
+            "allowed": _describe_type(hints[name]),
+            "value": getattr(chosen, name),
+            "description": FIELD_DOCS[name],
+        }
+        for name in STYLE_FIELDS
+    ]
+    return pd.DataFrame(rows).set_index("option")

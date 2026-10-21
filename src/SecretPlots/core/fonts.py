@@ -20,12 +20,21 @@ LAST_RESORT = {
     "monospace": "DejaVu Sans Mono",
 }
 
+#: Common fonts of each generic family, used when a plot sets only ``font_generic``.
+GENERIC_FAMILIES: dict[str, tuple[str, ...]] = {
+    "sans-serif": ("Helvetica Neue", "Helvetica", "Arial", "DejaVu Sans"),
+    "serif": ("Times New Roman", "Times", "Georgia", "DejaVu Serif"),
+    "monospace": ("Menlo", "Consolas", "Courier New", "DejaVu Sans Mono"),
+}
+
 
 @dataclass(frozen=True)
 class FontChain:
     source: str
     families: tuple[str, ...]
     generic: str | None
+    #: Set explicitly by the user: used even if it conflicts with the preset.
+    forced: bool = False
 
 
 @dataclass(frozen=True)
@@ -57,13 +66,13 @@ def resolve_font(
     """Pick the first installed font, walking chains in priority order.
 
     Chains whose generic family conflicts with ``required_generic`` (e.g. a serif
-    theme under a sans-serif-only journal) are skipped. Warns once per session
-    when nothing from the highest-priority chain is installed.
+    theme under a sans-serif-only journal) are skipped unless ``forced``. Warns
+    once per session when nothing from the highest-priority chain is installed.
     """
     usable = [
         c
         for c in chains
-        if required_generic is None or c.generic in (None, required_generic)
+        if c.forced or required_generic is None or c.generic in (None, required_generic)
     ]
     preferred = usable[0] if usable else None
 

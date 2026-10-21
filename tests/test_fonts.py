@@ -60,3 +60,33 @@ def test_status_reports_installed_fonts() -> None:
     status = sp.fonts.status("nyt-like")
     assert next(iter(status)) == "Libre Franklin"
     assert all(isinstance(v, bool) for v in status.values())
+
+
+@pytest.mark.usefixtures("only_dejavu")
+def test_explicit_serif_kept_under_sans_only_preset() -> None:
+    with pytest.warns(sp.LimitExceededWarning, match="requires sans-serif"):
+        style = resolve(
+            "bar",
+            preset=presets.get("nature"),
+            theme=BASE_THEME,
+            overrides=Theme(font_family=("DejaVu Serif",), font_generic="serif"),
+        )
+    assert style.font.family == "DejaVu Serif"
+
+
+@pytest.mark.usefixtures("only_dejavu")
+def test_enforce_limits_skips_explicit_serif() -> None:
+    sp.config.enforce_limits = True
+    style = resolve(
+        "bar",
+        preset=presets.get("nature"),
+        theme=BASE_THEME,
+        overrides=Theme(font_family=("DejaVu Serif",), font_generic="serif"),
+    )
+    assert style.font.family == "DejaVu Sans"
+
+
+@pytest.mark.usefixtures("only_dejavu")
+def test_font_generic_alone_picks_a_font_of_that_kind() -> None:
+    style = sp.bar([1]).theme(font_generic="serif").style()
+    assert style.font.family == "DejaVu Serif"

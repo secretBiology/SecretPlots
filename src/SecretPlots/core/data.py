@@ -12,8 +12,8 @@ Accepted inputs (for categorical plots):
 """
 
 from collections.abc import Hashable, Mapping, Sequence
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, replace
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -33,6 +33,48 @@ class Tidy:
     @property
     def has_hue(self) -> bool:
         return self.hue_order is not None
+
+    def rename(
+        self, which: Literal["x", "hue"], labels: Sequence[Any] | Mapping[Any, Any]
+    ) -> "Tidy":
+        """Rename categories (``"x"``) or groups (``"hue"``).
+
+        ``labels`` is either a list in data order (one name per category, in the
+        order they appear in your data) or a mapping ``{old: new}`` (partial is
+        fine).
+        """
+        order = self.x_order if which == "x" else self.hue_order
+        what = "categories" if which == "x" else "groups"
+        if order is None:
+            raise DataShapeError("This plot has no groups (hue) to rename")
+        if isinstance(labels, Mapping):
+            unknown = set(labels) - set(order)
+            if unknown:
+                raise DataShapeError(
+                    f"Cannot rename {sorted(map(str, unknown))}: not in the data. "
+                    f"Current {what}: {', '.join(map(str, order))}"
+                )
+            mapping = {key: labels.get(key, key) for key in order}
+        else:
+            if isinstance(labels, str):
+                raise TypeError("Pass a list of labels, not a single string")
+            names = list(labels)
+            if len(names) != len(order):
+                raise DataShapeError(f"Got {len(names)} labels for {len(order)} {what}")
+            mapping = dict(zip(order, names, strict=True))
+        new_order = list(mapping.values())
+        if len({str(n) for n in new_order}) != len(new_order):
+            raise DataShapeError(
+                f"Labels must be unique; duplicates would merge {what}"
+            )
+        frame = self.frame.copy()
+        column = frame[which]
+        if isinstance(column.dtype, pd.CategoricalDtype):
+            column = column.astype(object)
+        frame[which] = column.map(mapping)
+        if which == "x":
+            return replace(self, frame=frame, x_order=new_order)
+        return replace(self, frame=frame, hue_order=new_order)
 
 
 def _order(values: Any, explicit: Sequence[Any] | None, what: str) -> list[Any]:

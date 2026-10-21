@@ -26,10 +26,12 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 def _clean_state():
     sp.reset()
     sp.config.strict = False
+    sp.config.enforce_limits = False
     reset_once_warnings()
     yield
     sp.reset()
     sp.config.strict = False
+    sp.config.enforce_limits = False
 
 
 @pytest.fixture

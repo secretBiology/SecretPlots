@@ -16,6 +16,7 @@ from SecretPlots.errors import (
     FontFallbackWarning,
     FormatWarning,
     LabelsHiddenWarning,
+    LimitExceededWarning,
     PaletteExtendedWarning,
     PresetError,
     PresetNotFoundError,
@@ -23,7 +24,13 @@ from SecretPlots.errors import (
     SecretPlotsWarning,
 )
 from SecretPlots.plots.bar import BarPlot, bar
-from SecretPlots.theme import Theme, get_theme, list_themes, register_theme
+from SecretPlots.theme import (
+    Theme,
+    get_theme,
+    list_themes,
+    register_theme,
+    theme_options,
+)
 
 __all__ = [
     "BarPlot",
@@ -32,6 +39,7 @@ __all__ = [
     "FontFallbackWarning",
     "FormatWarning",
     "LabelsHiddenWarning",
+    "LimitExceededWarning",
     "PaletteExtendedWarning",
     "Plot",
     "PresetError",
@@ -48,5 +56,6 @@ __all__ = [
     "presets",
     "register_theme",
     "reset",
+    "theme_options",
     "use",
 ]

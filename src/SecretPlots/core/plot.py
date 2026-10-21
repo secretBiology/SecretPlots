@@ -1,12 +1,16 @@
 """Base class shared by every plot: chaining verbs, lazy rendering, saving."""
 
+import difflib
+import inspect
 import io
+import re
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from os import PathLike
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Self, get_type_hints
 
+import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -18,7 +22,14 @@ from SecretPlots.core.chrome import ChromeText, apply_chrome
 from SecretPlots.core.resolve import Style, resolve
 from SecretPlots.core.units import Length
 from SecretPlots.errors import FormatWarning, emit
-from SecretPlots.theme import STYLE_FIELDS, LegendPosition, Theme, get_theme
+from SecretPlots.presets._schema import coerce_theme_field
+from SecretPlots.theme import (
+    STYLE_FIELDS,
+    LegendPosition,
+    Theme,
+    _describe_type,
+    get_theme,
+)
 
 _LEGEND_POSITIONS = ("auto", "top", "right", "inside", "none")
 
@@ -29,6 +40,63 @@ def _renderer(fig: Figure) -> RendererBase:
         renderer: RendererBase = get()
         return renderer
     return fig._get_renderer()  # type: ignore[attr-defined, no-any-return]
+
+
+# ------------------------------------------------------- options() introspection
+_ARG_LINE = re.compile(r"^ {4}\*{0,2}(\w+): (.*)$")
+
+
+def _verbs(cls: type) -> dict[str, Callable[..., Any]]:
+    """Public chainable methods (those returning ``Self``), in definition order."""
+    found: dict[str, Callable[..., Any]] = {}
+    for klass in reversed(cls.__mro__):
+        for name, attr in vars(klass).items():
+            if name.startswith("_") or not inspect.isfunction(attr):
+                continue
+            if inspect.signature(attr).return_annotation is Self:
+                found[name] = attr
+    return found
+
+
+def _plain(text: str) -> str:
+    return re.sub(r"``(.*?)``", r"\1", text)
+
+
+def _summary(fn: Callable[..., Any]) -> str:
+    doc = inspect.getdoc(fn) or ""
+    return _plain(" ".join(doc.split("\n\n")[0].split()))
+
+
+def _arg_docs(fn: Callable[..., Any]) -> dict[str, str]:
+    """Parse the Google-style ``Args:`` section of a verb's docstring."""
+    lines = (inspect.getdoc(fn) or "").splitlines()
+    if "Args:" not in lines:
+        return {}
+    docs: dict[str, str] = {}
+    name: str | None = None
+    for line in lines[lines.index("Args:") + 1 :]:
+        if not line.startswith("    "):
+            break
+        match = _ARG_LINE.match(line)
+        if match:
+            name = match.group(1)
+            docs[name] = match.group(2)
+        elif name:
+            docs[name] += " " + line.strip()
+    return {key: _plain(value) for key, value in docs.items()}
+
+
+def _display_name(param: inspect.Parameter) -> str:
+    if param.kind is param.VAR_POSITIONAL:
+        return "*" + param.name
+    if param.kind is param.VAR_KEYWORD:
+        return "**" + param.name
+    return param.name
+
+
+def _param_names(fn: Callable[..., Any]) -> list[str]:
+    params = list(inspect.signature(fn).parameters.values())[1:]
+    return [_display_name(p) for p in params]
 
 
 class Plot(ABC):
@@ -42,11 +110,13 @@ class Plot(ABC):
         self._overrides: dict[str, Any] = {}
         self._labels: dict[str, str] = {}
         self._legend: LegendPosition | None = None
+        self._legend_options: dict[str, Any] = {}
         self._chrome = ChromeText()
         self._preset: str | None = None
         self._theme: Theme | str | None = None
         self._width: Length | None = None
         self._height: Length | None = None
+        self._scale_text = False
         self._limits: dict[str, tuple[float | None, float | None]] = {}
         self._log_axes: set[str] = set()
         self._highlight: tuple[Any, ...] = ()
@@ -65,21 +135,70 @@ class Plot(ABC):
     def labels(
         self, *, x: str | None = None, y: str | None = None, title: str | None = None
     ) -> Self:
-        """Axis titles and plot title. Pass ``""`` to hide an automatic label."""
+        """Axis titles and plot title.
+
+        ``x`` and ``y`` are the axes as drawn, so with horizontal bars ``x`` is
+        the value axis.
+
+        Args:
+            x: Bottom axis title. ``""`` hides the automatic one.
+            y: Left axis title. ``""`` hides the automatic one.
+            title: Title above the axes. A top legend moves right to make room.
+        """
         for key, value in (("x", x), ("y", y), ("title", title)):
             if value is not None:
                 self._labels[key] = value
         return self._changed()
 
-    def legend(self, position: LegendPosition | bool = "auto") -> Self:
-        """``"auto"``, ``"top"``, ``"right"``, ``"inside"``, or ``False``/``"none"``."""
+    def legend(
+        self,
+        position: LegendPosition | bool = "auto",
+        *,
+        title: str | None = None,
+        ncols: int | None = None,
+        fontsize: float | None = None,
+        loc: str | None = None,
+        anchor: tuple[float, float] | None = None,
+    ) -> Self:
+        """Place and format the legend. Each call resets options it doesn't pass.
+
+        Args:
+            position: ``"auto"`` (top for up to 4 entries or narrow figures,
+                else right), ``"top"``, ``"right"``, ``"inside"`` (emptiest
+                spot in the axes), or ``False``/``"none"`` to hide it.
+            title: Legend title, replacing the hue column name. ``""`` hides
+                it. Shown even when the theme turns legend titles off.
+            ncols: Fixed number of columns. Without it a top legend wraps to fit.
+            fontsize: Text size in pt for the entries and the legend title.
+            loc: Which corner of the legend to place, as in matplotlib, e.g.
+                ``"upper right"`` or ``"center left"``.
+            anchor: ``(x, y)`` in axes fractions where that corner sits;
+                ``(0, 0)`` is the bottom-left of the plot area.
+        """
         if position is True:
             position = "auto"
         elif position is False:
             position = "none"
         if position not in _LEGEND_POSITIONS:
             raise ValueError(f"legend position must be one of {_LEGEND_POSITIONS}")
+        if ncols is not None and (
+            isinstance(ncols, bool) or not isinstance(ncols, int) or ncols < 1
+        ):
+            raise ValueError("legend ncols must be a positive integer")
+        if fontsize is not None and fontsize <= 0:
+            raise ValueError("legend fontsize must be positive")
+        if anchor is not None:
+            if len(anchor) != 2:
+                raise ValueError("legend anchor must be an (x, y) pair")
+            anchor = (float(anchor[0]), float(anchor[1]))
         self._legend = position
+        self._legend_options = {
+            "title": title,
+            "ncols": ncols,
+            "fontsize": fontsize,
+            "loc": loc,
+            "anchor": anchor,
+        }
         return self._changed()
 
     def chrome(
@@ -89,7 +208,15 @@ class Plot(ABC):
         source: str | None = None,
         note: str | None = None,
     ) -> Self:
-        """Headline/subtitle above the plot and note/source line below it."""
+        """Headline/subtitle above the plot and note/source line below it.
+        Arguments left out keep their current value.
+
+        Args:
+            title: Headline above the plot.
+            subtitle: Smaller line under the headline.
+            source: Data source line below the plot.
+            note: Footnote below the plot.
+        """
         current = self._chrome
         self._chrome = ChromeText(
             title=title if title is not None else current.title,
@@ -102,39 +229,75 @@ class Plot(ABC):
     def preset(
         self, name: str, *, width: Length | None = None, height: Length | None = None
     ) -> Self:
-        """Use a preset for this plot only: ``.preset("nature", width="double")``."""
+        """Use a preset for this plot only: ``.preset("nature", width="double")``.
+
+        Args:
+            name: Preset name; ``sp.presets.list()`` shows them all.
+            width: A width name from the preset (e.g. ``"double"``) or a length:
+                a number in inches or text like ``"89mm"``, ``"600px"``.
+            height: Length: a number in inches or text like ``"60mm"``.
+        """
         presets.get(name)
         self._preset = name
         self._width, self._height = width, height
         return self._changed()
 
-    def size(self, width: Length | None = None, height: Length | None = None) -> Self:
-        """Width (preset width name or length) and/or height (length)."""
+    def size(
+        self,
+        width: Length | None = None,
+        height: Length | None = None,
+        *,
+        scale_text: bool | None = None,
+    ) -> Self:
+        """Figure size. Arguments left out keep their current value.
+
+        Args:
+            width: A width name from the preset (e.g. ``"double"``) or a length:
+                a number in inches or text like ``"89mm"``, ``"600px"``.
+            height: Length: a number in inches or text like ``"60mm"``.
+            scale_text: Grow text with the width (relative to the preset's
+                default width) instead of keeping point sizes, which is what
+                print needs. May break the preset's font limits; a warning says
+                so, and ``sp.config.enforce_limits = True`` applies them.
+        """
         if width is not None:
             self._width = width
         if height is not None:
             self._height = height
+        if scale_text is not None:
+            self._scale_text = scale_text
         return self._changed()
 
     def theme(self, theme: Theme | str | None = None, **overrides: Any) -> Self:
         """Switch theme and/or override individual style fields, e.g.
-        ``.theme("dark", font_size=8, grid="none")``."""
+        ``.theme("dark", font_size=8, grid="none")``.
+
+        Args:
+            theme: Theme name (``sp.list_themes()``) or a ``Theme`` object.
+            **overrides: Individual style fields, e.g. ``font_size=8``.
+                ``sp.theme_options()`` lists every field and its allowed values.
+        """
         if isinstance(theme, str):
             get_theme(theme)
         if theme is not None:
             self._theme = theme
         unknown = set(overrides) - set(STYLE_FIELDS)
         if unknown:
-            raise TypeError(f"Unknown style field(s): {sorted(unknown)}")
+            raise TypeError(
+                f"Unknown style field(s): {sorted(unknown)}. "
+                "See SecretPlots.theme_options() for the full list."
+            )
         for key, value in overrides.items():
-            if isinstance(value, list):
-                value = tuple(value)
-            self._overrides[key] = value
+            self._overrides[key] = coerce_theme_field(key, value)
         return self._changed()
 
     def colors(self, colors: str | Sequence[str] | Mapping[Any, str]) -> Self:
-        """A palette (list), one color for everything (str), or a mapping from
-        category/group to color."""
+        """Colors for the bars or groups.
+
+        Args:
+            colors: A palette (list of colors), one color for everything, or a
+                mapping ``{category or group: color}``.
+        """
         if isinstance(colors, Mapping):
             self._color_map.update(colors)
         elif isinstance(colors, str):
@@ -145,22 +308,89 @@ class Plot(ABC):
         return self._changed()
 
     def highlight(self, *names: Any) -> Self:
-        """Emphasize these categories (or groups); everything else is muted."""
+        """Emphasize some categories (or groups); everything else is muted.
+
+        Args:
+            *names: Categories or groups to emphasize.
+        """
         self._highlight = names
         return self._changed()
 
     def xlim(self, low: float | None = None, high: float | None = None) -> Self:
+        """Limits of the x axis (as drawn).
+
+        Args:
+            low: Lower limit; ``None`` leaves it automatic.
+            high: Upper limit; ``None`` leaves it automatic.
+        """
         self._limits["x"] = (low, high)
         return self._changed()
 
     def ylim(self, low: float | None = None, high: float | None = None) -> Self:
+        """Limits of the y axis (as drawn).
+
+        Args:
+            low: Lower limit; ``None`` leaves it automatic.
+            high: Upper limit; ``None`` leaves it automatic.
+        """
         self._limits["y"] = (low, high)
         return self._changed()
 
     def log(self, axis: str = "y") -> Self:
-        """Logarithmic ``"x"``, ``"y"`` or ``"xy"`` axis."""
+        """Logarithmic axis scale.
+
+        Args:
+            axis: ``"x"``, ``"y"`` or ``"xy"`` (axes as drawn).
+        """
         self._log_axes.update(axis)
         return self._changed()
+
+    @classmethod
+    def options(cls, verb: str | None = None) -> pd.DataFrame:
+        """What you can chain on this plot, and what each step accepts.
+
+        >>> sp.bar(df).options()            # doctest: +SKIP
+        >>> sp.bar(df).options("legend")    # doctest: +SKIP
+        >>> sp.BarPlot.options("labels")    # doctest: +SKIP
+        """
+        verbs = _verbs(cls)
+        if verb is None:
+            rows = [
+                {
+                    "verb": name,
+                    "options": ", ".join(_param_names(fn)),
+                    "description": _summary(fn),
+                }
+                for name, fn in verbs.items()
+            ]
+            return pd.DataFrame(rows).set_index("verb")
+        if verb not in verbs:
+            close = difflib.get_close_matches(verb, verbs, n=1)
+            hint = f" Did you mean {close[0]!r}?" if close else ""
+            raise ValueError(
+                f"{cls.__name__} has no step {verb!r}.{hint} "
+                f"Available: {', '.join(verbs)}"
+            )
+        fn = verbs[verb]
+        hints = get_type_hints(fn)
+        docs = _arg_docs(fn)
+        rows = []
+        for p in list(inspect.signature(fn).parameters.values())[1:]:
+            if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
+                default = ""
+            elif p.default is p.empty:
+                default = "required"
+            else:
+                default = p.default
+            rows.append(
+                {
+                    "option": _display_name(p),
+                    "allowed": _describe_type(hints.get(p.name, Any)),
+                    "default": default,
+                    "description": docs.get(p.name, ""),
+                }
+            )
+        return pd.DataFrame(rows).set_index("option")
 
     # ------------------------------------------------------------ resolution
     def style(self) -> Style:
@@ -183,6 +413,7 @@ class Plot(ABC):
             overrides=Theme(name="plot", **self._overrides),
             width=width,
             height=self._height,
+            scale_text=self._scale_text,
         )
 
     def explain(self, field: str) -> str:
@@ -251,7 +482,13 @@ class Plot(ABC):
     def save(
         self, path: str | PathLike[str], *, dpi: float | None = None, **kwargs: Any
     ) -> Self:
-        """Save using the preset's dpi; fonts are embedded (TrueType) in PDF/PS."""
+        """Save using the preset's dpi; fonts are embedded (TrueType) in PDF/PS.
+
+        Args:
+            path: Output file; the extension picks the format.
+            dpi: Resolution for raster formats; defaults to the preset's dpi.
+            **kwargs: Passed on to matplotlib's ``Figure.savefig``.
+        """
         fig = self.fig
         assert self._style is not None
         style = self._style
@@ -331,19 +568,40 @@ class Plot(ABC):
             kwargs |= {"loc": "upper left", "bbox_to_anchor": (1.02, 1)}
         else:
             kwargs |= {"loc": "best"}
+
+        options = self._legend_options
+        if options.get("title") is not None:
+            kwargs["title"] = options["title"] or None
+        if options.get("ncols") is not None:
+            kwargs["ncols"] = options["ncols"]
+        if options.get("fontsize") is not None:
+            kwargs["fontsize"] = kwargs["title_fontsize"] = options["fontsize"]
+        if options.get("anchor") is not None:
+            kwargs["bbox_to_anchor"] = options["anchor"]
+            if position == "inside":
+                # "best" is meaningless relative to a single anchor point.
+                kwargs["loc"] = "upper left"
+        if options.get("loc") is not None:
+            kwargs["loc"] = options["loc"]
         ax.legend(**kwargs)
-        self._legend_kwargs = kwargs
+
+        user_placed = any(
+            options.get(k) is not None for k in ("ncols", "loc", "anchor")
+        )
+        if position == "top" and not user_placed:
+            self._legend_kwargs = kwargs
 
     def _fit_legend(self, fig: Figure, ax: Axes, renderer: RendererBase) -> None:
-        """Wrap a top legend into fewer columns until it fits the figure width."""
+        """Wrap a top legend into fewer columns until it fits inside the figure."""
         kwargs = self._legend_kwargs
-        if kwargs is None or kwargs.get("loc") != "lower left":
+        if kwargs is None:
             return
-        limit = fig.bbox.width * 0.98
+        # The legend starts at the axes' left edge, so check where it ends.
+        limit = fig.bbox.x1 - fig.bbox.width * 0.02
         ncols = int(kwargs["ncols"])
         while ncols > 1:
             legend = ax.get_legend()
-            if legend is None or legend.get_window_extent(renderer).width <= limit:
+            if legend is None or legend.get_window_extent(renderer).x1 <= limit:
                 return
             ncols -= 1
             legend.remove()

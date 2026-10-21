@@ -81,10 +81,25 @@ def _build(
     }
 
 
+def _alias(key: str, value: Any) -> Any:
+    # matplotlib-style shorthands: grid=True / grid=False
+    if key == "grid" and isinstance(value, bool):
+        return "both" if value else "none"
+    return value
+
+
 def theme_from_mapping(data: Mapping[str, Any], *, name: str, where: str) -> Theme:
+    data = {key: _alias(key, value) for key, value in data.items()}
     kwargs = _build(Theme, data, where, skip=set())
     kwargs.setdefault("name", name)
     return Theme(**kwargs)
+
+
+def coerce_theme_field(key: str, value: Any) -> Any:
+    """Validate one theme field value (lists become tuples, ints become floats)."""
+    if value is None:
+        return None
+    return _coerce(_alias(key, value), get_type_hints(Theme)[key], f"theme {key}")
 
 
 def _target_from_mapping(data: Mapping[str, Any], where: str) -> Target:

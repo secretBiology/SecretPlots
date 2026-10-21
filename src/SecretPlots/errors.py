@@ -47,6 +47,13 @@ class ConstraintAdjustedWarning(SecretPlotsWarning):
     """A value you set explicitly was changed to satisfy the target's limits."""
 
 
+class LimitExceededWarning(SecretPlotsWarning):
+    """A value you set explicitly breaks the preset's limits and was kept anyway.
+
+    Set ``SecretPlots.config.enforce_limits = True`` to apply the limits instead.
+    """
+
+
 class LabelsHiddenWarning(SecretPlotsWarning):
     """Some labels did not fit and were hidden."""
 

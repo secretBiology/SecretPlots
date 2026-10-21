@@ -1,6 +1,7 @@
 """Bar plots: simple, grouped and stacked; vertical or horizontal."""
 
-from collections.abc import Callable, Sequence
+import difflib
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Literal, Self
 
 import numpy as np
@@ -32,6 +33,49 @@ def _formatter(fmt: str) -> Callable[[float], str]:
     return template.format
 
 
+_ESTIMATORS = ("mean", "median", "sum")
+_ERRORS = ("sd", "sem")
+# Common spellings from other tools -> what SecretPlots calls them.
+_ERROR_ALIASES = {"std": "sd", "stdev": "sd", "se": "sem", "stderr": "sem"}
+
+
+def _close(value: str, options: Sequence[str]) -> str:
+    match = difflib.get_close_matches(value, options, n=1)
+    return f" Did you mean {match[0]!r}?" if match else ""
+
+
+def _check_error(error: object) -> None:
+    if error is None or error in _ERRORS:
+        return
+    if isinstance(error, str) and error in _ERROR_ALIASES:
+        hint = f" Did you mean error={_ERROR_ALIASES[error]!r}?"
+    else:
+        hint = _close(error, _ERRORS) if isinstance(error, str) else ""
+    raise ValueError(
+        f"Unknown error={error!r}.{hint} Error bars can be 'sd' (standard "
+        "deviation), 'sem' (standard error of the mean) or None."
+    )
+
+
+def _check_estimator(estimator: object) -> None:
+    if callable(estimator) or estimator in _ESTIMATORS:
+        return
+    if isinstance(estimator, str) and (
+        estimator in _ERRORS or estimator in _ERROR_ALIASES
+    ):
+        kind = _ERROR_ALIASES.get(estimator, estimator)
+        raise ValueError(
+            f"estimator={estimator!r} looks like an error bar. estimator sets the "
+            f"bar height ('mean', 'median', 'sum'); for error bars use "
+            f"error={kind!r}, e.g. sp.bar(df, x=..., y=..., error={kind!r})."
+        )
+    hint = _close(estimator, _ESTIMATORS) if isinstance(estimator, str) else ""
+    raise ValueError(
+        f"Unknown estimator={estimator!r}.{hint} Use 'mean', 'median', 'sum' or "
+        "a function that takes the values of one bar, e.g. estimator=np.max."
+    )
+
+
 class BarPlot(Plot):
     """Created by :func:`bar`."""
 
@@ -48,8 +92,8 @@ class BarPlot(Plot):
         sort: SortOrder | None = None,
     ) -> None:
         super().__init__()
-        if error not in (None, "sd", "sem"):
-            raise ValueError("error must be None, 'sd' or 'sem'")
+        _check_error(error)
+        _check_estimator(estimator)
         if stack and error:
             raise ValueError(
                 "Error bars on stacked bars are misleading; use stack=False"
@@ -63,30 +107,80 @@ class BarPlot(Plot):
         self.orient(orient).sort(sort)
         self._value_fmt: Callable[[float], str] | None = None
         self._values_inside: bool | None = None
+        self._tick_rotation: float | None = None
+        self._tick_italic = False
         self._table = self._aggregate()
         self._value_texts: list[tuple[list[Text], BarContainer]] = []
 
     # ----------------------------------------------------------------- verbs
     def values(self, fmt: str = ".3g", *, inside: bool | None = None) -> Self:
         """Print each bar's value, e.g. ``.values(".1f")`` or ``.values("{:.0%}")``.
-        Labels sit above bars (inside for stacked bars) and are hidden, with a
-        warning, when they don't fit."""
+        Labels that don't fit are hidden with a warning.
+
+        Args:
+            fmt: Format spec like ``".1f"`` or format string like ``"{:.0%}"``.
+            inside: ``True`` puts labels inside the bars, ``False`` above them;
+                ``None`` decides automatically (inside only for stacked bars).
+        """
         self._value_fmt = _formatter(fmt)
         self._values_inside = inside
         return self._changed()
 
     def sort(self, order: SortOrder | None = "desc") -> Self:
-        """Order categories by value: ``"desc"``, ``"asc"`` or ``None`` (data order)."""
+        """Order categories by value.
+
+        Args:
+            order: ``"desc"``, ``"asc"``, or ``None`` to keep data order.
+        """
         if order not in (None, "asc", "desc"):
             raise ValueError("sort must be 'asc', 'desc' or None")
         self._sort = order
         return self._changed()
 
     def orient(self, orient: Orient) -> Self:
-        """``"v"`` (vertical bars) or ``"h"`` (horizontal bars)."""
+        """Bar direction.
+
+        Args:
+            orient: ``"v"`` for vertical or ``"h"`` for horizontal bars.
+        """
         if orient not in ("v", "h"):
             raise ValueError("orient must be 'v' or 'h'")
         self._orient = orient
+        return self._changed()
+
+    def ticklabels(
+        self,
+        labels: Sequence[Any] | Mapping[Any, Any] | None = None,
+        *,
+        rotation: float | None = None,
+        italic: bool = False,
+    ) -> Self:
+        """Name the categories and style their labels.
+
+        Args:
+            labels: New names as a list in data order
+                (``sp.bar([3, 5]).ticklabels(["a", "b"])``) or a mapping
+                ``{old: new}``. The categories themselves are renamed, so later
+                ``.highlight("a")`` or ``.colors({"a": ...})`` use new names.
+            rotation: Label angle in degrees; turns off automatic rotation.
+            italic: Italic labels, e.g. for gene names.
+        """
+        if labels is not None:
+            self._data = self._data.rename("x", labels)
+            self._table = self._aggregate()
+        self._tick_rotation = rotation
+        self._tick_italic = italic
+        return self._changed()
+
+    def grouplabels(self, labels: Sequence[Any] | Mapping[Any, Any]) -> Self:
+        """Name the groups shown in the legend.
+
+        Args:
+            labels: New names as a list in data order or a mapping
+                ``{old: new}``.
+        """
+        self._data = self._data.rename("hue", labels)
+        self._table = self._aggregate()
         return self._changed()
 
     # ------------------------------------------------------------------ data
@@ -235,15 +329,24 @@ class BarPlot(Plot):
             ax.set_yticks(positions, labels=labels)
             ax.set_ylim(len(cats) - 0.5, -0.5)  # first category on top
         ax.tick_params(axis="x" if vertical else "y", length=0)
+        for text in ax.get_xticklabels() if vertical else ax.get_yticklabels():
+            if self._tick_italic:
+                text.set_fontstyle("italic")
+            if self._tick_rotation is not None:
+                text.set_rotation(self._tick_rotation)
+                if vertical and self._tick_rotation % 90:
+                    text.set_horizontalalignment("right")
+                    text.set_rotation_mode("anchor")
         headroom = 0.12 if self._value_fmt is not None else 0.05
         if vertical:
             ax.margins(y=headroom)
         else:
             ax.margins(x=headroom)
 
-        if theme.grid in ("value", "both"):
+        grid = theme.grid
+        if grid in ("both", "value") or grid == ("y" if vertical else "x"):
             value_axis.grid(True)
-        if theme.grid == "both":
+        if grid in ("both", "category") or grid == ("x" if vertical else "y"):
             cat_axis.grid(True)
 
         if theme.value_axis_side == "right":
@@ -305,7 +408,7 @@ class BarPlot(Plot):
         self, fig: Figure, ax: Axes, renderer: RendererBase
     ) -> None:
         labels = [t for t in ax.get_xticklabels() if t.get_text()]
-        if not labels:
+        if not labels or self._tick_rotation is not None:
             return
         slot = ax.get_window_extent(renderer).width / len(labels)
         widest = max(t.get_window_extent(renderer).width for t in labels)
