@@ -33,6 +33,7 @@ the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
 - [Signature](#signature)
 - [Input data](#input-data)
 - [Groups](#groups)
+- [Marker shape from a column](#marker-shape-from-a-column)
 - [Marker size from a column (bubbles)](#marker-size-from-a-column-bubbles)
 - [Fit lines](#fit-lines)
 - [Marker style](#marker-style)
@@ -45,7 +46,7 @@ the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
 
 ```text
 sp.scatter(data=None, x=None, y=None, hue=None, *,
-           size=None, hue_order=None) -> ScatterPlot
+           size=None, style=None, hue_order=None, style_order=None) -> ScatterPlot
 ```
 
 | Argument | Meaning |
@@ -54,7 +55,9 @@ sp.scatter(data=None, x=None, y=None, hue=None, *,
 | `x`, `y` | Column names of the two numeric variables, or sequences of numbers when `data` is left out. |
 | `hue` | Column with groups, drawn in different colors with a legend. |
 | `size` | Numeric column that scales marker area, with a size legend. |
+| `style` | Column with groups, drawn in different marker shapes with a legend. |
 | `hue_order` | Explicit group order (a list). |
+| `style_order` | Explicit order of the `style` values, and so of their shapes (a list). |
 
 Chainable steps specific to scatter plots: `.fit()`. Everything else (labels,
 legend, colors, highlight, limits, log axes, presets, themes, saving) works the
@@ -84,7 +87,7 @@ sp.scatter(np.array([[1, 2], [2, 4], [3, 5]]))        # two-column array: x, y
 sp.scatter(df[["age", "bp"]])                         # exactly two numeric columns
 ```
 
-Rows with a missing x, y, hue or size value are left out. Axis titles default
+Rows with a missing x, y, hue, size or style value are left out. Axis titles default
 to the column names; plain sequences have none, so add them with `.labels()`.
 
 ## Groups
@@ -97,6 +100,30 @@ Groups appear in order of first appearance (or the category order of a pandas
 `Categorical`). Set it with `hue_order=["M", "F"]`, and rename groups by renaming
 the values in your DataFrame. The legend title is the `hue` column name; change
 it with `.legend(title="Sex")`.
+
+## Marker shape from a column
+
+```python
+df["smoker"] = rng.choice(["no", "yes"], 60)
+sp.scatter(df, x="age", y="bp", hue="sex", style="smoker")
+```
+
+Each `style` value gets its own marker shape. The first value uses the theme's
+`marker` (default circle), and the rest follow in this order: square, triangle,
+diamond, down-triangle, plus, cross, star. That allows up to 8 values. Set the
+order with `style_order=["yes", "no"]`. The legend lists the colors of the
+`hue` groups, then the shapes in gray, under the title `hue / style`.
+
+Pass the same column to both arguments when you want each group to have its
+own color and shape, for example so the figure still reads in grayscale. The
+legend then shows one combined entry per group:
+
+```python
+sp.scatter(df, x="age", y="bp", hue="sex", style="sex")
+```
+
+`style` changes only the marker shape. Fit lines, colors and `.highlight()`
+still follow `hue`.
 
 ## Marker size from a column (bubbles)
 
@@ -157,16 +184,21 @@ Details:
 
 ## Marker style
 
-Marker look comes from three theme fields:
+Marker look comes from four theme fields:
 
 | Field | Default | Effect |
 |---|---|---|
+| `marker` | `"o"` | Marker shape, any [matplotlib marker](https://matplotlib.org/stable/api/markers_api.html): `"o"` circle, `"s"` square, `"^"` triangle, `"D"` diamond, `"x"`, `"+"`, ... Line-only shapes (`"x"`, `"+"`) are stroked in the point color at the theme's `line_width`. |
 | `marker_size` | 5 | Marker diameter in pt (the base size when `size=` is used). |
 | `marker_alpha` | 0.85 | Opacity, 0 to 1. Lower it when points overlap. |
 | `marker_edge_width` | 0.5 | Outline width in pt; the outline uses the axes background color so overlapping points stay distinct. |
 
 ```python
 sp.scatter(df, x="age", y="bp").theme(marker_size=8, marker_alpha=0.5)
+```
+
+```python
+sp.scatter(df, x="age", y="bp", hue="sex").theme(marker="s")
 ```
 
 Set them for every plot with `sp.use(...)` in a theme, or for scatter plots only
@@ -265,5 +297,7 @@ sp.scatter(countries, x="gdp", y="life", size="pop").log("x").labels(
 | `Pass x= and y= column names` | The DataFrame doesn't have exactly two numeric columns to use automatically. |
 | `A confidence band for ... needs at least 3 points` | Use `.fit(ci=None)` or add data. |
 | `Unknown fit 'loess'. Did you mean 'lowess'?` | Use `"linear"` or `"lowess"`. |
+| `style= has 9 values, but there are only 8 marker shapes` | Use `hue=` for that column, or group the values first. |
+| `Unknown marker 'q'` | Set `marker` to a matplotlib marker such as `"o"`, `"s"` or `"^"`. |
 | `highlight() picks hue= groups` | Highlighting works on groups; add `hue=`. |
 | `PaletteExtendedWarning` | More groups than palette colors; extra shades were generated. |

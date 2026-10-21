@@ -77,6 +77,7 @@ class Theme:
     bar_edge_width: float | None = None
     errorbar_capsize: float | None = None
     missing_hatch: str | None = None
+    marker: str | None = None
     marker_size: float | None = None
     marker_alpha: float | None = None
     marker_edge_width: float | None = None
@@ -154,6 +155,7 @@ def _secret() -> Theme:
         bar_edge_width=0.0,
         errorbar_capsize=2.5,
         missing_hatch="////",
+        marker="o",
         marker_size=5.0,
         marker_alpha=0.85,
         marker_edge_width=0.5,
@@ -269,6 +271,7 @@ FIELD_DOCS: dict[str, str] = {
     "bar_edge_width": "Outline width around bars in pt",
     "errorbar_capsize": "Error bar cap length in pt",
     "missing_hatch": "Hatch pattern marking missing values",
+    "marker": "Scatter marker shape (matplotlib marker): 'o', 's', '^', 'D', 'x', ...",
     "marker_size": "Scatter marker diameter in pt (base size when size= is used)",
     "marker_alpha": "Scatter marker opacity, 0 (invisible) to 1 (solid)",
     "marker_edge_width": "Outline width around scatter markers in pt",

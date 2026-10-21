@@ -10,12 +10,14 @@ from typing import Any, Literal, Self
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
+from matplotlib.markers import MarkerStyle
 
 from SecretPlots.core.colors import extend_palette
 from SecretPlots.core.data import _order
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError
+from SecretPlots.theme import Theme
 
 FitKind = Literal["linear", "lowess"]
 
@@ -24,6 +26,9 @@ _FITS = ("linear", "lowess")
 _SIZE_RANGE = (0.4, 3.0)
 _BAND_ALPHA = 0.18
 _FIT_POINTS = 100
+#: Shapes for style= values, after the theme's marker. All filled, so they
+#: read the same at any size and keep the background outline.
+_MARKERS = ("o", "s", "^", "D", "v", "P", "X", "*")
 
 
 @dataclass(frozen=True)
@@ -34,6 +39,8 @@ class _Points:
     hue_name: str | None
     size_name: str | None
     hue_order: list[Any] | None
+    style_name: str | None = None
+    style_order: list[Any] | None = None
 
 
 def _name(value: Hashable | None) -> str | None:
@@ -47,6 +54,8 @@ def _points(
     hue: Any,
     size: Any,
     hue_order: Sequence[Any] | None,
+    style: Any = None,
+    style_order: Sequence[Any] | None = None,
 ) -> _Points:
     if data is None:
         if x is None or y is None:
@@ -59,16 +68,16 @@ def _points(
                 f"x={x!r} / y={y!r} look like column names, but no data was "
                 "given; pass the DataFrame first: sp.scatter(df, x=..., y=...)"
             )
-        columns = {"x": x, "y": y, "hue": hue, "size": size}
+        columns = {"x": x, "y": y, "hue": hue, "size": size, "style": style}
         try:
             frame = pd.DataFrame(
                 {k: np.asarray(v) for k, v in columns.items() if v is not None}
             )
         except ValueError:
             raise DataShapeError(
-                "x=, y= (and hue=/size=) must have equal length"
+                "x=, y= (and hue=/size=/style=) must have equal length"
             ) from None
-        names: tuple[Any, ...] = (None, None, None, None)
+        names: tuple[Any, ...] = (None, None, None, None, None)
     else:
         if isinstance(data, Mapping):
             data = pd.DataFrame(data)
@@ -89,7 +98,13 @@ def _points(
                     + ", ".join(map(str, data.columns))
                 )
             x, y = numeric
-        for label, column in (("x", x), ("y", y), ("hue", hue), ("size", size)):
+        for label, column in (
+            ("x", x),
+            ("y", y),
+            ("hue", hue),
+            ("size", size),
+            ("style", style),
+        ):
             if label in ("x", "y") and column is None:
                 raise DataShapeError(f"Pass {label}= (a column name)")
             if column is not None and column not in data.columns:
@@ -98,15 +113,17 @@ def _points(
                     f"Available: {', '.join(map(str, data.columns))}"
                 )
         frame = pd.DataFrame({"x": data[x].to_numpy(), "y": data[y].to_numpy()})
-        if hue is not None:
-            frame["hue"] = data[hue].to_numpy()
-            if isinstance(data[hue].dtype, pd.CategoricalDtype):
-                frame["hue"] = pd.Categorical(
-                    frame["hue"], categories=data[hue].cat.categories
+        for label, column in (("hue", hue), ("style", style)):
+            if column is None:
+                continue
+            frame[label] = data[column].to_numpy()
+            if isinstance(data[column].dtype, pd.CategoricalDtype):
+                frame[label] = pd.Categorical(
+                    frame[label], categories=data[column].cat.categories
                 )
         if size is not None:
             frame["size"] = data[size].to_numpy()
-        names = (x, y, hue, size)
+        names = (x, y, hue, size, style)
 
     shown = {"x": names[0], "y": names[1], "size": names[3]}
     for column in ("x", "y", "size"):
@@ -122,6 +139,14 @@ def _points(
         raise DataShapeError("No data to plot (every row has a missing value)")
     if hue_order is not None and "hue" not in frame:
         raise DataShapeError("hue_order= needs hue= groups")
+    if style_order is not None and "style" not in frame:
+        raise DataShapeError("style_order= needs a style= column")
+    styles = _order(frame["style"], style_order, "style") if "style" in frame else None
+    if styles is not None and len(styles) > len(_MARKERS):
+        raise DataShapeError(
+            f"style= has {len(styles)} values, but there are only "
+            f"{len(_MARKERS)} marker shapes; use hue= for more groups"
+        )
     return _Points(
         frame=frame,
         x_name=_name(names[0]),
@@ -129,6 +154,8 @@ def _points(
         hue_name=_name(names[2]),
         size_name=_name(names[3]),
         hue_order=_order(frame["hue"], hue_order, "hue") if "hue" in frame else None,
+        style_name=_name(names[4]),
+        style_order=styles,
     )
 
 
@@ -218,6 +245,32 @@ def _equation(fit: _Fit) -> str:
         f"y = {fit.slope:.3g}x {sign} {abs(fit.intercept):.3g}, "
         f"R\N{SUPERSCRIPT TWO} = {fit.r2:.2f}"
     )
+
+
+def _shapes(theme: Theme, values: list[Any]) -> dict[Any, str]:
+    first = theme.marker or "o"
+    cycle = [first, *(m for m in _MARKERS if m != first)]
+    return dict(zip(values, cycle, strict=False))
+
+
+def _marker_style(theme: Theme, marker: str | None = None) -> dict[str, Any]:
+    marker = marker or theme.marker or "o"
+    try:
+        filled = MarkerStyle(marker).is_filled()
+    except ValueError:
+        raise ValueError(
+            f"Unknown marker {marker!r}. Use a matplotlib marker such as "
+            "'o', 's', '^', 'D', 'v', 'x' or '+'."
+        ) from None
+    if filled:
+        return {
+            "marker": marker,
+            "linewidths": theme.marker_edge_width,
+            "edgecolors": theme.axes_background,
+        }
+    # Line-only markers ('x', '+', ...) are all edge: a background-colored
+    # outline would hide them, so they are stroked in their own color.
+    return {"marker": marker, "linewidths": theme.line_width}
 
 
 # ------------------------------------------------------------------------ plot
@@ -321,27 +374,36 @@ class ScatterPlot(Plot):
         frame = self._points.frame
         groups: list[Any] = list(self._points.hue_order or [None])
         colors = self._group_colors(style, groups)
+        shapes = _shapes(theme, self._points.style_order or [])
         base = float(theme.marker_size or 5.0)
         areas = self._areas(frame["size"] if "size" in frame else frame["x"], base)
 
         for group in groups:
-            mask = np.ones(len(frame), bool) if group is None else frame["hue"] == group
-            ax.scatter(
-                frame.loc[mask, "x"],
-                frame.loc[mask, "y"],
-                s=areas[np.asarray(mask)],
-                color=colors[group],
-                alpha=theme.marker_alpha,
-                linewidths=theme.marker_edge_width,
-                edgecolors=theme.axes_background,
-                label=None if group is None else str(group),
-                zorder=2,
+            in_group = (
+                np.ones(len(frame), bool) if group is None else frame["hue"] == group
             )
+            for value in self._points.style_order or [None]:
+                mask = np.asarray(
+                    in_group if value is None else in_group & (frame["style"] == value)
+                )
+                if not mask.any():
+                    continue
+                ax.scatter(
+                    frame.loc[mask, "x"],
+                    frame.loc[mask, "y"],
+                    s=areas[mask],
+                    color=colors[group],
+                    alpha=theme.marker_alpha,
+                    # With style= the legend gets proxy entries instead.
+                    label=None if group is None or shapes else str(group),
+                    zorder=2,
+                    **_marker_style(theme, shapes.get(value)),
+                )
 
         if self._fit_kind is not None:
             self._draw_fits(ax, style, groups, colors)
         self._style_axes(ax, style)
-        self._legend_entries(ax, style, groups)
+        self._legend_entries(ax, style, groups, colors, shapes)
 
     def _draw_fits(
         self, ax: Axes, style: Style, groups: list[Any], colors: dict[Any, str]
@@ -398,27 +460,57 @@ class ScatterPlot(Plot):
         for side, spine in ax.spines.items():
             spine.set_visible(side in visible)
 
-    def _legend_entries(self, ax: Axes, style: Style, groups: list[Any]) -> None:
+    def _legend_entries(
+        self,
+        ax: Axes,
+        style: Style,
+        groups: list[Any],
+        colors: dict[Any, str],
+        shapes: dict[Any, str],
+    ) -> None:
         points = self._points
+        theme = style.theme
+        base = float(theme.marker_size or 5.0)
+
+        def proxy(label: Any, color: Any, marker: str | None, area: float) -> None:
+            ax.scatter(
+                [],
+                [],
+                s=area,
+                color=color,
+                alpha=theme.marker_alpha,
+                label=str(label),
+                **_marker_style(theme, marker),
+            )
+
+        frame = points.frame
+        combined = (
+            "hue" in frame and "style" in frame and frame["hue"].equals(frame["style"])
+        )
         n = len(groups) if points.hue_order is not None else 0
-        if "size" in points.frame:
-            sizes = points.frame["size"]
+        if shapes:
+            if combined:
+                for group in groups:
+                    proxy(group, colors[group], shapes[group], base**2)
+            else:
+                if points.hue_order is not None:
+                    for group in groups:
+                        proxy(group, colors[group], None, base**2)
+                for value, marker in shapes.items():
+                    proxy(value, theme.neutral, marker, base**2)
+                n += len(shapes)
+        if "size" in frame:
+            sizes = frame["size"]
             lo, hi = float(sizes.min()), float(sizes.max())
             keys = [lo] if hi == lo else list(np.linspace(lo, hi, 3))
-            base = float(style.theme.marker_size or 5.0)
             for value, area in zip(keys, self._areas(keys, base), strict=True):
-                ax.scatter(
-                    [],
-                    [],
-                    s=area,
-                    color=style.theme.neutral,
-                    alpha=style.theme.marker_alpha,
-                    label=f"{value:.3g}",
-                )
+                proxy(f"{value:.3g}", theme.neutral, None, float(area))
             n += len(keys)
         if n:
-            names = [s for s in (points.hue_name, points.size_name) if s]
-            self._draw_legend(ax, style, n=n, title=" / ".join(names) or None)
+            names = [points.hue_name, None if combined else points.style_name]
+            names.append(points.size_name)
+            title = " / ".join(s for s in names if s)
+            self._draw_legend(ax, style, n=n, title=title or None)
 
 
 def scatter(
@@ -428,7 +520,9 @@ def scatter(
     hue: Any = None,
     *,
     size: Any = None,
+    style: Any = None,
     hue_order: Sequence[Any] | None = None,
+    style_order: Sequence[Any] | None = None,
 ) -> ScatterPlot:
     """Scatter plot: one marker per row.
 
@@ -438,11 +532,14 @@ def scatter(
         x, y: Column names (or sequences of numbers when ``data`` is omitted).
         hue: Column with groups, drawn in different colors.
         size: Numeric column scaling marker area (with a size legend).
+        style: Column with groups, drawn in different marker shapes (up to
+            8). Can be the same column as ``hue``.
         hue_order: Explicit group order.
+        style_order: Explicit order of the ``style`` values (and their shapes).
 
-    Rows with a missing x, y, hue or size are left out.
+    Rows with a missing x, y, hue, size or style are left out.
 
     Example:
         >>> sp.scatter(df, x="age", y="bp", hue="sex").fit("linear")  # doctest: +SKIP
     """
-    return ScatterPlot(_points(data, x, y, hue, size, hue_order))
+    return ScatterPlot(_points(data, x, y, hue, size, hue_order, style, style_order))

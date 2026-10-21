@@ -178,6 +178,100 @@ def test_marker_style_from_theme(people: pd.DataFrame) -> None:
     assert points.get_alpha() == 0.5
 
 
+@pytest.mark.parametrize("marker", ["s", "^", "D"])
+def test_marker_shape_from_theme(people: pd.DataFrame, marker: str) -> None:
+    from matplotlib.markers import MarkerStyle
+
+    plot = sp.scatter(people, x="age", y="bp", hue="sex").theme(marker=marker)
+    style = MarkerStyle(marker)
+    expected = style.get_path().transformed(style.get_transform()).vertices
+    for points in _points(plot):
+        np.testing.assert_allclose(points.get_paths()[0].vertices, expected)
+
+
+def test_unfilled_marker_uses_group_color(people: pd.DataFrame) -> None:
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        plot = sp.scatter(people, x="age", y="bp").theme(marker="x")
+        (points,) = _points(plot)
+    assert to_hex(points.get_edgecolor()[0], keep_alpha=False) == (
+        plot.style().theme.primary
+    )
+
+
+def test_unknown_marker_is_rejected(people: pd.DataFrame) -> None:
+    with pytest.raises(ValueError, match="Unknown marker 'q'"):
+        _ = sp.scatter(people, x="age", y="bp").theme(marker="q").fig
+
+
+def _shape(points: PathCollection) -> np.ndarray:
+    return points.get_paths()[0].vertices
+
+
+def _marker_vertices(marker: str) -> np.ndarray:
+    from matplotlib.markers import MarkerStyle
+
+    style = MarkerStyle(marker)
+    return style.get_path().transformed(style.get_transform()).vertices
+
+
+def test_style_column_gets_marker_shapes_and_legend(people: pd.DataFrame) -> None:
+    people["smoker"] = np.array(["no", "yes", "yes", "no"] * 10)
+    plot = sp.scatter(people, x="age", y="bp", hue="sex", style="smoker")
+    drawn = [p for p in _points(plot) if len(p.get_offsets())]
+    assert sum(len(p.get_offsets()) for p in drawn) == 40
+    assert len(drawn) == 4  # 2 groups x 2 styles
+    legend = plot.ax.get_legend()
+    assert [t.get_text() for t in legend.get_texts()] == ["F", "M", "no", "yes"]
+    assert legend.get_title().get_text() == "sex / smoker"
+    handles = legend.legend_handles
+    np.testing.assert_allclose(_shape(handles[2]), _marker_vertices("o"))
+    np.testing.assert_allclose(_shape(handles[3]), _marker_vertices("s"))
+
+
+def test_style_starts_from_theme_marker_and_follows_order(
+    people: pd.DataFrame,
+) -> None:
+    plot = sp.scatter(
+        people, x="age", y="bp", style="sex", style_order=["M", "F"]
+    ).theme(marker="D")
+    handles = plot.ax.get_legend().legend_handles
+    assert [t.get_text() for t in plot.ax.get_legend().get_texts()] == ["M", "F"]
+    np.testing.assert_allclose(_shape(handles[0]), _marker_vertices("D"))
+    np.testing.assert_allclose(_shape(handles[1]), _marker_vertices("o"))
+
+
+def test_style_same_as_hue_merges_legend(people: pd.DataFrame) -> None:
+    plot = sp.scatter(people, x="age", y="bp", hue="sex", style="sex")
+    legend = plot.ax.get_legend()
+    assert [t.get_text() for t in legend.get_texts()] == ["F", "M"]
+    assert legend.get_title().get_text() == "sex"
+    handles = legend.legend_handles
+    np.testing.assert_allclose(_shape(handles[1]), _marker_vertices("s"))
+    palette = plot.style().theme.palette
+    assert to_hex(handles[1].get_facecolor()[0], keep_alpha=False) == palette[1]
+
+
+@pytest.mark.parametrize(
+    ("make", "match"),
+    [
+        (lambda df: sp.scatter(df, x="age", y="bp", style_order=["F"]), "style_order"),
+        (lambda df: sp.scatter(df, x="age", y="bp", style="smoke"), "not found"),
+        (
+            lambda df: sp.scatter(
+                df.assign(k=df.index % 9), x="age", y="bp", style="k"
+            ),
+            "only 8 marker shapes",
+        ),
+    ],
+)
+def test_style_errors(people: pd.DataFrame, make, match: str) -> None:
+    with pytest.raises(sp.DataShapeError, match=match):
+        make(people)
+
+
 def test_options_documented() -> None:
     assert "fit" in sp.ScatterPlot.options().index
     table = sp.ScatterPlot.options("fit")
