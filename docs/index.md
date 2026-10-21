@@ -28,3 +28,4 @@ even if they break a limit, with a `LimitExceededWarning`; set
 ## Plot types
 
 - [Bar plots](plots/bar.md)
+- [Scatter plots](plots/scatter.md)

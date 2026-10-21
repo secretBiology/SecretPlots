@@ -24,6 +24,7 @@ from SecretPlots.errors import (
     SecretPlotsWarning,
 )
 from SecretPlots.plots.bar import BarPlot, bar
+from SecretPlots.plots.scatter import ScatterPlot, scatter
 from SecretPlots.theme import (
     Theme,
     get_theme,
@@ -44,6 +45,7 @@ __all__ = [
     "Plot",
     "PresetError",
     "PresetNotFoundError",
+    "ScatterPlot",
     "SecretPlotsError",
     "SecretPlotsWarning",
     "Theme",
@@ -56,6 +58,7 @@ __all__ = [
     "presets",
     "register_theme",
     "reset",
+    "scatter",
     "theme_options",
     "use",
 ]
