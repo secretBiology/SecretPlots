@@ -4,6 +4,8 @@ theme:
   name: material
 nav:
   - Home: index.md
+  - Plots:
+      - Bar: plots/bar.md
   - Presets: presets.md
   - API: api.md
 plugins:
