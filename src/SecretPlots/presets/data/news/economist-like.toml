@@ -1,0 +1,37 @@
+name = "economist-like"
+kind = "news"
+description = "Magazine charts with a red tab and right-hand value axis, in the spirit of The Economist."
+
+[target]
+widths = { mobile = "360px", article = "595px", wide = "1280px" }
+default_width = "article"
+dpi = 200
+formats = ["png", "svg"]
+
+[theme]
+font_family = ["Fira Sans", "Source Sans 3", "Helvetica", "Arial"]
+font_generic = "sans-serif"
+font_size = 9.5
+label_scale = 1.0
+title_scale = 1.5
+subtitle_scale = 1.1
+note_scale = 0.85
+title_weight = "bold"
+text_color = "#0c0c0c"
+muted_text_color = "#595959"
+axis_color = "#0c0c0c"
+spines = ["bottom"]
+tick_length = 0
+value_axis_side = "right"
+axis_titles = false
+grid = "value"
+grid_color = "#b7c6cf"
+grid_width = 0.7
+grid_style = "-"
+palette = ["#006ba2", "#3ebcd2", "#379a8b", "#ebb434", "#b4ba39", "#9a607f", "#d1b07c", "#758d99"]
+legend_position = "top"
+legend_title = false
+
+[chrome]
+title_align = "left"
+accent_bar = "#e3120b"

@@ -1,0 +1,34 @@
+name = "wapo-like"
+kind = "news"
+description = "Newspaper graphics in the spirit of The Washington Post graphics desk."
+
+[target]
+widths = { mobile = "340px", article = "630px", wide = "1000px" }
+default_width = "article"
+dpi = 200
+formats = ["png", "svg"]
+
+[theme]
+font_family = ["Libre Franklin", "Franklin ITC Pro", "Franklin Gothic", "Helvetica", "Arial"]
+font_generic = "sans-serif"
+font_size = 9.5
+label_scale = 1.0
+title_scale = 1.5
+subtitle_scale = 1.1
+note_scale = 0.85
+title_weight = "bold"
+text_color = "#2a2a2a"
+muted_text_color = "#666666"
+axis_color = "#2a2a2a"
+spines = ["bottom"]
+tick_length = 0
+grid = "value"
+grid_color = "#dddddd"
+grid_width = 0.8
+grid_style = "-"
+palette = ["#1f5c99", "#e68a00", "#4f9ed9", "#b9373c", "#5c8a3a", "#a3a3a3"]
+legend_position = "top"
+legend_title = false
+
+[chrome]
+title_align = "left"

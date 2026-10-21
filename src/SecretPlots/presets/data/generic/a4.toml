@@ -1,0 +1,11 @@
+name = "a4"
+kind = "generic"
+description = "A4 page with 20 mm margins (theses, reports)."
+
+[target]
+widths = { full = "170mm", half = "82mm" }
+default_width = "full"
+max_height = "247mm"
+min_font_size = 6
+dpi = 300
+formats = ["pdf", "svg", "png"]

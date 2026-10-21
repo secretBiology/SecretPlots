@@ -1,0 +1,13 @@
+name = "slide-16x9"
+kind = "generic"
+description = "16:9 presentation slides (13.33 x 7.5 in)."
+
+[target]
+widths = { full = "12in", half = "5.8in" }
+default_width = "full"
+aspect = 0.5
+max_height = "6.2in"
+min_font_size = 14
+min_line_width = 1.5
+dpi = 200
+formats = ["png", "svg", "pdf"]

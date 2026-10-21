@@ -1,0 +1,38 @@
+name = "nyt-like"
+kind = "news"
+description = "Clean newspaper graphics in the spirit of The New York Times graphics desk."
+
+[target]
+widths = { mobile = "335px", article = "600px", wide = "1050px" }
+default_width = "article"
+dpi = 200
+formats = ["png", "svg"]
+
+[theme]
+font_family = ["Libre Franklin", "Franklin Gothic Medium", "Franklin Gothic", "Helvetica", "Arial"]
+font_generic = "sans-serif"
+font_size = 9.5
+label_scale = 1.0
+title_scale = 1.6
+subtitle_scale = 1.15
+note_scale = 0.85
+title_weight = "bold"
+text_color = "#121212"
+muted_text_color = "#727272"
+axis_color = "#121212"
+spines = ["bottom"]
+tick_length = 0
+grid = "value"
+grid_color = "#e2e2e2"
+grid_width = 0.7
+grid_style = "--"
+palette = ["#3b78b5", "#e07b39", "#5aa469", "#c44e52", "#8172b3", "#937860"]
+neutral = "#999999"
+legend_position = "top"
+legend_title = false
+
+[plots.bar]
+bar_gap = 0.3
+
+[chrome]
+title_align = "left"

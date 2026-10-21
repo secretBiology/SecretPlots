@@ -1,0 +1,14 @@
+site_name: SecretPlots
+repo_url: https://github.com/secretBiology/SecretPlots
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Presets: presets.md
+  - API: api.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]

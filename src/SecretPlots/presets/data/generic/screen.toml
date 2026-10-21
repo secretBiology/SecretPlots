@@ -1,0 +1,9 @@
+name = "screen"
+kind = "generic"
+description = "Default: notebooks, reports and slides viewed on screen."
+
+[target]
+widths = { default = "6in", narrow = "4in", wide = "9in" }
+default_width = "default"
+dpi = 200
+formats = ["png", "svg", "pdf"]

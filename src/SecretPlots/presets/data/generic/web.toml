@@ -1,0 +1,9 @@
+name = "web"
+kind = "generic"
+description = "Web pages and blogs (pixel widths, saved at 2x for sharp screens)."
+
+[target]
+widths = { mobile = "360px", desktop = "700px" }
+default_width = "desktop"
+dpi = 200
+formats = ["png", "svg"]

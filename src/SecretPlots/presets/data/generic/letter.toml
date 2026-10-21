@@ -1,0 +1,11 @@
+name = "letter"
+kind = "generic"
+description = "US Letter page with 1 inch margins."
+
+[target]
+widths = { full = "6.5in", half = "3.15in" }
+default_width = "full"
+max_height = "9in"
+min_font_size = 6
+dpi = 300
+formats = ["pdf", "svg", "png"]

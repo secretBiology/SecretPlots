@@ -1,0 +1,47 @@
+name = "bbc"
+kind = "news"
+official = true
+description = "BBC News graphics, from the BBC Visual and Data Journalism team's bbplot."
+source_url = "https://github.com/bbc/bbplot"
+verified_on = "2026-10-21"
+
+# bbplot renders on a 640x450 px canvas at 72 px/in (ggsave width = px / 72).
+[target]
+px_per_inch = 72
+widths = { default = "640px" }
+default_width = "default"
+aspect = 0.703125
+dpi = 144
+formats = ["png", "svg"]
+
+# bbc_style(): Helvetica, title 28 bold, subtitle 22, axis/legend text 18,
+# no axis titles/ticks/lines, light grey y gridlines only, legend on top.
+# Colors are from the bbplot cookbook examples.
+[theme]
+font_family = ["Helvetica", "Arial", "Liberation Sans"]
+font_generic = "sans-serif"
+font_size = 18
+label_scale = 1.0
+title_scale = 1.5556
+subtitle_scale = 1.2222
+note_scale = 0.8889
+title_weight = "bold"
+text_color = "#222222"
+muted_text_color = "#222222"
+background = "#ffffff"
+spines = []
+tick_length = 0
+axis_titles = false
+grid = "value"
+grid_color = "#cbcbcb"
+grid_width = 1.0
+grid_style = "-"
+palette = ["#1380A1", "#FAAB18", "#990000", "#588300"]
+legend_position = "top"
+legend_title = false
+legend_frame = false
+
+[chrome]
+title_align = "left"
+footer_rule = true
+source_prefix = "Source: "

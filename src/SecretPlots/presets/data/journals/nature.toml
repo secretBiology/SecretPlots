@@ -1,0 +1,21 @@
+name = "nature"
+kind = "journal"
+official = true
+description = "Nature and Nature Portfolio journals."
+source_url = "https://research-figure-guide.nature.com/figures/preparing-figures-our-specifications"
+verified_on = "2026-10-21"
+
+[target]
+widths = { single = "89mm", double = "183mm" }
+default_width = "single"
+max_height = "170mm"
+min_font_size = 5
+max_font_size = 7
+font_generic = "sans-serif"
+dpi = 300
+formats = ["pdf", "eps", "svg", "tiff"]
+
+[chrome]
+panel_label_case = "lower"
+panel_label_weight = "bold"
+panel_label_size = 8

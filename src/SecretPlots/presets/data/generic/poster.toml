@@ -1,0 +1,12 @@
+name = "poster"
+kind = "generic"
+description = "Conference poster panels, readable from about 2 m."
+
+[target]
+widths = { column = "250mm", wide = "520mm" }
+default_width = "column"
+aspect = 0.7
+min_font_size = 24
+min_line_width = 2
+dpi = 300
+formats = ["pdf", "svg", "png"]

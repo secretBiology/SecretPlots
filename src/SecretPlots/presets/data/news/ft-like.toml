@@ -1,0 +1,36 @@
+name = "ft-like"
+kind = "news"
+description = "Financial newspaper graphics on a salmon page, in the spirit of the Financial Times."
+
+[target]
+widths = { mobile = "360px", article = "700px", wide = "1100px" }
+default_width = "article"
+dpi = 200
+formats = ["png", "svg"]
+
+[theme]
+font_family = ["Source Sans 3", "Source Sans Pro", "Helvetica", "Arial"]
+font_generic = "sans-serif"
+font_size = 10
+label_scale = 1.0
+title_scale = 1.6
+subtitle_scale = 1.15
+note_scale = 0.85
+title_weight = "normal"
+text_color = "#33302e"
+muted_text_color = "#66605c"
+background = "#fff1e5"
+axis_color = "#33302e"
+spines = ["bottom"]
+tick_length = 0
+grid = "value"
+grid_color = "#e6d9ce"
+grid_width = 0.8
+grid_style = "-"
+palette = ["#0f5499", "#eb5e8d", "#70dbed", "#9e2f50", "#4e96eb", "#96cc28"]
+neutral = "#a69d96"
+legend_position = "top"
+legend_title = false
+
+[chrome]
+title_align = "left"
