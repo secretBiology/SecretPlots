@@ -64,6 +64,10 @@ line-length = 88
 target-version = "py312"
 src = ["src", "tests"]
 
+[tool.ruff.format]
+# Doc examples use column-aligned trailing comments for readability.
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "N", "SIM", "RUF", "PT", "NPY", "PTH"]
 # The package keeps its CamelCase name to match SecretColors, and the documented
