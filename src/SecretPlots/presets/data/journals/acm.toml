@@ -1,0 +1,25 @@
+name = "acm"
+kind = "journal"
+official = true
+description = "ACM conference proceedings (acmart sigconf two-column format)."
+source_url = "https://github.com/borisveytsman/acmart/blob/master/acmart.dtx"
+verified_on = "2026-10-21"
+
+# ACM sets no figure font or line limits; sizes come from the official acmart
+# class. sigconf: 8.5 in paper with 54 pt inner/outer margins gives a 504 pt
+# (7 in) text width; columnsep 2pc gives a (504 - 24) / 2 = 240 pt column.
+# Body text is 9 pt. Changing acmart's layout is not allowed, so size figures
+# to \columnwidth (single) or \textwidth (double, figure*).
+[target]
+widths = { single = "240pt", double = "504pt" }
+default_width = "single"
+dpi = 300
+formats = ["pdf", "png"]
+
+# Just under the 9 pt body: 8 pt ticks/legend, 9 pt axis titles and titles.
+[theme]
+font_size = 8
+label_scale = 1.125
+title_scale = 1.125
+subtitle_scale = 1.125
+note_scale = 0.875

@@ -1,0 +1,39 @@
+name = "springer"
+kind = "journal"
+official = true
+description = "Springer journals (large-format; use width='small' for small-format journals)."
+source_url = "https://link.springer.com/journal/11145/submission-guidelines"
+verified_on = "2026-10-21"
+
+# Springer's standard "Artwork and Illustrations Guidelines" (read from the
+# 2025 Wayback Machine snapshot; the live page requires a login redirect).
+# Large-sized journals: 84 mm (double-column text) or 174 mm (single-column
+# text), not higher than 234 mm. Small-sized journals: 119 mm wide, at most
+# 195 mm high. Helvetica or Arial, about 2-3 mm (8-12 pt), minimal variance;
+# no titles inside figures; parts labeled with lowercase letters; lines at
+# least 0.1 mm (0.3 pt); combination art 600 dpi; EPS for vector, TIFF for
+# halftones.
+[target]
+widths = { single = "84mm", double = "174mm", small = "119mm" }
+default_width = "single"
+max_height = "234mm"
+min_font_size = 8
+max_font_size = 12
+min_line_width = 0.3
+font_generic = "sans-serif"
+dpi = 600
+formats = ["eps", "pdf", "tiff"]
+
+# 8 pt ticks/legend/notes, 9 pt axis titles, 10 pt titles.
+[theme]
+font_family = ["Helvetica", "Arial", "Liberation Sans"]
+font_generic = "sans-serif"
+font_size = 8
+label_scale = 1.125
+title_scale = 1.25
+subtitle_scale = 1.125
+note_scale = 1.0
+
+[chrome]
+panel_label_case = "lower"
+panel_label_weight = "bold"

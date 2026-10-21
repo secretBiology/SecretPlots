@@ -1,0 +1,22 @@
+name = "neurips"
+kind = "journal"
+official = true
+description = "NeurIPS conference papers (single-column neurips style)."
+source_url = "https://media.neurips.cc/Conferences/NeurIPS2025/Styles.zip"
+verified_on = "2026-10-21"
+
+# neurips_2025.sty: textwidth = 5.5 in, 10 pt body text. NeurIPS sets no figure
+# font or line limits, so only the width comes from the style file.
+[target]
+widths = { full = "5.5in" }
+default_width = "full"
+dpi = 300
+formats = ["pdf", "png"]
+
+# Just under the 10 pt body: 8 pt ticks/legend, 9 pt axis titles, 10 pt titles.
+[theme]
+font_size = 8
+label_scale = 1.125
+title_scale = 1.25
+subtitle_scale = 1.125
+note_scale = 0.875

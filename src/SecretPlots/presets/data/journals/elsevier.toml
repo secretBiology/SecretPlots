@@ -1,0 +1,26 @@
+name = "elsevier"
+kind = "journal"
+official = true
+description = "Elsevier journals (general artwork instructions; check your journal's guide)."
+source_url = "https://www.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-sizing"
+verified_on = "2026-10-21"
+
+# Artwork sizing: minimal 30 mm, single column 90 mm, 1.5 column 140 mm, double
+# column 190 mm. Lettering about 7 pt for normal text, sub/superscripts no
+# smaller than 6 pt (a rule of thumb; up to about 10 pt over tints). 300 dpi
+# halftones, 500 dpi combination art, 1000 dpi line art. Formats checklist:
+# EPS or PDF for vector images, TIFF or JPEG for halftones.
+[target]
+widths = { minimal = "30mm", single = "90mm", "one-and-half" = "140mm", double = "190mm" }
+default_width = "single"
+min_font_size = 6
+dpi = 500
+formats = ["eps", "pdf", "tiff", "jpg"]
+
+# 7 pt ticks/legend, 8 pt axis titles, 9 pt titles, 6 pt notes.
+[theme]
+font_size = 7
+label_scale = 1.1428
+title_scale = 1.2857
+subtitle_scale = 1.1428
+note_scale = 0.8572

@@ -18,7 +18,81 @@ def test_builtin_presets_load() -> None:
         "screen",
     ):
         assert expected in names
-    assert presets.list(kind="journal") == ["nature"]
+    assert presets.list(kind="journal") == sorted(
+        [
+            "aha",
+            "cell",
+            "nature",
+            "pnas",
+            "science",
+            "ieee",
+            "acm",
+            "elsevier",
+            "springer",
+            "neurips",
+        ]
+    )
+
+
+MM = 1 / 25.4
+
+
+@pytest.mark.parametrize(
+    ("name", "widths", "font_range", "panel_size"),
+    [
+        ("science", {"single": 90, "double": 183}, (6, 9), 10),
+        ("cell", {"single": 85, "one-and-half": 114, "double": 174}, (6, 8), None),
+        ("pnas", {"single": 87, "one-and-half": 114, "double": 178}, (6, None), None),
+        ("aha", {"single": 80, "one-and-half": 127.5, "double": 177.5}, (6, 10), 12.6),
+        ("ieee", {"single": 88.9, "double": 181.864}, (None, None), None),
+        ("acm", {"single": 240 / 72 * 25.4, "double": 7 * 25.4}, (None, None), None),
+        (
+            "elsevier",
+            {"single": 90, "one-and-half": 140, "double": 190},
+            (6, None),
+            None,
+        ),
+        ("springer", {"single": 84, "double": 174, "small": 119}, (8, 12), None),
+        ("neurips", {"full": 5.5 * 25.4}, (None, None), None),
+    ],
+)
+def test_journal_specs(
+    name: str,
+    widths: dict[str, float],
+    font_range: tuple[float, float | None],
+    panel_size: float | None,
+) -> None:
+    preset = presets.get(name)
+    assert preset.official
+    assert preset.source_url
+    for key, mm in widths.items():
+        assert preset.target.widths[key] == pytest.approx(mm * MM)
+    target = preset.target
+    assert (target.min_font_size, target.max_font_size) == font_range
+    assert preset.chrome.panel_label_size == panel_size
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "science",
+        "cell",
+        "pnas",
+        "aha",
+        "ieee",
+        "acm",
+        "elsevier",
+        "springer",
+        "neurips",
+    ],
+)
+def test_journal_text_fits_without_clamping(name: str) -> None:
+    style = sp.bar([1]).preset(name).style()
+    target = style.preset.target
+    sizes = [style.sizes.tick, style.sizes.label, style.sizes.title, style.sizes.note]
+    assert min(sizes) >= (target.min_font_size or 0)
+    assert max(sizes) <= (target.max_font_size or float("inf"))
+    assert not [a for a in style.adjustments if "text" in a]
 
 
 def test_nature_spec() -> None:

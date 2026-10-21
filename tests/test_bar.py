@@ -390,3 +390,22 @@ def test_top_legend_wraps_inside_figure(expression: pd.DataFrame) -> None:
     extent = plot.ax.get_legend().get_window_extent(fig.canvas.get_renderer())
     assert extent.x1 <= fig.bbox.x1
     assert plot.ax.get_legend()._ncols < 4
+
+
+@pytest.mark.parametrize("position", ["right", "top"])
+def test_outside_legend_clears_axis_decorations(
+    expression: pd.DataFrame, position: str
+) -> None:
+    # economist-like draws the value axis (ticks and title) on the right.
+    plot = (
+        sp.bar(expression, x="sample", y="tpm", hue="gene", error="sd")
+        .preset("economist-like")
+        .legend(position)
+        .labels(y="TPM")
+    )
+    fig = plot.fig
+    renderer = fig.canvas.get_renderer()
+    legend = plot.ax.get_legend().get_window_extent(renderer)
+    for axis in (plot.ax.xaxis, plot.ax.yaxis):
+        assert not legend.overlaps(axis.get_tightbbox(renderer))
+    assert legend.x1 <= fig.bbox.x1 + 1

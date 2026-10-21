@@ -1,0 +1,28 @@
+name = "ieee"
+kind = "journal"
+official = true
+description = "IEEE journals, transactions and conference proceedings."
+source_url = "https://conferences.ieeeauthorcenter.ieee.org/write-your-paper/improve-your-graphics/"
+verified_on = "2026-10-21"
+
+# IEEE Author Center: one column 3.5 in (88.9 mm), two columns 7.16 in (182 mm),
+# at most 7.16 x 8.8 in; type "approximately 9-10 point" in Helvetica, Times New
+# Roman, Arial, Cambria or Symbol, consistent across graphics; >300 dpi color
+# and grayscale, >600 dpi line art; PS, EPS, PDF, PNG or TIFF. The 9-10 pt is
+# approximate, so it is set as the theme's sizes rather than as hard limits.
+[target]
+widths = { single = "3.5in", double = "7.16in" }
+default_width = "single"
+max_height = "8.8in"
+dpi = 600
+formats = ["pdf", "eps", "ps", "png", "tiff"]
+
+# 9 pt ticks/legend, 10 pt axis titles and titles, 8 pt notes.
+[theme]
+font_family = ["Helvetica", "Arial", "Liberation Sans"]
+font_generic = "sans-serif"
+font_size = 9
+label_scale = 1.1111
+title_scale = 1.1111
+subtitle_scale = 1.1111
+note_scale = 0.8889

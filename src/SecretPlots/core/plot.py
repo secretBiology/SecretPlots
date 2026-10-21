@@ -15,6 +15,7 @@ from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from matplotlib.transforms import ScaledTranslation
 
 from SecretPlots import presets
 from SecretPlots.core import state
@@ -32,6 +33,18 @@ from SecretPlots.theme import (
 )
 
 _LEGEND_POSITIONS = ("auto", "top", "right", "inside", "none")
+_LEGEND_GAP_IN = 0.08
+
+
+def _outside_anchor(ax: Axes, side: str, offset_in: float) -> dict[str, Any]:
+    """Anchor just outside the axes, ``offset_in`` inches away. A physical offset
+    stays correct when constrained layout later resizes the axes."""
+    dx, dy = (offset_in, 0.0) if side == "right" else (0.0, offset_in)
+    return {
+        "bbox_to_anchor": (1, 1) if side == "right" else (0, 1),
+        "bbox_transform": ax.transAxes
+        + ScaledTranslation(dx, dy, ax.get_figure().dpi_scale_trans),  # type: ignore[union-attr]
+    }
 
 
 def _renderer(fig: Figure) -> RendererBase:
@@ -126,6 +139,8 @@ class Plot(ABC):
         self._axes: Axes | None = None
         self._style: Style | None = None
         self._legend_kwargs: dict[str, Any] | None = None
+        self._legend_side: str | None = None
+        self._legend_wrap = False
 
     # ----------------------------------------------------------------- verbs
     def _changed(self) -> Self:
@@ -438,12 +453,15 @@ class Plot(ABC):
 
     def _render_into(self, fig: Figure, ax: Axes, style: Style, *, own: bool) -> None:
         self._legend_kwargs = None
+        self._legend_side = None
+        self._legend_wrap = False
         self._draw(ax, style)
         self._finish_axes(ax, style)
         if own:
             apply_chrome(fig, style, self._chrome)
         fig.draw_without_rendering()
         renderer = _renderer(fig)
+        self._clear_axis_decorations(fig, ax, renderer)
         self._fit_legend(fig, ax, renderer)
         self._adapt(fig, ax, style, renderer)
         self._figure, self._axes, self._style = fig, ax, style
@@ -563,9 +581,11 @@ class Plot(ABC):
             "alignment": "left",
         }
         if position == "top":
-            kwargs |= {"loc": "lower left", "bbox_to_anchor": (0, 1.02), "ncols": n}
+            kwargs |= {"loc": "lower left", "ncols": n}
+            kwargs |= _outside_anchor(ax, "top", _LEGEND_GAP_IN)
         elif position == "right":
-            kwargs |= {"loc": "upper left", "bbox_to_anchor": (1.02, 1)}
+            kwargs |= {"loc": "upper left"}
+            kwargs |= _outside_anchor(ax, "right", _LEGEND_GAP_IN)
         else:
             kwargs |= {"loc": "best"}
 
@@ -578,6 +598,7 @@ class Plot(ABC):
             kwargs["fontsize"] = kwargs["title_fontsize"] = options["fontsize"]
         if options.get("anchor") is not None:
             kwargs["bbox_to_anchor"] = options["anchor"]
+            kwargs["bbox_transform"] = ax.transAxes
             if position == "inside":
                 # "best" is meaningless relative to a single anchor point.
                 kwargs["loc"] = "upper left"
@@ -585,16 +606,38 @@ class Plot(ABC):
             kwargs["loc"] = options["loc"]
         ax.legend(**kwargs)
 
-        user_placed = any(
-            options.get(k) is not None for k in ("ncols", "loc", "anchor")
+        self._legend_kwargs = kwargs
+        moved = options.get("loc") is not None or options.get("anchor") is not None
+        if position in ("top", "right") and not moved:
+            self._legend_side = position
+        self._legend_wrap = (
+            position == "top" and not moved and options.get("ncols") is None
         )
-        if position == "top" and not user_placed:
-            self._legend_kwargs = kwargs
+
+    def _clear_axis_decorations(
+        self, fig: Figure, ax: Axes, renderer: RendererBase
+    ) -> None:
+        """Move an outside legend past tick labels and axis titles on its side
+        (e.g. a value axis drawn on the right)."""
+        side, kwargs, legend = self._legend_side, self._legend_kwargs, ax.get_legend()
+        if side is None or kwargs is None or legend is None:
+            return
+        boxes = [b for a in (ax.xaxis, ax.yaxis) if (b := a.get_tightbbox(renderer))]
+        if side == "right":
+            overhang = max((b.x1 for b in boxes), default=0.0) - ax.bbox.x1
+        else:
+            overhang = max((b.y1 for b in boxes), default=0.0) - ax.bbox.y1
+        if overhang <= 1:  # pixels
+            return
+        kwargs |= _outside_anchor(ax, side, _LEGEND_GAP_IN + overhang / fig.dpi)
+        legend.remove()
+        ax.legend(**kwargs)
+        fig.draw_without_rendering()
 
     def _fit_legend(self, fig: Figure, ax: Axes, renderer: RendererBase) -> None:
         """Wrap a top legend into fewer columns until it fits inside the figure."""
         kwargs = self._legend_kwargs
-        if kwargs is None:
+        if kwargs is None or not self._legend_wrap:
             return
         # The legend starts at the axes' left edge, so check where it ends.
         limit = fig.bbox.x1 - fig.bbox.width * 0.02

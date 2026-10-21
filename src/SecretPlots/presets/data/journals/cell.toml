@@ -1,0 +1,35 @@
+name = "cell"
+kind = "journal"
+official = true
+description = "Cell and Cell Press journals (two-column formats such as research articles)."
+source_url = "https://www.cell.com/figureguidelines"
+verified_on = "2026-10-21"
+
+# cell.com blocks automated access; read from the Wayback Machine snapshot of
+# 2025-06-01. Two-column formats: 8.5 cm (1 column), 11.4 cm (1.5 columns),
+# 17.4 cm (full page). Use only Arial; text about 6-8 pt at print size; panels
+# labeled with capital letters; line weights 0.5-1.5 pt; color/grayscale at
+# least 300 dpi; TIFF, PDF, EPS, JPG.
+[target]
+widths = { single = "8.5cm", "one-and-half" = "11.4cm", double = "17.4cm" }
+default_width = "single"
+min_font_size = 6
+max_font_size = 8
+min_line_width = 0.5
+font_generic = "sans-serif"
+dpi = 300
+formats = ["pdf", "eps", "tiff", "jpg"]
+
+# 7 pt ticks/legend, 8 pt axis titles and titles, 6 pt notes.
+[theme]
+font_family = ["Arial", "Liberation Sans", "Helvetica"]
+font_generic = "sans-serif"
+font_size = 7
+label_scale = 1.1428
+title_scale = 1.1428
+subtitle_scale = 1.1428
+note_scale = 0.8572
+
+[chrome]
+panel_label_case = "upper"
+panel_label_weight = "bold"

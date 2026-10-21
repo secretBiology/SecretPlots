@@ -1,0 +1,28 @@
+name = "pnas"
+kind = "journal"
+official = true
+description = "Proceedings of the National Academy of Sciences (PNAS)."
+source_url = "https://www.pnas.org/pb-assets/authors/digitalart-1675347574760.pdf"
+verified_on = "2026-10-21"
+
+# "Digital Art Guidelines" (updated 2022-02-16): widths 8.7 cm (1 column),
+# 11.4 cm (1.5 columns), 17.8 cm (2 columns); recommended max height 22.5 cm;
+# text at least 6 pt after reduction (6-8 pt recommended); graph lines at least
+# 0.25 pt; standard fonts (Arial, Helvetica, Times), the same in every figure;
+# 600-900 ppi for color figures with type; TIFF, EPS or PDF preferred.
+[target]
+widths = { single = "8.7cm", "one-and-half" = "11.4cm", double = "17.8cm" }
+default_width = "single"
+max_height = "22.5cm"
+min_font_size = 6
+min_line_width = 0.25
+dpi = 600
+formats = ["pdf", "eps", "tiff"]
+
+# 7 pt ticks/legend, 8 pt axis titles, 9 pt titles, 6 pt notes.
+[theme]
+font_size = 7
+label_scale = 1.1428
+title_scale = 1.2857
+subtitle_scale = 1.1428
+note_scale = 0.8572

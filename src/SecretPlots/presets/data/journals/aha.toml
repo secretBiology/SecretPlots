@@ -1,0 +1,36 @@
+name = "aha"
+kind = "journal"
+official = true
+description = "American Heart Association journals (Circulation, Hypertension, Stroke, ...)."
+source_url = "https://www.ahajournals.org/pb-assets/migration/Hype_InstructionsforFigureSubmission.pdf"
+verified_on = "2026-10-21"
+
+# "Instructions for Figure Submission" (Hypertension, an AHA journal):
+# 1 column 8 cm, 1.5 columns 12.75 cm, 2 columns 17.75 cm; Arial preferred;
+# axis labels 8 pt bold, coordinates 7.2 pt, 6-6.5 pt only for sub/superscripts;
+# panel labels 12.6 pt bold capitals; no titles on the figure; line art
+# 1200 dpi, everything else at least 600 dpi; TIFF and EPS preferred.
+# ahajournals.org/figure-guidelines keeps figure text between 8 and 10 pt.
+[target]
+widths = { single = "8cm", "one-and-half" = "12.75cm", double = "17.75cm" }
+default_width = "single"
+min_font_size = 6
+max_font_size = 10
+font_generic = "sans-serif"
+dpi = 600
+formats = ["tiff", "eps", "pdf"]
+
+# 7.2 pt coordinates/legend, 8 pt axis titles, 9 pt titles (if any), 6 pt notes.
+[theme]
+font_family = ["Arial", "Liberation Sans", "Helvetica"]
+font_generic = "sans-serif"
+font_size = 7.2
+label_scale = 1.1111
+title_scale = 1.25
+subtitle_scale = 1.1111
+note_scale = 0.8334
+
+[chrome]
+panel_label_case = "upper"
+panel_label_weight = "bold"
+panel_label_size = 12.6
