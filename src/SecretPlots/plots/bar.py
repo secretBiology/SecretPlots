@@ -15,7 +15,7 @@ from matplotlib.text import Text
 
 from SecretPlots.core.colors import readable_on
 from SecretPlots.core.data import Tidy, tidy
-from SecretPlots.core.missing import MissingPolicy
+from SecretPlots.core.missing import DropPolicy
 from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
@@ -430,7 +430,7 @@ def bar(
     sort: SortOrder | None = None,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> BarPlot:
     """Bar plot of one value per category (aggregated with ``estimator``).
 

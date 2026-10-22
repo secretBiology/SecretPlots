@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 from SecretPlots.core.data import Tidy
-from SecretPlots.core.missing import MissingPolicy
+from SecretPlots.core.missing import DropPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import Whiskers, check_whiskers
 from SecretPlots.plots.distribution import (
@@ -215,7 +215,7 @@ def box(
     orient: Orient = "v",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> BoxPlot:
     """Box plot (box-and-whisker) of the values in each category.
 

@@ -547,7 +547,8 @@ class SeriesPlot(Plot):
         self._spread_end_labels(fig, renderer)
 
     def _clear_right_ticks(self, fig: Figure, ax: Axes, renderer: RendererBase) -> None:
-        """Move the end labels past tick labels on the right axis."""
+        """Move the end labels past tick labels on the right axis, and the
+        right-hand axis title past the end labels."""
         ticks = [
             t.label2
             for t in ax.yaxis.get_major_ticks()
@@ -559,17 +560,29 @@ class SeriesPlot(Plot):
         inside = [t for t in ticks if low <= t.get_position()[1] <= high]
         if not inside:
             return
+        px_to_pt = 72 / fig.dpi
+        right = ax.get_window_extent(renderer).x1
         edge = max(t.get_window_extent(renderer).x1 for t in inside)
-        pad = self._end_pad * fig.dpi / 72
-        moved = False
+        # Anchored to the axes edge, the offset is in points and independent
+        # of the layout; a data anchor would drift back into the tick labels
+        # when constrained layout shrinks the axes to fit the moved labels.
+        offset = (edge - right) * px_to_pt + self._end_pad
+        widest = 0.0
         for text in self._end_texts:
-            gap = edge + pad - text.get_window_extent(renderer).x0
-            if gap > 1e-3:
-                dx, dy = text.xyann
-                text.xyann = (dx + gap * 72 / fig.dpi, dy)
-                moved = True
-        if moved:
-            fig.draw_without_rendering()
+            box = text.get_window_extent(renderer)
+            if box.x0 < edge + self._end_pad / px_to_pt - 1e-3:
+                text.xycoords = ("axes fraction", "data")
+                text.xy = (1.0, text.xy[1])
+                text.xyann = (offset, text.xyann[1])
+                widest = max(widest, box.width * px_to_pt)
+        if not widest:
+            return
+        label = ax.yaxis.label
+        # str(): matplotlib's stubs type YAxis label positions as top/bottom.
+        on_right = str(ax.yaxis.get_label_position()) == "right"
+        if on_right and label.get_visible() and label.get_text():
+            ax.yaxis.labelpad += self._end_pad + widest
+        fig.draw_without_rendering()
 
     def _spread_end_labels(self, fig: Figure, renderer: RendererBase) -> None:
         texts = self._end_texts

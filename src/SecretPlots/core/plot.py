@@ -107,6 +107,46 @@ def _renderer(fig: Figure) -> RendererBase:
     return fig._get_renderer()  # type: ignore[attr-defined, no-any-return]
 
 
+def _restyle_axes(ax: Axes, style: Style) -> None:
+    """Apply the style to axes created outside ``style.rc_context()``.
+
+    Ticks, spines and the axis-title texts read rcParams when they are
+    created, so a user-made axes keeps matplotlib's defaults otherwise.
+    """
+    rc = style.rc()
+    family = rc["font.family"]
+    for axis in ("x", "y"):
+        ax.tick_params(
+            axis=axis,
+            which="major",
+            labelsize=rc[f"{axis}tick.labelsize"],
+            labelcolor=rc[f"{axis}tick.labelcolor"],
+            labelfontfamily=family,
+            color=rc[f"{axis}tick.color"],
+            width=rc[f"{axis}tick.major.width"],
+            length=rc[f"{axis}tick.major.size"],
+        )
+    for label in (ax.xaxis.label, ax.yaxis.label):
+        label.set(fontsize=rc["axes.labelsize"], color=rc["axes.labelcolor"])
+        label.set_fontfamily(family)
+    for title in (ax.title, ax._left_title, ax._right_title):  # type: ignore[attr-defined]
+        title.set(
+            fontsize=rc["axes.titlesize"],
+            fontweight=rc["axes.titleweight"],
+            color=rc["axes.titlecolor"],
+        )
+        title.set_fontfamily(family)
+    for side, spine in ax.spines.items():
+        spine.set(
+            visible=rc[f"axes.spines.{side}"],
+            edgecolor=rc["axes.edgecolor"],
+            linewidth=rc["axes.linewidth"],
+        )
+    ax.set_facecolor(rc["axes.facecolor"])
+    ax.set_axisbelow(rc["axes.axisbelow"])
+    ax.set_prop_cycle(rc["axes.prop_cycle"])
+
+
 # ------------------------------------------------------- options() introspection
 _ARG_LINE = re.compile(r"^ {4}\*{0,2}(\w+): (.*)$")
 
@@ -157,6 +197,15 @@ def _display_name(param: inspect.Parameter) -> str:
     if param.kind is param.VAR_KEYWORD:
         return "**" + param.name
     return param.name
+
+
+def _legend_title(name: str | None) -> str | None:
+    """Sentence case for a plain column name (``"cell_type"`` -> ``"Cell
+    type"``); names with capitals (``"pH"``, ``"CD4"``) are kept as written."""
+    if not name or not isinstance(name, str) or name != name.lower():
+        return name
+    text = name.replace("_", " ").strip()
+    return text[:1].upper() + text[1:]
 
 
 def _param_names(fn: Callable[..., Any]) -> list[str]:
@@ -684,6 +733,8 @@ class Plot(ABC):
         self._legend_kwargs = None
         self._legend_side = None
         self._legend_wrap = False
+        if not own:
+            _restyle_axes(ax, style)
         self._draw(ax, style)
         if not self._reflines_in_draw:
             self._draw_reflines(ax, style)
@@ -939,8 +990,21 @@ class Plot(ABC):
         colors = {g: self._color_map.get(g, base[i]) for i, g in enumerate(groups)}
         if highlight:
             muted = theme.muted or "#c6c6c6"
-            colors = {g: c if g in highlight else muted for g, c in colors.items()}
+            colors = {
+                g: self._highlighted(theme, g, c, len(highlight))
+                if g in highlight
+                else muted
+                for g, c in colors.items()
+            }
         return {g: self._faded(c) for g, c in colors.items()}
+
+    def _highlighted(self, theme: Theme, key: Any, own: str, count: int) -> str:
+        """Color of a highlighted group: the theme's highlight color, as
+        without groups, unless several are highlighted (they keep their own
+        colors to stay apart) or ``.colors()`` names it."""
+        if count > 1 or key in self._color_map:
+            return own
+        return theme.highlight or own
 
     def _category_color_fn(
         self, style: Style, groups: Sequence[Any], cats: Sequence[Any], *, grouped: bool
@@ -967,9 +1031,13 @@ class Plot(ABC):
             )
             mapping = {g: self._color_map.get(g, base[i]) for i, g in enumerate(groups)}
             if highlight:
+                picked = len(highlight & set(groups))
 
                 def color(g: Any, c: Any) -> str:
-                    return mapping[g] if g in highlight or c in highlight else muted
+                    if g in highlight:
+                        return self._highlighted(theme, g, mapping[g], picked)
+                    # A highlighted category keeps its groups apart.
+                    return mapping[g] if c in highlight else muted
 
             else:
 
@@ -979,15 +1047,26 @@ class Plot(ABC):
         else:
             primary = theme.primary or "#4589ff"
             accent = theme.highlight or primary
+            # A palette given to .colors() colors the categories in order; a
+            # single color still colors all of them.
+            per_category = dict.fromkeys(cats, primary)
+            if len(self._overrides.get("palette", ())) > 1:
+                palette = extend_palette(
+                    self._overrides["palette"],
+                    len(cats),
+                    background=theme.background or "#ffffff",
+                    source="the colors given to .colors()",
+                )
+                per_category = dict(zip(cats, palette, strict=False))
             if highlight:
 
                 def color(g: Any, c: Any) -> str:
-                    return accent if c in highlight else muted
+                    return self._color_map.get(c, accent) if c in highlight else muted
 
             else:
 
                 def color(g: Any, c: Any) -> str:
-                    return self._color_map.get(c, primary)
+                    return self._color_map.get(c, per_category.get(c, primary))
 
         return lambda g, c: self._faded(color(g, c))
 
@@ -1010,7 +1089,7 @@ class Plot(ABC):
         if position == "none":
             return
         kwargs: dict[str, Any] = {
-            "title": title if style.theme.legend_title else None,
+            "title": _legend_title(title) if style.theme.legend_title else None,
             "frameon": style.theme.legend_frame,
             "handlelength": self._handle_length,
             "handleheight": 1.0,

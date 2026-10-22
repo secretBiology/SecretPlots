@@ -154,7 +154,7 @@ def _secret() -> Theme:
         positive=c("green"),
         negative=c("red"),
         sequential=(c("blue", 10), c("blue", 50), c("blue", 90)),
-        diverging=(c("red", 60), c("gray", 10), c("blue", 60)),
+        diverging=(c("blue", 60), c("gray", 10), c("red", 60)),
         bar_gap=0.2,
         bar_edge_width=0.0,
         errorbar_capsize=2.5,
@@ -187,7 +187,7 @@ def _dark() -> Theme:
         highlight=c("blue", 40),
         muted=c("gray", 70),
         sequential=(c("blue", 90), c("blue", 50), c("blue", 10)),
-        diverging=(c("red", 50), c("gray", 80), c("blue", 50)),
+        diverging=(c("blue", 50), c("gray", 80), c("red", 50)),
     )
 
 

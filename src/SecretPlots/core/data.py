@@ -18,7 +18,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
-from SecretPlots.core.missing import MissingPolicy, handle_missing, numeric_array
+from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.errors import DataShapeError
 
 
@@ -189,7 +189,7 @@ def tidy(
     hue: str | None = None,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> Tidy:
     """Convert supported inputs into a :class:`Tidy` table."""
     names_given = any(v is not None for v in (x, y, hue))

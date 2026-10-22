@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 from SecretPlots.core.data import Tidy
-from SecretPlots.core.missing import MissingPolicy
+from SecretPlots.core.missing import DropPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import bandwidth, gaussian_kde
 from SecretPlots.errors import DataShapeError
@@ -108,6 +108,12 @@ class ViolinPlot(DistributionPlot):
 
     def _dodge(self) -> bool:
         return self._grouped and not self._split
+
+    def _anchor(self, item: _Item) -> float:
+        # Split halves share a center; meet each in the middle of its half.
+        if self._split:
+            return item.center + item.side * item.width / 4
+        return item.center
 
     def _items(self, style: Style) -> list[_Item]:
         items = super()._items(style)
@@ -281,7 +287,7 @@ class ViolinPlot(DistributionPlot):
 
     # --------------------------------------------------------------- caption
     def _caption_marks(self) -> list[str]:
-        shape = "Half violins (raincloud plot)" if self._rain else "Violins"
+        shape = "Half violins (the raincloud's clouds)" if self._rain else "Violins"
         extent = (
             "trimmed to the range of the data"
             if self._cut == 0
@@ -299,7 +305,14 @@ class ViolinPlot(DistributionPlot):
             f"{shape} show kernel density estimates (Gaussian kernel, "
             f"bandwidth by {bw}), {extent} and drawn {scaled}."
         ]
-        if self._inner == "box":
+        if self._inner == "box" and self._rain:
+            parts.append(
+                "Along the flat side of each cloud, a narrow box spans the first "
+                "to third quartiles, a white line marks the median and a thin "
+                "line reaches the most extreme values within 1.5x the "
+                "interquartile range."
+            )
+        elif self._inner == "box":
             parts.append(
                 "Inside, the white line marks the median, the box the first and "
                 "third quartiles and the thin line the most extreme values "
@@ -341,7 +354,7 @@ def violin(
     orient: Orient = "v",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> ViolinPlot:
     """Violin plot: the distribution of the values in each category as a
     mirrored density curve, with a small box plot inside.
@@ -411,7 +424,7 @@ def raincloud(
     orient: Orient = "h",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> RaincloudPlot:
     """Raincloud plot (Allen et al., Wellcome Open Res 4:63, 2019): a half
     violin (the cloud), a small box plot and every value as a dot (the rain).

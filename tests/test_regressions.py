@@ -1,10 +1,12 @@
 """Behavioral regressions found during the package review."""
 
 import io
+import typing
 
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.colors import to_rgb
 from matplotlib.figure import Figure
 
 import SecretPlots as sp
@@ -206,3 +208,143 @@ def test_existing_axes_and_subfigure_rendering():
     buffer = io.BytesIO()
     fig.savefig(buffer, format="pdf")
     assert buffer.getvalue().startswith(b"%PDF")
+
+
+@pytest.mark.parametrize("fmt", ["svg", "pdf"])
+def test_heatmap_tracks_save_as_vector(tmp_path, fmt):
+    matrix = pd.DataFrame(np.arange(16.0).reshape(4, 4), columns=list("abcd"))
+    track = {"a": "x", "b": "x", "c": "y", "d": "y"}
+    sp.heatmap(matrix).tracks(cols={"Group": track}).save(tmp_path / f"h.{fmt}")
+    assert (tmp_path / f"h.{fmt}").stat().st_size > 0
+
+
+def test_render_into_existing_axes_keeps_style():
+    sp.use(preset="nature")
+    own = sp.bar([1, 2]).render().axes[0]
+    fig = Figure()
+    ax = fig.subplots()
+    sp.bar([1, 2]).render(ax=ax)
+    sp.reset()
+    fig.draw_without_rendering()  # outside the style's rc_context
+    theirs, mine = ax.get_yticklabels()[0], own.get_yticklabels()[0]
+    assert theirs.get_fontsize() == mine.get_fontsize()
+    assert theirs.get_fontfamily() == mine.get_fontfamily()
+    assert ax.yaxis.label.get_fontsize() == own.yaxis.label.get_fontsize()
+    assert ax.spines["top"].get_visible() == own.spines["top"].get_visible()
+
+
+@pytest.mark.parametrize(
+    "factory", [sp.histogram, sp.box, sp.violin, sp.raincloud, sp.scatter, sp.bar]
+)
+def test_signatures_only_offer_supported_missing_policies(factory):
+    assert typing.get_type_hints(factory)["missing"] == sp.DropPolicy
+
+
+@pytest.mark.parametrize(("preset", "minimum"), [("slide-16x9", 2.0), ("poster", 3.0)])
+def test_large_presets_scale_marks(preset, minimum):
+    base = sp.scatter(x=[1, 2], y=[1, 2]).style().theme
+    theme = sp.scatter(x=[1, 2], y=[1, 2]).preset(preset).style().theme
+    assert theme.line_width >= minimum
+    assert theme.marker_size > base.marker_size * 1.5
+
+
+def test_economist_end_labels_clear_right_ticks_and_axis_title():
+    frame = pd.DataFrame(
+        {
+            "year": np.tile(np.arange(2000, 2011), 2),
+            "g": np.repeat(["Alpha", "Beta"], 11),
+            "v": np.r_[np.linspace(0, 5, 11), np.linspace(2, 3, 11)],
+        }
+    )
+    p = (
+        sp.line(frame, x="year", y="v", hue="g")
+        .endlabels()
+        .labels(y="Index")
+        .preset("economist-like")
+    )
+    fig, ax = p.fig, p.ax
+    renderer = fig.canvas.get_renderer()
+    low, high = sorted(ax.get_ylim())
+    ticks = [
+        t.label2.get_window_extent(renderer)
+        for t in ax.yaxis.get_major_ticks()
+        if low <= t.get_loc() <= high and t.label2.get_text()
+    ]
+    ends = [t.get_window_extent(renderer) for t in p._end_texts]
+    title = ax.yaxis.label.get_window_extent(renderer)
+    assert min(e.x0 for e in ends) > max(t.x1 for t in ticks)
+    assert title.x0 > max(e.x1 for e in ends)
+
+
+@pytest.mark.parametrize("kind", ["box", "violin", "raincloud", "bar"])
+def test_color_list_without_hue_colors_each_category(kind):
+    frame = pd.DataFrame({"g": np.repeat(list("abc"), 5), "v": np.arange(15.0)})
+    colors = ["#ff0000", "#00ff00", "#0000ff"]
+    plot = getattr(sp, kind)(frame, x="g", y="v").colors(colors)
+    color = plot._category_color_fn(plot.style(), [None], list("abc"), grouped=False)
+    assert [color(None, c) for c in "abc"] == colors
+    single = getattr(sp, kind)(frame, x="g", y="v").colors(["#ff0000"])
+    color = single._category_color_fn(
+        single.style(), [None], list("abc"), grouped=False
+    )
+    assert {color(None, c) for c in "abc"} == {"#ff0000"}
+
+
+def test_split_violin_brackets_span_both_halves():
+    rng = np.random.default_rng(0)
+    frame = pd.DataFrame(
+        {"g": np.repeat(list("ab"), 20), "h": np.tile(["m", "f"], 20)}
+    ).assign(v=rng.normal(size=40))
+    ax = sp.violin(frame, x="g", y="v", hue="h", split=True).compare().ax
+    brackets = [line.get_xdata() for line in ax.lines if len(line.get_xdata()) == 4]
+    assert brackets
+    assert all(xs[2] - xs[0] > 0.1 for xs in brackets)
+
+
+@pytest.mark.parametrize("stat", ["count", "density", "percent"])
+def test_kde_on_log_axis_matches_bars(stat):
+    values = np.random.default_rng(0).lognormal(1, 0.6, 4000)
+    p = sp.histogram(values, stat=stat, bins=30).log("x").kde()
+    curve = p.ax.lines[-1]
+    edges = p.bin_edges
+    heights = np.array([bar.get_height() for bar in p.ax.patches])
+    expected = np.interp(
+        np.sqrt(edges[:-1] * edges[1:]), curve.get_xdata(), curve.get_ydata()
+    )
+    tall = heights > heights.max() / 3
+    np.testing.assert_allclose(expected[tall], heights[tall], rtol=0.15)
+
+
+def test_default_diverging_map_runs_blue_to_red():
+    stops = sp.heatmap([[0.0, 1.0]]).style().theme.diverging
+    blue, red = stops[0], stops[-1]
+    assert int(blue[5:7], 16) > int(blue[1:3], 16)  # more blue than red
+    assert int(red[1:3], 16) > int(red[5:7], 16)
+
+
+def test_raincloud_caption_describes_box_beside_cloud():
+    frame = pd.DataFrame({"g": np.repeat(list("ab"), 10), "v": np.arange(20.0)})
+    caption = sp.raincloud(frame, x="g", y="v").caption()
+    assert "raincloud" in caption
+    assert "Inside" not in caption
+
+
+def test_default_legend_title_is_sentence_case():
+    frame = pd.DataFrame(
+        {"x": list("aabb"), "y": [1, 2, 3, 4], "cell_type": list("pqpq")}
+    )
+    plot = sp.bar(frame, x="x", y="y", hue="cell_type")
+    assert plot.ax.get_legend().get_title().get_text() == "Cell type"
+    frame = frame.rename(columns={"cell_type": "pH"})
+    plot = sp.bar(frame, x="x", y="y", hue="pH")
+    assert plot.ax.get_legend().get_title().get_text() == "pH"
+
+
+def test_one_highlighted_group_uses_highlight_color_with_or_without_hue():
+    frame = pd.DataFrame({"x": list("aabbcc"), "h": list("pqpqpq"), "y": range(6)})
+    accent = sp.bar(frame, x="x", y="y").style().theme.highlight
+    no_hue = sp.bar(frame.iloc[::2], x="x", y="y").highlight("b")
+    hue = sp.bar(frame, x="x", y="y", hue="h").highlight("q")
+    for plot in (no_hue, hue):
+        faces = {bar.get_facecolor()[:3] for bar in plot.ax.patches}
+        assert to_rgb(accent) in faces

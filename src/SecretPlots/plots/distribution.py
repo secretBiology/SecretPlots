@@ -20,7 +20,7 @@ from matplotlib.figure import Figure
 
 from SecretPlots.core.colors import combined_alpha, darken
 from SecretPlots.core.data import Tidy, _order
-from SecretPlots.core.missing import MissingPolicy, handle_missing, numeric_array
+from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import (
@@ -145,7 +145,7 @@ def distributions(
     *,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> Tidy:
     """Read data for distribution plots into a :class:`Tidy` table.
 
@@ -798,6 +798,10 @@ class DistributionPlot(Plot):
     def _dodge(self) -> bool:
         return self._grouped
 
+    def _anchor(self, item: _Item) -> float:
+        """Where a significance bracket meets this distribution."""
+        return item.center
+
     def _items(self, style: Style) -> list[_Item]:
         cats = list(self._data.x_order)
         groups = self._groups
@@ -1000,7 +1004,9 @@ class DistributionPlot(Plot):
         for comp, (_, row) in zip(self._comparisons(), table.iterrows(), strict=True):
             if self._compare["hide_ns"] and float(row[p_column]) > 0.05:
                 continue
-            x1, x2 = sorted((by_key[comp.a].center, by_key[comp.b].center))
+            x1, x2 = sorted(
+                (self._anchor(by_key[comp.a]), self._anchor(by_key[comp.b]))
+            )
             jobs.append((x1, x2, str(row["label"])))
         jobs.sort(key=lambda job: (job[1] - job[0], job[0]))
 
@@ -1010,7 +1016,7 @@ class DistributionPlot(Plot):
             under = [
                 tops[item.key]
                 for item in items
-                if x1 - 1e-9 <= item.center <= x2 + 1e-9
+                if x1 - 1e-9 <= self._anchor(item) <= x2 + 1e-9
             ]
             level = max(under) + gap + leg
             for px1, px2, py in placed:

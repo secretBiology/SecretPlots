@@ -13,7 +13,7 @@ from matplotlib.markers import MarkerStyle
 
 from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order, _relabel, _rename_map
-from SecretPlots.core.missing import MissingPolicy, handle_missing
+from SecretPlots.core.missing import DropPolicy, handle_missing
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import t_quantile as _t_quantile
@@ -57,7 +57,7 @@ def _points(
     hue_order: Sequence[Any] | None,
     style: Any = None,
     style_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> _Points:
     if data is None:
         if x is None or y is None:
@@ -532,7 +532,7 @@ def scatter(
     style: Any = None,
     hue_order: Sequence[Any] | None = None,
     style_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> ScatterPlot:
     """Scatter plot: one marker per row.
 

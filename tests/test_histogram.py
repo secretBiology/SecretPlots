@@ -87,7 +87,7 @@ def test_groups_overlay_as_steps_with_legend(ages: pd.DataFrame) -> None:
     assert len(_steps(plot)) == 4  # outline + light fill per group
     legend = plot.ax.get_legend()
     assert [t.get_text() for t in legend.get_texts()] == ["F", "M"]
-    assert legend.get_title().get_text() == "sex"
+    assert legend.get_title().get_text() == "Sex"
 
 
 def test_stack_and_dodge(ages: pd.DataFrame) -> None:

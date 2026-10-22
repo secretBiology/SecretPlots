@@ -14,6 +14,17 @@ All notable changes to this project are documented here. The format follows
   `with sp.use(...)`; rendering later keeps that selection.
 - Header/footer text wraps to the available figure width. Text that leaves too
   little plotting space raises an actionable error instead of overlapping.
+- The default diverging colormap runs blue (low) to red (high).
+- Default legend titles are sentence case for lowercase column names
+  (`cell_type` -> "Cell type"); names with capitals are kept as written.
+- `slide-16x9` and `poster` scale line widths, markers, ticks and error-bar caps
+  with their larger text.
+- Without `hue`, a list given to `.colors()` colors bars, boxes, violins and
+  rainclouds in category order.
+- One highlighted `hue` group takes the theme's highlight color, as without
+  groups; several highlighted groups keep their own colors.
+- Bar, box, violin, raincloud, scatter and histogram signatures type `missing`
+  as `sp.DropPolicy` (`"raise"` or `"drop"`).
 
 ### Fixed
 - Line group renaming rebuilds summaries and intervals; `sort=False` preserves
@@ -26,6 +37,14 @@ All notable changes to this project are documented here. The format follows
 - Existing-axes and heatmap rendering support the declared Matplotlib 3.9 floor.
 - High-confidence t intervals remain accurate for small samples; asymptotic
   Mann–Whitney tests retain very small p-values instead of rounding to zero.
+- Heatmaps with `.tracks()` save as SVG and PDF.
+- `render(ax=...)` applies the plot's fonts, tick sizes, spines and line weights
+  to an axes created outside SecretPlots.
+- End labels and the axis title no longer overlap right-side tick labels
+  (e.g. `economist-like`).
+- `.compare()` brackets on split violins span both halves.
+- `.kde()` works on log axes (density estimated on the log scale).
+- The raincloud caption describes the box beside the cloud.
 
 ### Added
 - `.copy()` for independent plot variants; `.format_axis()` for number, percent,

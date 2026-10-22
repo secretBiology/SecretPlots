@@ -63,7 +63,7 @@ def test_hue_groups_get_palette_colors_and_legend(people: pd.DataFrame) -> None:
     plot = sp.scatter(people, x="age", y="bp", hue="sex", hue_order=["M", "F"])
     legend = plot.ax.get_legend()
     assert [t.get_text() for t in legend.get_texts()] == ["M", "F"]
-    assert legend.get_title().get_text() == "sex"
+    assert legend.get_title().get_text() == "Sex"
     palette = plot.style().theme.palette
     colors = [to_hex(c.get_facecolor()[0], keep_alpha=False) for c in _points(plot)]
     assert colors == list(palette[:2])
@@ -77,7 +77,7 @@ def test_size_scales_marker_area_and_adds_size_legend(people: pd.DataFrame) -> N
     largest = people["bmi"].idxmax()
     assert areas[largest] > areas[smallest] * 5
     legend = plot.ax.get_legend()
-    assert legend.get_title().get_text() == "bmi"
+    assert legend.get_title().get_text() == "Bmi"
     assert len(legend.get_texts()) == 3
 
 
@@ -225,7 +225,7 @@ def test_style_column_gets_marker_shapes_and_legend(people: pd.DataFrame) -> Non
     assert len(drawn) == 4  # 2 groups x 2 styles
     legend = plot.ax.get_legend()
     assert [t.get_text() for t in legend.get_texts()] == ["F", "M", "no", "yes"]
-    assert legend.get_title().get_text() == "sex / smoker"
+    assert legend.get_title().get_text() == "Sex / smoker"
     handles = legend.legend_handles
     np.testing.assert_allclose(_shape(handles[2]), _marker_vertices("o"))
     np.testing.assert_allclose(_shape(handles[3]), _marker_vertices("s"))
@@ -247,7 +247,7 @@ def test_style_same_as_hue_merges_legend(people: pd.DataFrame) -> None:
     plot = sp.scatter(people, x="age", y="bp", hue="sex", style="sex")
     legend = plot.ax.get_legend()
     assert [t.get_text() for t in legend.get_texts()] == ["F", "M"]
-    assert legend.get_title().get_text() == "sex"
+    assert legend.get_title().get_text() == "Sex"
     handles = legend.legend_handles
     np.testing.assert_allclose(_shape(handles[1]), _marker_vertices("s"))
     palette = plot.style().theme.palette

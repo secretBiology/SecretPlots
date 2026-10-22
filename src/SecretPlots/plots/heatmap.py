@@ -41,7 +41,7 @@ from SecretPlots.core.missing import (
     handle_missing,
     numeric_array,
 )
-from SecretPlots.core.plot import Plot, RefAxis, _is_number, _root_figure
+from SecretPlots.core.plot import Plot, RefAxis, _is_number, _renderer, _root_figure
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.units import PT_PER_INCH
 from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
@@ -261,7 +261,7 @@ class _ColorbarLocator:
     def __call__(self, child: _AxesBase, renderer: RendererBase | None) -> Bbox:
         fig = _root_figure(self.parent)
         assert fig is not None
-        renderer = renderer or fig.canvas.get_renderer()  # type: ignore[attr-defined]
+        renderer = renderer or _renderer(fig)
         dpi = fig.dpi
         box = self.parent.get_window_extent(renderer)
         width, height = fig.bbox.width, fig.bbox.height

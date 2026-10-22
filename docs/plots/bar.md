@@ -539,8 +539,9 @@ sp.bar(qpcr, x="gene", y="fold", hue="genotype").colors(["#4477AA", "#EE6677"]) 
 sp.bar(qpcr, x="gene", y="fold", hue="genotype").colors(alpha=0.6)  # see-through
 ```
 
-- Without groups, a mapping colors individual categories and a single color
-  sets every bar; with groups, a list or mapping colors the groups.
+- Without groups, a list colors the categories in order, a mapping colors
+  individual categories and a single color sets every bar; with groups, a list
+  or mapping colors the groups.
 - Mappings add up across calls, so `.colors("#44AA99").colors({...})` combines
   a base color with exceptions.
 - If there are more groups than palette colors, extra shades are generated and

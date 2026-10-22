@@ -55,7 +55,7 @@ def test_one_line_per_group_with_mean_and_labels(mice: pd.DataFrame) -> None:
     assert plot.ax.get_ylabel() == "weight"
     legend = plot.ax.get_legend()
     assert [t.get_text() for t in legend.get_texts()] == ["chow", "fat"]
-    assert legend.get_title().get_text() == "diet"
+    assert legend.get_title().get_text() == "Diet"
 
 
 def test_plot_is_an_alias() -> None:

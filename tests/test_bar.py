@@ -386,7 +386,7 @@ def _legend_title(plot: sp.BarPlot) -> str:
 
 def test_legend_title(expression: pd.DataFrame) -> None:
     plot = sp.bar(expression, x="gene", y="tpm", hue="sample")
-    assert _legend_title(plot) == "sample"
+    assert _legend_title(plot) == "Sample"
     assert _legend_title(plot.legend(title="Condition")) == "Condition"
     assert _legend_title(plot.legend(title="")) == ""
     hidden_by_theme = plot.theme(legend_title=False).legend(title="Condition")

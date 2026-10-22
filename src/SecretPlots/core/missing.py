@@ -9,6 +9,8 @@ import pandas as pd
 from SecretPlots.errors import DataShapeError
 
 MissingPolicy = Literal["raise", "drop", "gap"]
+# For plots with no position to leave empty (bars, distributions, points).
+DropPolicy = Literal["raise", "drop"]
 
 
 def numeric_array(data: object) -> np.ndarray:

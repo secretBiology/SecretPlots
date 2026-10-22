@@ -137,7 +137,7 @@ def test_hue_dodges_boxes(mice: pd.DataFrame) -> None:
     centers = sorted(np.mean(p.get_xy()[:-1, 0]) for p in _boxes(plot))
     assert len(centers) == 6
     assert centers[0] < 0 < centers[1] < 1
-    assert plot.ax.get_legend().get_title().get_text() == "sex"
+    assert plot.ax.get_legend().get_title().get_text() == "Sex"
 
 
 def test_fill_false_draws_outlines_in_group_color(mice: pd.DataFrame) -> None:

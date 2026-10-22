@@ -10,3 +10,14 @@ min_font_size = 24
 min_line_width = 2
 dpi = 300
 formats = ["pdf", "svg", "png"]
+
+# Text is raised to 24 pt (about 2.7x the 9 pt base); marks grow with it so
+# lines and points keep their weight relative to the text.
+[theme]
+line_width = 4.0
+axis_line_width = 2.0
+grid_width = 2.0
+tick_length = 8.0
+marker_size = 13.0
+marker_edge_width = 1.3
+errorbar_capsize = 6.5

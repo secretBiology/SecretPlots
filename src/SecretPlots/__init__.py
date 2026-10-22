@@ -9,7 +9,7 @@ from SecretPlots import fonts, presets
 from SecretPlots._config import config
 from SecretPlots._version import __version__
 from SecretPlots.core.colors import colormaps
-from SecretPlots.core.missing import MissingPolicy
+from SecretPlots.core.missing import DropPolicy, MissingPolicy
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.state import reset, use
 from SecretPlots.errors import (
@@ -49,6 +49,7 @@ __all__ = [
     "ColormapWarning",
     "ConstraintAdjustedWarning",
     "DataShapeError",
+    "DropPolicy",
     "FillBetweenPlot",
     "FontFallbackWarning",
     "FormatWarning",

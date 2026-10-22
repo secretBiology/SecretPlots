@@ -15,7 +15,7 @@ from matplotlib.colors import is_color_like
 
 from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order
-from SecretPlots.core.missing import MissingPolicy, handle_missing, numeric_array
+from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, RefAxis, _RefLine
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import bandwidth, gaussian_kde
@@ -66,7 +66,7 @@ def _samples(
     x: Any,
     hue: Any,
     hue_order: Sequence[Any] | None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> _Samples:
     x_name: Hashable | None = None
     hue_name: Hashable | None = None
@@ -543,11 +543,15 @@ class HistogramPlot(Plot):
                 color=theme.text_color,
             )
 
-    def _scale(self, n: int, edges: np.ndarray) -> float:
-        """Factor turning a probability density into the bars' ``stat``."""
+    def _scale(self, n: int, edges: np.ndarray, *, log: bool = False) -> float:
+        """Factor turning a probability density into the bars' ``stat``.
+
+        With ``log``, the density is per log10 unit; ``"density"`` and
+        ``"frequency"`` (per linear unit) must then be converted by the caller.
+        """
         total = len(self._samples.frame)
         share = n / total if self._common_norm else 1.0
-        width = float(np.mean(np.diff(edges)))
+        width = float(np.mean(np.diff(np.log10(edges) if log else edges)))
         if self._cumulative:
             return {"count": n, "probability": share, "percent": 100 * share}.get(
                 self._stat, share
@@ -570,29 +574,32 @@ class HistogramPlot(Plot):
     ) -> None:
         theme = style.theme
         grouped = self._samples.hue_order is not None
-        if self._log and self._kde is not None:
-            raise DataShapeError("Density curves on a log axis are not supported")
         for group in self._groups:
             values = self._values(group)
             n = heights[group][1]
             color = colors[group] if grouped else (theme.text_color or "#333333")
-            factor = self._scale(n, edges)
             curves: list[tuple[np.ndarray, np.ndarray, str, str]] = []
             if self._kde is not None:
                 if n < 2:
                     raise DataShapeError(
                         f"A density curve needs at least 2 values{_of(group)}"
                     )
-                bw = bandwidth(values, self._kde["bw_adjust"])
+                # On a log axis the bins are even in log10 units, so the
+                # kernel works there too.
+                t = np.log10(values) if self._log else values
+                bw = bandwidth(t, self._kde["bw_adjust"])
                 pad = self._kde["cut"] * bw
-                grid = np.linspace(
-                    values.min() - pad, values.max() + pad, _CURVE_POINTS
-                )
-                curve = gaussian_kde(values, grid, bw, cumulative=self._cumulative)
+                grid = np.linspace(t.min() - pad, t.max() + pad, _CURVE_POINTS)
+                curve = gaussian_kde(t, grid, bw, cumulative=self._cumulative)
+                if self._log:
+                    grid = 10**grid
+                    if self._stat in ("density", "frequency") and not self._cumulative:
+                        curve = curve / (grid * math.log(10))  # per linear unit
                 own = self._kde["color"]
                 if isinstance(own, Mapping):
                     own = own.get(group)
-                curves.append((grid, curve, "-", own or color))
+                ys = curve * self._scale(n, edges, log=self._log)
+                curves.append((grid, ys, "-", own or color))
             if self._fit == "normal":
                 if n < 2 or np.ptp(values) == 0:
                     raise DataShapeError(
@@ -601,9 +608,9 @@ class HistogramPlot(Plot):
                 dist = NormalDist(float(values.mean()), float(values.std(ddof=1)))
                 grid = np.linspace(edges[0], edges[-1], _CURVE_POINTS)
                 at = dist.cdf if self._cumulative else dist.pdf
-                curves.append((grid, np.array([at(v) for v in grid]), "--", color))
-            for grid, curve, linestyle, line_color in curves:
-                ys = curve * factor
+                ys = np.array([at(v) for v in grid]) * self._scale(n, edges)
+                curves.append((grid, ys, "--", color))
+            for grid, ys, linestyle, line_color in curves:
                 xy = (grid, ys) if self._orient == "v" else (ys, grid)
                 ax.plot(
                     *xy, color=line_color, lw=theme.line_width, ls=linestyle, zorder=4
@@ -720,7 +727,7 @@ def histogram(
     element: Element | None = None,
     orient: Orient = "v",
     hue_order: Sequence[Any] | None = None,
-    missing: MissingPolicy = "raise",
+    missing: DropPolicy = "raise",
 ) -> HistogramPlot:
     """Histogram of one numeric variable, optionally split into groups.
 

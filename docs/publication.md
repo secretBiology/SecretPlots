@@ -215,8 +215,11 @@ panel_b.save("fig2b.pdf")
 
 Because each panel uses the same preset, text sizes and line weights match
 across panels. Add the bold panel letters (**a**, **b**, …) in the layout tool,
-where they are easy to align. You can also draw into your own matplotlib axes
-with `plot.render(ax=...)`; see [data, formatting and export](usage.md#export-and-matplotlib).
+where they are easy to align. To assemble the panels in matplotlib instead,
+draw each plot into your own axes with `plot.render(ax=...)`: fonts, tick
+sizes and line weights follow the plot's preset, while the figure size and
+layout are yours, so create the figure at its final size; see
+[data, formatting and export](usage.md#export-and-matplotlib).
 
 ## Submission checklist
 
