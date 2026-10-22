@@ -215,6 +215,12 @@ class BarPlot(Plot):
     def _color_fn(
         self, style: Style, groups: Sequence[Any], cats: Sequence[Any]
     ) -> Callable[[Any, Any], str]:
+        color = self._base_color_fn(style, groups, cats)
+        return lambda g, c: self._faded(color(g, c))
+
+    def _base_color_fn(
+        self, style: Style, groups: Sequence[Any], cats: Sequence[Any]
+    ) -> Callable[[Any, Any], str]:
         theme = style.theme
         highlight = set(self._highlight)
         unknown = highlight - set(groups) - set(cats)

@@ -258,6 +258,10 @@ sp.bar(df, x="gene", y="tpm", hue="sample").colors(["#264653", "#e9c46a"])  # pa
 sp.bar(df, x="gene", y="tpm", hue="sample").colors({"treated": "#e76f51"})  # by name
 ```
 
+```python
+sp.bar(df, x="gene", y="tpm").colors("#2a9d8f", alpha=0.6)      # see-through
+```
+
 - Without groups, a mapping colors individual categories; with groups, it
   colors groups.
 - If there are more groups than palette colors, extra shades are generated and

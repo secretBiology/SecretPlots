@@ -214,6 +214,13 @@ sp.scatter(df, x="age", y="bp").colors("#2a9d8f")                       # one co
 sp.scatter(df, x="age", y="bp", hue="sex").colors({"F": "#e76f51", "M": "#264653"})
 ```
 
+`alpha=` makes the colors see-through. Markers are already slightly
+transparent (`marker_alpha` in the theme), so `alpha=0.5` halves that:
+
+```python
+sp.scatter(df, x="age", y="bp").colors(alpha=0.5)
+```
+
 `.highlight()` emphasizes groups and mutes the rest (it needs `hue=`):
 
 ```python

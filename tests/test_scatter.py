@@ -276,3 +276,10 @@ def test_options_documented() -> None:
     assert "fit" in sp.ScatterPlot.options().index
     table = sp.ScatterPlot.options("fit")
     assert (table.description != "").all()
+
+
+def test_colors_alpha_multiplies_marker_alpha(people: pd.DataFrame) -> None:
+    plot = sp.scatter(people, x="age", y="bp").colors(alpha=0.5)
+    (points,) = _points(plot)
+    expected = plot.style().theme.marker_alpha * 0.5
+    assert points.get_facecolor()[0][3] == pytest.approx(expected, abs=0.005)

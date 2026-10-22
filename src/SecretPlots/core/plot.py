@@ -20,7 +20,7 @@ from matplotlib.transforms import ScaledTranslation
 from SecretPlots import presets
 from SecretPlots.core import state
 from SecretPlots.core.chrome import ChromeText, apply_chrome
-from SecretPlots.core.colors import extend_palette
+from SecretPlots.core.colors import extend_palette, with_alpha
 from SecretPlots.core.resolve import Style, resolve
 from SecretPlots.core.units import Length
 from SecretPlots.errors import DataShapeError, FormatWarning, emit
@@ -135,6 +135,7 @@ class Plot(ABC):
         self._log_axes: set[str] = set()
         self._highlight: tuple[Any, ...] = ()
         self._color_map: dict[Any, str] = {}
+        self._color_alpha: float | None = None
 
         self._figure: Figure | None = None
         self._axes: Axes | None = None
@@ -307,14 +308,29 @@ class Plot(ABC):
             self._overrides[key] = coerce_theme_field(key, value)
         return self._changed()
 
-    def colors(self, colors: str | Sequence[str] | Mapping[Any, str]) -> Self:
-        """Colors for the bars or groups.
+    def colors(
+        self,
+        colors: str | Sequence[str] | Mapping[Any, str] | None = None,
+        *,
+        alpha: float | None = None,
+    ) -> Self:
+        """Colors for the bars or groups. Arguments left out keep their
+        current value.
 
         Args:
             colors: A palette (list of colors), one color for everything, or a
                 mapping ``{category or group: color}``.
+            alpha: Opacity of those colors, 0 (invisible) to 1 (solid). Plots
+                that are already see-through (scatter markers, layered
+                histograms) get this much more transparent.
         """
-        if isinstance(colors, Mapping):
+        if alpha is not None:
+            if not 0 <= alpha <= 1:
+                raise ValueError("alpha must be between 0 and 1")
+            self._color_alpha = float(alpha)
+        if colors is None:
+            pass
+        elif isinstance(colors, Mapping):
             self._color_map.update(colors)
         elif isinstance(colors, str):
             self._overrides["palette"] = (colors,)
@@ -558,6 +574,10 @@ class Plot(ABC):
             ax.set_xscale("log")
         if "y" in self._log_axes:
             ax.set_yscale("log")
+        # A plot that fixes its data aspect (square heatmap cells) keeps it.
+        aspect = style.theme.aspect
+        if isinstance(aspect, float) and ax.get_aspect() == "auto":
+            ax.set_box_aspect(aspect)
 
     def _group_colors(
         self, style: Style, groups: list[Any], *, grouped: bool
@@ -577,7 +597,7 @@ class Plot(ABC):
                 f"Groups: {', '.join(map(str, groups))}"
             )
         if not grouped:
-            return {None: theme.primary or "#4589ff"}
+            return {None: self._faded(theme.primary or "#4589ff")}
         base = extend_palette(
             theme.palette or (),
             len(groups),
@@ -588,7 +608,11 @@ class Plot(ABC):
         if highlight:
             muted = theme.muted or "#c6c6c6"
             colors = {g: c if g in highlight else muted for g, c in colors.items()}
-        return colors
+        return {g: self._faded(c) for g, c in colors.items()}
+
+    def _faded(self, color: str) -> str:
+        """``color`` with the ``.colors(alpha=...)`` opacity applied."""
+        return with_alpha(color, self._color_alpha)
 
     def _legend_position(self, style: Style, n: int) -> LegendPosition:
         position = self._legend or style.theme.legend_position or "auto"

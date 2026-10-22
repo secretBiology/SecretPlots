@@ -11,7 +11,9 @@ from typing import Any, Literal, Self
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
+from matplotlib.colors import is_color_like
 
+from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
@@ -273,7 +275,12 @@ class HistogramPlot(Plot):
 
     # ----------------------------------------------------------------- verbs
     def kde(
-        self, show: bool = True, *, bw_adjust: float = 1.0, cut: float = 0.0
+        self,
+        show: bool = True,
+        *,
+        bw_adjust: float = 1.0,
+        cut: float = 0.0,
+        color: str | Mapping[Any, str] | None = None,
     ) -> Self:
         """Overlay a smooth density curve (Gaussian kernel), scaled to match
         the bars' ``stat``.
@@ -286,12 +293,28 @@ class HistogramPlot(Plot):
             cut: How far past the smallest and largest value to draw the curve,
                 in bandwidths. The default 0 keeps it inside the data range, so
                 it never suggests impossible values (e.g. negative ages).
+            color: Curve color: one color for every curve, or a mapping
+                ``{group: color}`` (groups left out keep their default).
+                Default: the text color, or each group's color with ``hue``.
         """
         if bw_adjust <= 0:
             raise ValueError("bw_adjust must be positive")
         if cut < 0:
             raise ValueError("cut must be 0 or more")
-        self._kde = {"bw_adjust": bw_adjust, "cut": cut} if show else None
+        colors = color.values() if isinstance(color, Mapping) else [color]
+        bad = [c for c in colors if c is not None and not is_color_like(c)]
+        if bad:
+            raise ValueError(f"Not a color: {', '.join(map(repr, bad))}")
+        if isinstance(color, Mapping):
+            unknown = set(color) - set(self._groups)
+            if unknown:
+                raise DataShapeError(
+                    f"kde color for {sorted(map(str, unknown))}: not a group. "
+                    f"Groups: {', '.join(map(str, self._groups))}"
+                )
+        self._kde = (
+            {"bw_adjust": bw_adjust, "cut": cut, "color": color} if show else None
+        )
         return self._changed()
 
     def fit(self, dist: Literal["normal"] | None = "normal") -> Self:
@@ -507,7 +530,7 @@ class HistogramPlot(Plot):
                     orientation="vertical" if vertical else "horizontal",
                     fill=True,
                     color=color,
-                    alpha=_STEP_FILL_ALPHA,
+                    alpha=combined_alpha(color, _STEP_FILL_ALPHA),
                     linewidth=0,
                     zorder=2,
                 )
@@ -523,7 +546,9 @@ class HistogramPlot(Plot):
                     "align": "edge",
                     "linewidth": theme.bar_edge_width,
                     "edgecolor": theme.axes_background,
-                    "alpha": _LAYER_ALPHA if multiple == "layer" and grouped else None,
+                    "alpha": combined_alpha(
+                        color, _LAYER_ALPHA if multiple == "layer" and grouped else None
+                    ),
                     "zorder": 2,
                 }
                 offset = base if multiple == "stack" else 0
@@ -590,7 +615,7 @@ class HistogramPlot(Plot):
             n = heights[group][1]
             color = colors[group] if grouped else (theme.text_color or "#333333")
             factor = self._scale(n, edges)
-            curves: list[tuple[np.ndarray, np.ndarray, str]] = []
+            curves: list[tuple[np.ndarray, np.ndarray, str, str]] = []
             if self._kde is not None:
                 if n < 2:
                     raise DataShapeError(
@@ -602,7 +627,10 @@ class HistogramPlot(Plot):
                     values.min() - pad, values.max() + pad, _CURVE_POINTS
                 )
                 curve = _gaussian_kde(values, grid, bw, cumulative=self._cumulative)
-                curves.append((grid, curve, "-"))
+                own = self._kde["color"]
+                if isinstance(own, Mapping):
+                    own = own.get(group)
+                curves.append((grid, curve, "-", own or color))
             if self._fit == "normal":
                 if n < 2 or np.ptp(values) == 0:
                     raise DataShapeError(
@@ -611,11 +639,13 @@ class HistogramPlot(Plot):
                 dist = NormalDist(float(values.mean()), float(values.std(ddof=1)))
                 grid = np.linspace(edges[0], edges[-1], _CURVE_POINTS)
                 at = dist.cdf if self._cumulative else dist.pdf
-                curves.append((grid, np.array([at(v) for v in grid]), "--"))
-            for grid, curve, linestyle in curves:
+                curves.append((grid, np.array([at(v) for v in grid]), "--", color))
+            for grid, curve, linestyle, line_color in curves:
                 ys = curve * factor
                 xy = (grid, ys) if self._orient == "v" else (ys, grid)
-                ax.plot(*xy, color=color, lw=theme.line_width, ls=linestyle, zorder=4)
+                ax.plot(
+                    *xy, color=line_color, lw=theme.line_width, ls=linestyle, zorder=4
+                )
 
     def _draw_rug(self, ax: Axes, style: Style, colors: dict[Any, str]) -> None:
         theme = style.theme
@@ -631,7 +661,7 @@ class HistogramPlot(Plot):
                     transform=ax.get_xaxis_transform(),
                     color=color,
                     lw=theme.axis_line_width,
-                    alpha=0.7,
+                    alpha=combined_alpha(color, 0.7),
                     zorder=5,
                 )
             else:
@@ -642,7 +672,7 @@ class HistogramPlot(Plot):
                     transform=ax.get_yaxis_transform(),
                     color=color,
                     lw=theme.axis_line_width,
-                    alpha=0.7,
+                    alpha=combined_alpha(color, 0.7),
                     zorder=5,
                 )
 

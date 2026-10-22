@@ -140,10 +140,11 @@ use them.
 ## Colorbar
 
 Every heatmap gets a colorbar to the right of the row labels. `.colorbar()`
-sets its title, place and ticks:
+sets its title, place, ticks and spacing:
 
 ```python
 sp.heatmap(expr).colorbar("Expression (TPM)", position="bottom", ticks=[4, 6, 8])
+sp.heatmap(expr).colorbar(pad=12)  # more room between row labels and colorbar
 ```
 
 | Option | Meaning |
@@ -152,6 +153,7 @@ sp.heatmap(expr).colorbar("Expression (TPM)", position="bottom", ticks=[4, 6, 8]
 | `position` | `"right"` (default), `"bottom"`, or `False` to hide it. |
 | `ticks` | Tick values. |
 | `fmt` | Tick format, e.g. `".1f"` or `"{:.0%}"`. |
+| `pad` | Space in pt between the row (or column) labels and the colorbar. Default about 4 pt. |
 
 ## Values in the cells
 

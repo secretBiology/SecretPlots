@@ -194,7 +194,12 @@ sp.histogram(df, x="age", hue="group", stat="density").kde()
 
 ```python
 sp.histogram(df, x="age").kde(bw_adjust=0.5)                  # follow the data more closely
+sp.histogram(df, x="age").kde(color="#d62728")                 # curve color
+sp.histogram(df, x="age", hue="group").kde(color={"patient": "black"})  # one group
 ```
+
+Without `hue` the curve is drawn in the text color; with `hue`, in each
+group's color. `color=` changes only the curve, not the bars.
 
 The curve stops at the smallest and largest value (`cut=0`), so it never
 suggests impossible values such as negative ages. Use `cut=3` to draw the

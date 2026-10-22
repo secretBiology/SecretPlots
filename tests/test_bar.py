@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from matplotlib.colors import to_hex
+from matplotlib.colors import to_hex, to_rgb
 from matplotlib.figure import Figure
 
 import SecretPlots as sp
@@ -81,6 +81,20 @@ def test_colors_mapping_and_palette() -> None:
     assert (
         to_hex(_bars(plot)[0].get_facecolor()) == "#123456"
     )  # primary derived from palette
+
+
+def test_colors_alpha() -> None:
+    plot = sp.bar({"a": 1, "b": 2}).colors({"b": "#ff0000"}, alpha=0.4)
+    faces = [p.get_facecolor() for p in _bars(plot)]
+    assert [f[3] for f in faces] == pytest.approx([0.4, 0.4], abs=0.005)
+    assert to_hex(faces[1]) == "#ff0000"
+    # alpha alone keeps the colors; colors alone keeps the alpha
+    plot = sp.bar({"a": 1}).colors(alpha=0.5).colors("#123456")
+    assert _bars(plot)[0].get_facecolor() == pytest.approx(
+        (*to_rgb("#123456"), 0.5), abs=0.005
+    )
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        sp.bar({"a": 1}).colors(alpha=1.5)
 
 
 def test_values_and_hidden_labels_warning() -> None:

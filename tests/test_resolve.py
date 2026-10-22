@@ -196,6 +196,21 @@ def test_theme_overrides_are_validated() -> None:
     assert plot.style().theme.font_size == 12.0
 
 
+def test_aspect_sets_plot_area_shape() -> None:
+    def shape(plot: sp.Plot) -> float:
+        box = plot.ax.get_window_extent(plot.fig.canvas.get_renderer())
+        return box.height / box.width
+
+    data = list(range(50))
+    assert shape(sp.histogram(data).size(6, 3).theme(aspect=1)) == pytest.approx(1)
+    assert shape(sp.histogram(data).size(4, 4).theme(aspect=0.5)) == pytest.approx(0.5)
+    assert shape(sp.histogram(data).size(6, 3)) < 0.6  # "auto" fills the figure
+    with pytest.raises(sp.PresetError, match="more than 0"):
+        sp.bar([1]).theme(aspect=0)
+    with pytest.raises(sp.PresetError):
+        sp.bar([1]).theme(aspect="square")
+
+
 def test_theme_options_lists_every_field_with_docs() -> None:
     table = sp.theme_options()
     assert list(table.index) == list(STYLE_FIELDS)

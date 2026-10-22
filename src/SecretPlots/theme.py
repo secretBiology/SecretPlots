@@ -49,6 +49,7 @@ class Theme:
     axes_background: str | None = None
 
     # Axes, lines, grid
+    aspect: float | Literal["auto"] | None = None
     line_width: float | None = None
     axis_line_width: float | None = None
     axis_color: str | None = None
@@ -132,6 +133,7 @@ def _secret() -> Theme:
         muted_text_color=c("gray", 60),
         background="#ffffff",
         axes_background="#ffffff",
+        aspect="auto",
         line_width=1.5,
         axis_line_width=0.8,
         axis_color=c("gray", 70),
@@ -246,6 +248,10 @@ FIELD_DOCS: dict[str, str] = {
     "muted_text_color": "Color of the source and note lines",
     "background": "Figure background color",
     "axes_background": "Plot area background (defaults to background)",
+    "aspect": (
+        "Plot area height / width, e.g. 1 for a square plot area, 0.5 for one "
+        "twice as wide as tall; 'auto' fills the figure"
+    ),
     "line_width": "Width of data lines in pt",
     "axis_line_width": "Width of axis lines and ticks in pt",
     "axis_color": "Color of axis lines and ticks",

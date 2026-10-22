@@ -12,6 +12,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.markers import MarkerStyle
 
+from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
@@ -367,7 +368,7 @@ class ScatterPlot(Plot):
                     frame.loc[mask, "y"],
                     s=areas[mask],
                     color=colors[group],
-                    alpha=theme.marker_alpha,
+                    alpha=combined_alpha(colors[group], theme.marker_alpha),
                     # With style= the legend gets proxy entries instead.
                     label=None if group is None or shapes else str(group),
                     zorder=2,
@@ -402,7 +403,12 @@ class ScatterPlot(Plot):
             ax.plot(fit.grid, fit.line, color=color, lw=theme.line_width, zorder=3)
             if fit.band is not None:
                 ax.fill_between(
-                    fit.grid, *fit.band, color=color, alpha=_BAND_ALPHA, lw=0, zorder=1
+                    fit.grid,
+                    *fit.band,
+                    color=color,
+                    alpha=combined_alpha(color, _BAND_ALPHA),
+                    lw=0,
+                    zorder=1,
                 )
             if self._fit_stats:
                 prefix = "" if group is None else f"{group}: "
@@ -452,7 +458,7 @@ class ScatterPlot(Plot):
                 [],
                 s=area,
                 color=color,
-                alpha=theme.marker_alpha,
+                alpha=combined_alpha(color, theme.marker_alpha),
                 label=str(label),
                 **_marker_style(theme, marker),
             )

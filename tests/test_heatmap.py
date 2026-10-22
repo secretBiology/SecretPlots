@@ -425,6 +425,19 @@ def test_colorbar_sits_right_of_row_labels(expr: pd.DataFrame) -> None:
     assert plot._cax.get_window_extent(renderer).x0 > labels.x1
 
 
+def test_colorbar_pad_moves_it_away_from_labels(expr: pd.DataFrame) -> None:
+    def gap(plot: sp.HeatmapPlot) -> float:
+        renderer = plot.fig.canvas.get_renderer()
+        labels = plot.ax.yaxis.get_tightbbox(renderer)
+        return plot._cax.get_window_extent(renderer).x0 - labels.x1
+
+    default, padded = sp.heatmap(expr), sp.heatmap(expr).colorbar(pad=20)
+    extra = gap(padded) - gap(default)
+    assert extra == pytest.approx((20 - 0.06 * 72) / 72 * padded.fig.dpi, abs=1)
+    with pytest.raises(ValueError, match="pad"):
+        sp.heatmap(expr).colorbar(pad=-1)
+
+
 def test_everything_stays_inside_the_figure(expr: pd.DataFrame) -> None:
     plot = (
         sp.heatmap(expr)

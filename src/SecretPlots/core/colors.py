@@ -6,7 +6,7 @@ from typing import Any
 
 import matplotlib as mpl
 import pandas as pd
-from matplotlib.colors import Colormap, LinearSegmentedColormap, to_hex
+from matplotlib.colors import Colormap, LinearSegmentedColormap, to_hex, to_rgba
 from SecretColors import cmaps as sc_cmaps
 from SecretColors.cmaps.maps import _SPECIAL as _SC_SPECIAL
 from SecretColors.utils import mix, text_color
@@ -19,6 +19,23 @@ MANY_CATEGORIES = 8
 
 def _mix(a: str, b: str, ratio: float) -> str:
     return to_hex(str(mix(a, b, ratio)))
+
+
+def with_alpha(color: str, alpha: float | None) -> str:
+    """``color`` made ``alpha`` times as opaque (``None`` leaves it alone)."""
+    if alpha is None:
+        return color
+    r, g, b, a = to_rgba(color)
+    return to_hex((r, g, b, a * alpha), keep_alpha=True)
+
+
+def combined_alpha(color: Any, alpha: float | None) -> float | None:
+    """Artist ``alpha`` that keeps the color's own alpha: matplotlib's
+    ``alpha=`` replaces it instead of multiplying."""
+    own = to_rgba(color)[3]
+    if alpha is None:
+        return None if own == 1 else own
+    return alpha * own
 
 
 def extend_palette(

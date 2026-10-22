@@ -151,6 +151,19 @@ def test_kde_per_group_and_normal_fit(ages: pd.DataFrame) -> None:
         sp.histogram(ages, x="age", hue="sex", multiple="stack").kde().render()
 
 
+def test_kde_color(ages: pd.DataFrame) -> None:
+    (curve,) = _curves(sp.histogram(ages, x="age").kde(color="red"))
+    assert to_hex(curve.get_color()) == "#ff0000"
+    plot = sp.histogram(ages, x="age", hue="sex").kde(color={"F": "black"})
+    colors = {to_hex(c.get_color()) for c in _curves(plot)}
+    assert "#000000" in colors
+    assert len(colors) == 2  # M keeps its group color
+    with pytest.raises(ValueError, match="Not a color"):
+        sp.histogram(ages, x="age").kde(color="reddish")
+    with pytest.raises(sp.DataShapeError, match="not a group"):
+        sp.histogram(ages, x="age", hue="sex").kde(color={"X": "red"})
+
+
 def test_cumulative_curves_end_at_total(ages: pd.DataFrame) -> None:
     plot = sp.histogram(ages, x="age", stat="percent", cumulative=True).kde().fit()
     for curve in _curves(plot):
@@ -228,6 +241,18 @@ def test_highlight_and_colors(ages: pd.DataFrame) -> None:
     assert plot.style().theme.muted in colors
     mapped = sp.histogram(ages, x="age", hue="sex").colors({"F": "#ff0000"})
     assert to_hex(_steps(mapped)[0].get_edgecolor(), keep_alpha=False) == "#ff0000"
+
+
+def test_colors_alpha_multiplies_layer_transparency(ages: pd.DataFrame) -> None:
+    def alphas(plot: sp.HistogramPlot) -> list[float]:
+        return sorted({round(b.get_facecolor()[3], 3) for b in _bars(plot)})
+
+    layered = sp.histogram(ages, x="age", hue="sex", element="bars")
+    (layer,) = alphas(layered)
+    faded = alphas(layered.colors(alpha=0.5))
+    assert faded == pytest.approx([layer * 0.5], abs=0.005)
+    single = alphas(sp.histogram(ages, x="age").colors(alpha=0.5))
+    assert single == pytest.approx([0.5], abs=0.005)
 
 
 def test_source_data(ages: pd.DataFrame) -> None:

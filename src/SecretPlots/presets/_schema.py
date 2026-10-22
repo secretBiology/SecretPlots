@@ -88,9 +88,17 @@ def _alias(key: str, value: Any) -> Any:
     return value
 
 
+def _check(key: str, value: Any, where: str) -> Any:
+    if key == "aspect" and value != "auto" and value <= 0:
+        raise PresetError(f"{where}: aspect must be more than 0, got {value!r}")
+    return value
+
+
 def theme_from_mapping(data: Mapping[str, Any], *, name: str, where: str) -> Theme:
     data = {key: _alias(key, value) for key, value in data.items()}
     kwargs = _build(Theme, data, where, skip=set())
+    for key, value in kwargs.items():
+        _check(key, value, f"{where}.{key}")
     kwargs.setdefault("name", name)
     return Theme(**kwargs)
 
@@ -99,7 +107,9 @@ def coerce_theme_field(key: str, value: Any) -> Any:
     """Validate one theme field value (lists become tuples, ints become floats)."""
     if value is None:
         return None
-    return _coerce(_alias(key, value), get_type_hints(Theme)[key], f"theme {key}")
+    where = f"theme {key}"
+    value = _coerce(_alias(key, value), get_type_hints(Theme)[key], where)
+    return _check(key, value, where)
 
 
 def _target_from_mapping(data: Mapping[str, Any], where: str) -> Target:

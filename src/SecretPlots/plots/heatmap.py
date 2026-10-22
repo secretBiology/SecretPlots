@@ -54,6 +54,7 @@ _DENDROGRAM = 0.35
 _PAD = 0.03
 _COLORBAR_WIDTH = 0.09
 _COLORBAR_MIN_LENGTH = 0.9
+_COLORBAR_PAD = 2 * _PAD * PT_PER_INCH  # pt between the labels and the colorbar
 _NAME_OFFSET = 3.0  # pt between a track and its name
 #: Above this many cells, cells are rasterized inside vector files (PDF/SVG)
 #: so the file stays small and fast to open.
@@ -221,9 +222,14 @@ class _ColorbarLocator:
     """Colorbar right of the row labels (or below the column labels)."""
 
     def __init__(
-        self, parent: Axes, side: str, beside: Callable[[], list[Artist]] = list
+        self,
+        parent: Axes,
+        side: str,
+        beside: Callable[[], list[Artist]] = list,
+        pad: float = _COLORBAR_PAD,
     ) -> None:
         self.parent, self.side, self.beside = parent, side, beside
+        self.pad = pad / PT_PER_INCH  # inches
 
     def __call__(self, child: _AxesBase, renderer: RendererBase | None) -> Bbox:
         fig = self.parent.get_figure(root=True)
@@ -244,7 +250,7 @@ class _ColorbarLocator:
                 + a.get_window_extent(renderer).width
                 for a in self.beside()
             ]
-            x0 = max(edges) + 2 * _PAD * dpi
+            x0 = max(edges) + self.pad * dpi
             length = min(box.height, max(_COLORBAR_MIN_LENGTH * dpi, box.height / 2))
             y1 = box.y1
             return Bbox.from_extents(
@@ -254,7 +260,7 @@ class _ColorbarLocator:
                 y1 / height,
             )
         labels = self.parent.xaxis.get_tightbbox(renderer)
-        y1 = min(box.y0, labels.y0 if labels else box.y0) - 2 * _PAD * dpi
+        y1 = min(box.y0, labels.y0 if labels else box.y0) - self.pad * dpi
         length = min(box.width, max(_COLORBAR_MIN_LENGTH * dpi, box.width / 2))
         return Bbox.from_extents(
             box.x0 / width,
@@ -270,11 +276,15 @@ class _BelowColorbar(BboxBase):
     their position from the previous draw, and the layout never settles."""
 
     def __init__(
-        self, parent: Axes, under: bool, beside: Callable[[], list[Artist]]
+        self,
+        parent: Axes,
+        under: bool,
+        beside: Callable[[], list[Artist]],
+        pad: float = _COLORBAR_PAD,
     ) -> None:
         super().__init__()
         # The right-hand column the colorbar uses, whether or not it is shown.
-        self.locator = _ColorbarLocator(parent, "right", beside)
+        self.locator = _ColorbarLocator(parent, "right", beside, pad)
         self.parent, self.under = parent, under
 
     def get_points(self) -> np.ndarray:
@@ -395,8 +405,9 @@ class HeatmapPlot(Plot):
         position: ColorbarPosition | bool = "right",
         ticks: Sequence[float] | None = None,
         fmt: str | None = None,
+        pad: float | None = None,
     ) -> Self:
-        """Colorbar title, position and ticks. Each call resets options it
+        """Colorbar title, position, ticks and spacing. Each call resets options it
         doesn't pass.
 
         Args:
@@ -407,7 +418,12 @@ class HeatmapPlot(Plot):
                 heatmap.
             ticks: Tick values.
             fmt: Tick format, e.g. ``".1f"`` or ``"{:.0%}"``.
+            pad: Space in pt between the tick labels (row labels for
+                ``"right"``, column labels for ``"bottom"``) and the
+                colorbar. Default: about 4 pt.
         """
+        if pad is not None and pad < 0:
+            raise ValueError("pad must be 0 or more")
         if position is True:
             position = "right"
         elif position is False:
@@ -418,6 +434,7 @@ class HeatmapPlot(Plot):
             "position": position,
             "ticks": ticks,
             "fmt": fmt,
+            "pad": _COLORBAR_PAD if pad is None else pad,
         }
         return self._changed()
 
@@ -910,7 +927,8 @@ class HeatmapPlot(Plot):
             source=f"the palette from {style.provenance['palette']}",
         )
         return {
-            name: self._color_map.get(name, base[i]) for i, name in enumerate(unique)
+            name: self._faded(self._color_map.get(name, base[i]))
+            for i, name in enumerate(unique)
         }
 
     # --------------------------------------------------------------- drawing
@@ -1306,7 +1324,12 @@ class HeatmapPlot(Plot):
         position = self._colorbar["position"]
         cax = ax.inset_axes((0, 0, 1, 1))
         cax.set_axes_locator(
-            _ColorbarLocator(ax, position, lambda: self._body.track_names)
+            _ColorbarLocator(
+                ax,
+                position,
+                lambda: self._body.track_names,
+                self._colorbar.get("pad", _COLORBAR_PAD),
+            )
         )
         fmt = self._colorbar.get("fmt")
         formatter = None
@@ -1388,6 +1411,7 @@ class HeatmapPlot(Plot):
             ax,
             self._colorbar["position"] == "right",
             lambda: self._body.track_names,
+            self._colorbar.get("pad", _COLORBAR_PAD),
         )
         box = AnchoredOffsetbox(
             loc="upper left",
