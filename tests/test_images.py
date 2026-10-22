@@ -303,3 +303,39 @@ def test_fill_between_split() -> Figure:
         .refline(0)
         .fig
     )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_forest_groups_table_nature() -> Figure:
+    trial = pd.DataFrame(
+        {
+            "variable": [None, "Age", "Age", "Sex", "Sex"],
+            "subgroup": ["All patients", "<65 yr", ">=65 yr", "Male", "Female"],
+            "patients": [4744, 2513, 2231, 3635, 1109],
+            "hr": [0.74, 0.76, 0.72, 0.73, 0.79],
+            "lower": [0.65, 0.63, 0.60, 0.63, 0.62],
+            "upper": [0.85, 0.92, 0.87, 0.85, 1.01],
+            "weight": [np.nan, 2513, 2231, 3635, 1109],
+        }
+    )
+    return (
+        sp.forest(
+            trial,
+            label="subgroup",
+            estimate="hr",
+            lower="lower",
+            upper="upper",
+            group="variable",
+            weight="weight",
+        )
+        .summary("All patients")
+        .table(
+            left={"Patients": "patients"},
+            right={"P for interaction": {"Age": 0.76, "Sex": 0.0004}},
+            formats={"P for interaction": "p"},
+        )
+        .favours("Favours drug", "Favours placebo")
+        .stripes()
+        .preset("nature")
+        .fig
+    )

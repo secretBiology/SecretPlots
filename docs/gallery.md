@@ -10,6 +10,7 @@ exported with embedded fonts. Click a thumbnail to jump to the code.</p>
 [![](assets/figures/gallery-tumour-growth.png)<span>Tumour growth<small>individual units · 95% CI · end labels</small></span>](#tumour-growth)
 [![](assets/figures/gallery-volcano.png)<span>Volcano plot<small>scatter · thresholds · highlight</small></span>](#volcano-plot)
 [![](assets/figures/gallery-expression-heatmap.png)<span>Expression heatmap<small>z-score · groups · tracks · clustering</small></span>](#expression-heatmap)
+[![](assets/figures/gallery-forest.png)<span>Subgroup analysis<small>forest · table · interaction p-values</small></span>](#subgroup-analysis)
 [![](assets/figures/gallery-correlation.png)<span>Correlation matrix<small>masked triangle · values · diverging map</small></span>](#correlation-matrix)
 [![](assets/figures/gallery-raincloud.png)<span>Raincloud<small>density · box · raw data · stars</small></span>](#raincloud)
 [![](assets/figures/gallery-split-violin.png)<span>Split violins<small>genotype × sex · quartiles</small></span>](#split-violins)
@@ -188,6 +189,56 @@ track. Gene names are italic, as journals require.
     )
     ```
     <!-- figure: gallery-expression-heatmap.png -->
+
+## Subgroup analysis
+
+Hazard ratios for the primary end point of a cardiovascular trial, overall and
+in prespecified subgroups. Events per arm and the "HR (95% CI)" column sit in the
+table, the P for interaction on each section header, and the overall estimate
+is a diamond. Shaded rows guide the eye across the double-column width.
+
+![Subgroup forest plot with events per arm, hazard ratios and interaction p-values.](assets/figures/gallery-forest.png)
+
+??? example "Show code"
+
+    ```python
+    import pandas as pd
+    import SecretPlots as sp
+
+    sp.use(preset="nature")
+
+    trial = pd.DataFrame({
+        "variable": [None, "Age", "Age", "Sex", "Sex", "Diabetes", "Diabetes",
+                     "eGFR", "eGFR"],
+        "subgroup": ["All patients", "<65 yr", "≥65 yr", "Male", "Female",
+                     "Yes", "No", "<60 mL/min", "≥60 mL/min"],
+        "drug": ["386/2373", "201/1271", "185/1102", "307/1809", "79/564",
+                 "215/1075", "171/1298", "191/962", "195/1411"],
+        "placebo": ["502/2371", "259/1242", "243/1129", "406/1826", "96/545",
+                    "271/1064", "231/1307", "254/964", "248/1407"],
+        "hr": [0.74, 0.76, 0.72, 0.73, 0.79, 0.75, 0.73, 0.71, 0.77],
+        "lower": [0.65, 0.63, 0.60, 0.63, 0.59, 0.63, 0.60, 0.59, 0.64],
+        "upper": [0.85, 0.92, 0.87, 0.85, 1.06, 0.90, 0.88, 0.86, 0.93],
+    })
+
+    (
+        sp.forest(trial, label="subgroup", estimate="hr", lower="lower",
+                  upper="upper", group="variable")
+        .summary("All patients")
+        .table(left={"Drug\nn/N": "drug", "Placebo\nn/N": "placebo"},
+               right={"P for interaction": {"Age": 0.76, "Sex": 0.52,
+                                            "Diabetes": 0.89, "eGFR": 0.54}},
+               formats={"P for interaction": "p"})
+        .favours("Drug better", "Placebo better")
+        .stripes()
+        .colors("#0072B2")
+        .labels(x="Hazard ratio")
+        .preset("nature", width="double")
+    )
+    ```
+    <!-- figure: gallery-forest.png -->
+
+    Options used: [`group=`, `.table()`, `.summary()`, `.favours()`](plots/forest.md).
 
 ## Correlation matrix
 
@@ -541,6 +592,6 @@ hospital admissions. Darker bands are more likely.
 Each plot type has a guide with every option illustrated:
 [bar](plots/bar.md) · [scatter](plots/scatter.md) · [line](plots/line.md) ·
 [area](plots/area.md) · [histogram](plots/histogram.md) ·
-[heatmap](plots/heatmap.md) · [box](plots/box.md) ·
+[heatmap](plots/heatmap.md) · [forest](plots/forest.md) · [box](plots/box.md) ·
 [violin & raincloud](plots/violin.md). To prepare a figure for a specific
 journal, read [journal-ready figures](publication.md).

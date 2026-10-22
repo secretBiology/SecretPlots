@@ -181,6 +181,7 @@ in a few lines of TOML.
 | `sp.area`, `sp.fill_between` | Stacked and 100% areas, envelopes, split by sign, gradients |
 | `sp.histogram` | Counts, percent or density; KDE, rug, cumulative, layered, stacked or dodged |
 | `sp.heatmap` | Colormaps, z-scoring, clustering, groups, annotation tracks, masks |
+| `sp.forest` | Subgroup and meta-analysis forest plots with tables, sections, summary diamonds, weights and side-by-side panels |
 | `sp.box` | Points, means, sample sizes, significance brackets |
 | `sp.violin`, `sp.raincloud` | Split violins, inner box/quartiles, half-violin rainclouds |
 

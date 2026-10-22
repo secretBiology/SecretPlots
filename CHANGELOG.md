@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `sp.forest`: forest plots for subgroup analyses, meta-analyses and
+  regression models. Ratio (log axis, no effect at 1) or difference scales
+  with journal-style ticks; an "estimate (95% CI)" column; `.table()` columns
+  left and right with per-column formats (including `"p"` for p-values) and
+  `{group: value}` header-row values such as P for interaction; `group=`
+  sections with bold headers and indents (`.groups()`); `.summary()` diamonds;
+  `weight=` marker areas; `hue=` dodged estimates with a legend; `panel=`
+  side-by-side forests sharing row labels; `.favours()` direction arrows,
+  `.stripes()`, `.markers()`, arrowheads for intervals beyond `.xlim()`;
+  height that grows with the rows; `.source_data()`.
+
 ## [3.0.0a1] - 2026-10-22
 
 ### Changed

@@ -139,7 +139,7 @@ embedded, the format Nature's production team asks for.
 
 </div>
 
-[See all 14 examples with code :octicons-arrow-right-24:](gallery.md){ .md-button }
+[See all 15 examples with code :octicons-arrow-right-24:](gallery.md){ .md-button }
 
 ## Choose a plot
 
@@ -152,3 +152,4 @@ embedded, the format Nature's production team asks for.
 | How do parts of a whole evolve? | [Area / fill between](plots/area.md) | `stack="percent"`, `.split()`, `.gradient()` |
 | What does a distribution look like? | [Histogram](plots/histogram.md) | `stat="density"`, `.kde()`, `.rug()`, `cumulative=` |
 | Where are the patterns in a matrix? | [Heatmap](plots/heatmap.md) | `.scale("row")`, `.cluster()`, `.groups()`, `.tracks()` |
+| How large is an effect, and how certain? | [Forest](plots/forest.md) | `group=`, `.table()`, `.summary()`, `panel=` |

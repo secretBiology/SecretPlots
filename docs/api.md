@@ -43,6 +43,11 @@ rendering, copying, axis formatting, reference lines, and export from `Plot`.
 ::: SecretPlots.heatmap
 ::: SecretPlots.HeatmapPlot
 
+## Forest
+
+::: SecretPlots.forest
+::: SecretPlots.ForestPlot
+
 ## Box
 
 ::: SecretPlots.box

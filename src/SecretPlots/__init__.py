@@ -30,6 +30,7 @@ from SecretPlots.errors import (
 from SecretPlots.plots.area import FillBetweenPlot, area, fill_between
 from SecretPlots.plots.bar import BarPlot, bar
 from SecretPlots.plots.box import BoxPlot, box, boxplot
+from SecretPlots.plots.forest import ForestPlot, forest
 from SecretPlots.plots.heatmap import HeatmapPlot, heatmap
 from SecretPlots.plots.histogram import HistogramPlot, hist, histogram
 from SecretPlots.plots.line import LinePlot, line, plot
@@ -52,6 +53,7 @@ __all__ = [
     "DropPolicy",
     "FillBetweenPlot",
     "FontFallbackWarning",
+    "ForestPlot",
     "FormatWarning",
     "HeatmapPlot",
     "HistogramPlot",
@@ -79,6 +81,7 @@ __all__ = [
     "config",
     "fill_between",
     "fonts",
+    "forest",
     "get_theme",
     "heatmap",
     "hist",
