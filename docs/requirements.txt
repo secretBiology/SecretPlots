@@ -1,0 +1,6 @@
+# Versions used to validate the documentation. Runtime plotting dependencies
+# are installed from the project by Read the Docs (see .readthedocs.yaml).
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mkdocstrings[python]==1.0.8
+mkdocstrings-python==2.0.10

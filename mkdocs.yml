@@ -1,10 +1,55 @@
 site_name: SecretPlots
+site_description: Beautiful, reproducible Python figures. Explore every plot and discover every option.
 repo_url: https://github.com/secretBiology/SecretPlots
+repo_name: secretBiology/SecretPlots
 theme:
   name: material
+  custom_dir: docs_overrides
+  font: false
+  icon:
+    logo: material/chart-scatter-plot
+  palette:
+    - scheme: default
+      primary: custom
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: custom
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+extra_css:
+  - stylesheets/extra.css
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
 nav:
   - Home: index.md
-  - Plots:
+  - Get started:
+      - Your first figure: quickstart.md
+      - Find any option: options.md
+      - Visual gallery: gallery.md
+  - Plot guides:
       - Bar: plots/bar.md
       - Scatter: plots/scatter.md
       - Line: plots/line.md
@@ -13,12 +58,17 @@ nav:
       - Heatmap: plots/heatmap.md
       - Box: plots/box.md
       - Violin and raincloud: plots/violin.md
-  - Data handling and reusable plots: usage.md
-  - Presets: presets.md
-  - API: api.md
+  - Style and workflow:
+      - Presets and themes: presets.md
+      - Data, formatting and export: usage.md
+  - API reference: api.md
 plugins:
   - search
   - mkdocstrings:
       handlers:
         python:
           paths: [src]
+          options:
+            show_source: false
+            show_signature_annotations: true
+            docstring_style: google

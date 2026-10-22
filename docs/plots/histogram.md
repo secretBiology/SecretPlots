@@ -20,10 +20,21 @@ df = pd.DataFrame(
 
 sp.histogram(df, x="age", hue="group", stat="density").kde()
 ```
+<!-- figure: histogram-overview -->
+
+![Histogram example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/histogram-overview.svg)
+
+*Histogram example rendered by SecretPlots. All data on this page are synthetic.*
 
 The examples below use `df`: age for 320 controls and 180 patients. Like every
 SecretPlots plot, nothing is drawn until the plot is displayed, saved, shown,
 or you access `.fig` / `.ax`.
+
+!!! tip "Explore the options from Python"
+    Run `sp.HistogramPlot.options()` to list chainable steps, then
+    `sp.HistogramPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -102,6 +113,11 @@ to ignore affected observations. All groups share the same bins.
 ```python
 sp.histogram(df, x="age", stat="density")
 ```
+<!-- figure: histogram-count-proportion-percent-or-density -->
+
+![Count, proportion, percent or density: output of the example above.](../assets/figures/histogram-count-proportion-percent-or-density.svg)
+
+*Count, proportion, percent or density: output of the example above.*
 
 ```python
 sp.histogram(df, x="age", hue="group", stat="percent")
@@ -128,6 +144,11 @@ figure legend.
 ```python
 sp.histogram(df, x="age", binwidth=5)                    # bin width in data units
 ```
+<!-- figure: histogram-bins -->
+
+![Bins: output of the example above.](../assets/figures/histogram-bins.svg)
+
+*Bins: output of the example above.*
 
 ```python
 sp.histogram(df, x="age", bins=20, binrange=(20, 80))    # number of bins over a range
@@ -169,6 +190,11 @@ where they cross.
 ```python
 sp.histogram(df, x="age", hue="group")
 ```
+<!-- figure: histogram-groups -->
+
+![Groups: output of the example above.](../assets/figures/histogram-groups.svg)
+
+*Groups: output of the example above.*
 
 ```python
 sp.histogram(df, x="age", hue="group", element="bars")               # translucent bars
@@ -220,6 +246,11 @@ sp.histogram(df[df.group == "control"], x="age", stat="density").fit("normal")
 ```python
 sp.histogram(df, x="age", hue="group", stat="percent", cumulative=True).kde()
 ```
+<!-- figure: histogram-cumulative-histograms -->
+
+![Cumulative histograms: output of the example above.](../assets/figures/histogram-cumulative-histograms.svg)
+
+*Cumulative histograms: output of the example above.*
 
 Each group rises to 100% (or 1, or its count). This is a binned version of
 the empirical cumulative distribution. The `.kde()` curve is its smooth
@@ -234,6 +265,11 @@ counterpart. With `stat="density"` the axis is "Cumulative proportion".
     .show_n()                            # "control (n = 320)" in the legend
 )
 ```
+<!-- figure: histogram-reference-lines-rug-and-sample-size -->
+
+![Reference lines, rug and sample size: output of the example above.](../assets/figures/histogram-reference-lines-rug-and-sample-size.svg)
+
+*Reference lines, rug and sample size: output of the example above.*
 
 `.refline()` takes `"mean"`, `"median"` and numbers (e.g. a clinical cutoff:
 `.refline(65)`). `"mean"` and `"median"` draw one line per group, in the

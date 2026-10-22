@@ -437,13 +437,16 @@ def bar(
     Args:
         data: DataFrame (with ``x``/``y``/``hue`` column names), wide DataFrame,
             Series, dict, list or 2-D array. See :mod:`SecretPlots.core.data`.
-        x, y, hue: Column names for categories, values and groups.
+        x: Column name for categories.
+        y: Column name for numeric values.
+        hue: Column name for groups.
         stack: Stack groups instead of placing them side by side.
         error: Error bars from replicates: ``"sd"`` or ``"sem"``.
         estimator: ``"mean"`` (default), ``"median"``, ``"sum"`` or a function.
         orient: ``"v"`` or ``"h"``.
         sort: ``"desc"``/``"asc"`` to order categories by value.
-        order, hue_order: Explicit category / group order.
+        order: Explicit category order.
+        hue_order: Explicit group order.
         missing: "raise" (default) rejects missing/non-finite data; "drop"
             ignores affected observations.
 

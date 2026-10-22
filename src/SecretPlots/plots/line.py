@@ -767,8 +767,9 @@ def line(
             wide DataFrame (index or ``x`` column → x, one line per numeric
             column); a Series (index → x); or a list/array of y values. Leave
             out to pass ``x=`` and ``y=`` as sequences.
-        x, y: Column names (or sequences). x can be numbers, dates or
-            categories (e.g. ``"day 1"``, drawn evenly spaced in data order).
+        x: Column name or sequence of numbers, dates, or categories
+            (e.g. ``"day 1"``, drawn evenly spaced in data order).
+        y: Column name or sequence of numeric values.
         hue: Column with groups, drawn in different colors.
         style: Column with groups, drawn with different dashes (and marker
             shapes with ``.markers()``). Can be the same column as ``hue``.

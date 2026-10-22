@@ -24,6 +24,11 @@ energy = pd.DataFrame(
 
 sp.area(energy, x="year", stack=True).endlabels()
 ```
+<!-- figure: area-overview -->
+
+![Area example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/area-overview.svg)
+
+*Area example rendered by SecretPlots. All data on this page are synthetic.*
 
 Examples on this page use `energy` above (a wide table: one column per
 electricity source) and its long form `long`:
@@ -32,6 +37,12 @@ electricity source) and its long form `long`:
 long = energy.melt("year", var_name="source", value_name="TWh")
 long.head()
 ```
+
+!!! tip "Explore the options from Python"
+    Run `sp.FillBetweenPlot.options()` to list chainable steps, then
+    `sp.FillBetweenPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -134,6 +145,11 @@ months["low"], months["high"] = months["mid"] - 6, months["mid"] + 6
 
 sp.fill_between(months, x="month", y1="high", y2="low").labels(y="Forecast")
 ```
+<!-- figure: area-bands-between-two-columns -->
+
+![Bands between two columns: output of the example above.](../assets/figures/area-bands-between-two-columns.svg)
+
+*Bands between two columns: output of the example above.*
 
 To combine a band with a line, draw the line into the same axes:
 
@@ -154,6 +170,11 @@ lines, and the legend lists the top layer first, as you read the stack:
 ```python
 sp.area(long, x="year", y="TWh", hue="source", stack=True)
 ```
+<!-- figure: area-stacked-areas -->
+
+![stack=True shows the total as the top boundary and each source as a colored layer.](../assets/figures/area-stacked-areas.svg)
+
+*`stack=True` shows the total as the top boundary and each source as a colored layer.*
 
 `stack="percent"` shows each group's share of the total at every x; the y axis
 runs from 0 % to 100 %:
@@ -162,7 +183,9 @@ runs from 0 % to 100 %:
 sp.area(long, x="year", y="TWh", hue="source", stack="percent")
 ```
 
-Missing combinations of x and group count as 0 in a stack.
+Missing combinations of x and group follow `missing=`: the default raises an
+error; `"drop"` removes incomplete x positions and `"gap"` leaves a break across
+all layers. They are not silently replaced with zeros.
 
 ## Above and below: split by sign
 
@@ -179,6 +202,11 @@ anomaly = pd.DataFrame({"t": t, "anomaly": np.sin(t) * 0.8 + 0.1 * t - 0.4})
     .refline(0)
 )
 ```
+<!-- figure: area-above-and-below-split-by-sign -->
+
+![.split(labels=("warmer", "cooler")) changes color at each baseline crossing; .refline(0) marks zero.](../assets/figures/area-above-and-below-split-by-sign.svg)
+
+*`.split(labels=("warmer", "cooler"))` changes color at each baseline crossing; `.refline(0)` marks zero.*
 
 With two columns it shades the gap between two series: here exports against
 imports, with both lines drawn:
@@ -200,6 +228,11 @@ trade = pd.DataFrame(
 ```python
 sp.area(energy, x="year", y="Solar").gradient().endlabels(values=".0f")
 ```
+<!-- figure: area-gradients -->
+
+![.gradient() fades the fill toward the baseline; .endlabels(values=".0f") labels the final value.](../assets/figures/area-gradients.svg)
+
+*`.gradient()` fades the fill toward the baseline; `.endlabels(values=".0f")` labels the final value.*
 
 ```python
 sp.fill_between(months, x="month", y1="high", y2="low").gradient()
@@ -217,6 +250,11 @@ band is split by sign). `width=` sets the line width in pt:
 ```python
 sp.fill_between(months, x="month", y1="high", y2="low").lines("both", width=0.6)
 ```
+<!-- figure: area-edge-lines -->
+
+![.lines("both", width=0.6) outlines both boundaries of the interval.](../assets/figures/area-edge-lines.svg)
+
+*`.lines("both", width=0.6)` outlines both boundaries of the interval.*
 
 ```python
 sp.area(long, x="year", y="TWh", hue="source", stack=True).lines("none")

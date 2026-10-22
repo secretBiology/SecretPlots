@@ -68,3 +68,19 @@ uv run pytest --mpl
 ```
 
 MIT licensed.
+
+## Illustrated documentation
+
+Start with [your first figure](docs/quickstart.md), browse the
+[visual gallery](docs/gallery.md), or learn to [find any option](docs/options.md).
+The plot guides pair runnable examples with generated figures and option tables.
+
+```python
+plot.options()                 # discover chainable steps
+plot.options("legend")         # inspect a step's parameters and defaults
+sp.BarPlot.options("values")   # explore without constructing a plot
+sp.theme_options()             # discover visual style fields
+```
+
+For a local documentation preview, run `uv sync --group docs`, then
+`uv run mkdocs serve`. The repository includes the Read the Docs build configuration.

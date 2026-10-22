@@ -1,0 +1,62 @@
+/* Local system typography: no external font request is needed to read the docs. */
+:root {
+  --md-text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --md-code-font: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --md-primary-fg-color: #183e4b;
+  --md-accent-fg-color: #00897b;
+}
+[data-md-color-scheme="default"] { --md-default-bg-color: #fafbf9; }
+.md-header { box-shadow: 0 2px 14px #112e3a16; }
+.md-typeset h1 { font-weight: 750; letter-spacing: -.035em; color: var(--md-default-fg-color); }
+.md-typeset h2 { font-weight: 650; letter-spacing: -.02em; margin-top: 2em; }
+.md-typeset { line-height: 1.7; }
+.md-typeset img[src*="assets/figures/"] {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 1.25rem auto .5rem;
+  background: white;
+  border: 1px solid #dfe6e8;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px #112e3a08;
+}
+.md-typeset p:has(> img) + p > em:only-child {
+  display: block;
+  font-size: .72rem;
+  line-height: 1.6;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 1.6rem;
+}
+.md-typeset .hero {
+  padding: 1.7rem 1.8rem;
+  border: 1px solid #a5c9c533;
+  border-radius: 18px;
+  background: linear-gradient(120deg, #319d9020, #7564cc16);
+  margin: 1rem 0 1.6rem;
+}
+.md-typeset .hero .eyebrow {
+  color: var(--md-accent-fg-color);
+  font-size: .65rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.md-typeset .hero h2 { margin-top: .3rem; font-size: 1.8rem; line-height: 1.2; }
+.md-typeset .grid.cards > ul > li {
+  border: 1px solid #90a4ae40;
+  border-radius: 12px;
+  background: var(--md-default-bg-color);
+  padding: 1rem;
+}
+.md-typeset .grid.cards img { box-shadow: none; border-radius: 8px; }
+.md-typeset .md-button { border-radius: 6px; padding: .45em 1em; }
+.md-typeset pre > code { border-radius: 8px; }
+.md-typeset table:not([class]) { font-size: .72rem; min-width: 30rem; }
+.md-typeset table code { white-space: nowrap; word-break: normal; }
+@media (max-width: 600px) {
+  .md-typeset .hero { padding: 1.1rem; }
+  .md-typeset .hero h2 { font-size: 1.5rem; }
+}
+@media print {
+  .md-typeset img[src*="assets/figures/"] { box-shadow: none; break-inside: avoid; }
+}

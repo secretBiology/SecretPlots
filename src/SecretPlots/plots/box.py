@@ -225,7 +225,9 @@ def box(
             ``{category: values}`` or ``{category: {group: values}}``, a
             Series or list (one box), a 2-D array (one box per column) or a
             list of value lists.
-        x, y, hue: Column names for categories, values and groups.
+        x: Column name for categories.
+        y: Column name for numeric values.
+        hue: Column name for groups.
         whis: Whisker reach: a multiple of the interquartile range (Tukey's
             1.5, the default in R and matplotlib), percentiles like
             ``(5, 95)``, or ``"range"`` (minimum to maximum, no outliers).
@@ -241,7 +243,8 @@ def box(
             a dark shade of the fill). ``"none"`` removes only the outline.
         linewidth: Width of the box outlines in pt; 0 removes them.
         orient: ``"v"`` (values up) or ``"h"`` (values to the right).
-        order, hue_order: Explicit category / group order.
+        order: Explicit category order.
+        hue_order: Explicit group order.
         missing: "raise" (default) rejects missing/non-finite data; "drop"
             ignores affected observations.
 

@@ -22,10 +22,21 @@ expr["pathway"] = ["Cardiac TF"] * 4 + ["Sarcomere"] * 4 + ["Cell cycle"] * 4
 
 sp.heatmap(expr).scale("row").groups(rows="pathway")
 ```
+<!-- figure: heatmap-overview -->
+
+![Heatmap example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/heatmap-overview.svg)
+
+*Heatmap example rendered by SecretPlots. All data on this page are synthetic.*
 
 The examples below use `expr`: 12 genes (rows) by 6 samples (columns), plus a
 `pathway` column that describes the rows. Like every SecretPlots plot, nothing
 is drawn until the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
+
+!!! tip "Explore the options from Python"
+    Run `sp.HeatmapPlot.options()` to list chainable steps, then
+    `sp.HeatmapPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -167,6 +178,11 @@ below a journal's minimum (Nature: 5 pt).
 ```python
 sp.heatmap(expr.iloc[:6]).values(".1f")
 ```
+<!-- figure: heatmap-values-in-the-cells -->
+
+![.values(".1f") prints cell values with contrasting text for readability.](../assets/figures/heatmap-values-in-the-cells.svg)
+
+*`.values(".1f")` prints cell values with contrasting text for readability.*
 
 Your own text per cell, such as significance stars, goes in `labels=`. It can
 be a DataFrame with the same rows and columns, or a 2-D list in data order.
@@ -193,6 +209,11 @@ colorbar "Z-score":
 ```python
 sp.heatmap(expr).scale("row")
 ```
+<!-- figure: heatmap-scaling-rows-or-columns -->
+
+![.scale("row") standardizes each row so relative changes can be compared across genes.](../assets/figures/heatmap-scaling-rows-or-columns.svg)
+
+*`.scale("row")` standardizes each row so relative changes can be compared across genes.*
 
 `.scale("col")` scales columns instead, and `method="minmax"` rescales to
 0–1. Constant rows have no pattern and are left blank.
@@ -208,6 +229,11 @@ ComplexHeatmap's `row_split` or pheatmap's `gaps_row` with `annotation_row`.
 condition = {s: s.rstrip("123") for s in samples}
 sp.heatmap(expr).scale("row").groups(rows="pathway", cols=condition)
 ```
+<!-- figure: heatmap-groups -->
+
+![Groups: output of the example above.](../assets/figures/heatmap-groups.svg)
+
+*Groups: output of the example above.*
 
 A group can be given as:
 
@@ -249,6 +275,11 @@ batch = {s: b for s, b in zip(samples, ["A", "B", "A", "B", "A", "B"])}
     .tracks(cols={"Condition": condition, "Batch": batch}, rows={"Pathway": "pathway"})
 )
 ```
+<!-- figure: heatmap-annotation-tracks.png -->
+
+![.tracks(...) adds metadata tracks beside the heatmap, with legends explaining their encodings.](../assets/figures/heatmap-annotation-tracks.png)
+
+*`.tracks(...)` adds metadata tracks beside the heatmap, with legends explaining their encodings.*
 
 Tracks take the same forms as groups. The legend sits under the colorbar;
 `.legend(False)` hides it.
@@ -262,6 +293,11 @@ required.
 ```python
 sp.heatmap(expr).scale("row").cluster()
 ```
+<!-- figure: heatmap-clustering -->
+
+![Clustering: output of the example above.](../assets/figures/heatmap-clustering.svg)
+
+*Clustering: output of the example above.*
 
 Keep columns in order when they are time points or doses, and cut the row
 tree into clusters, which get gaps and labels:
@@ -299,6 +335,11 @@ cells blank instead, for example the redundant half of a correlation matrix:
 corr = expr.drop(columns="pathway").T.corr()
 sp.heatmap(corr, square=True).mask("upper").cmap(center=0).colorbar("Pearson r")
 ```
+<!-- figure: heatmap-masks-and-missing-values -->
+
+![Masks and missing values: output of the example above.](../assets/figures/heatmap-masks-and-missing-values.svg)
+
+*Masks and missing values: output of the example above.*
 
 `"upper"` or `"lower"` hides that triangle; add `diagonal=True` to hide the
 diagonal too. A boolean matrix (`True` = hide) masks any cells you choose.

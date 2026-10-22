@@ -23,6 +23,11 @@ df = pd.DataFrame(
 
 sp.box(df, x="dose", y="weight").points().compare(ref="0")
 ```
+<!-- figure: box-overview -->
+
+![Box example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/box-overview.svg)
+
+*Box example rendered by SecretPlots. All data on this page are synthetic.*
 
 The examples below use `df`: body weight of 30 mice at each of four doses.
 Like every SecretPlots plot, nothing is drawn until the plot is displayed,
@@ -31,6 +36,12 @@ saved or shown, or until you access `.fig` / `.ax`.
 For the shape of a distribution rather than its summary, use
 [violin plots and rainclouds](violin.md). They take the same data and the same
 steps.
+
+!!! tip "Explore the options from Python"
+    Run `sp.BoxPlot.options()` to list chainable steps, then
+    `sp.BoxPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -118,6 +129,11 @@ Quartiles are interpolated linearly (R's default `quantile` type 7).
 ```python
 sp.box(df, x="dose", y="weight", whis=(5, 95))          # whiskers at percentiles
 ```
+<!-- figure: box-what-the-box-shows -->
+
+![What the box shows: output of the example above.](../assets/figures/box-what-the-box-shows.svg)
+
+*What the box shows: output of the example above.*
 
 ```python
 sp.box(df, x="dose", y="weight", whis="range")          # min to max, no outliers
@@ -143,6 +159,11 @@ so whiskers and outliers follow the axis.
 ```python
 sp.box(df, x="dose", y="weight", hue="sex")
 ```
+<!-- figure: box-groups -->
+
+![Groups: output of the example above.](../assets/figures/box-groups.svg)
+
+*Groups: output of the example above.*
 
 Groups sit side by side within each category and are coloured from the
 palette. Rename them with `.grouplabels({"F": "Female", "M": "Male"})`.
@@ -157,6 +178,11 @@ whiskers are then no longer drawn twice:
 ```python
 sp.box(df, x="dose", y="weight").points()
 ```
+<!-- figure: box-showing-every-value -->
+
+![Showing every value: output of the example above.](../assets/figures/box-showing-every-value.svg)
+
+*Showing every value: output of the example above.*
 
 | `kind` | Placement | Like |
 |---|---|---|
@@ -201,6 +227,11 @@ sp.box(df, x="dose", y="weight", edgecolor="black", linewidth=1)
     .refline(20)            # dashed line, e.g. a baseline
 )
 ```
+<!-- figure: box-means-sample-sizes-and-reference-lines -->
+
+![.mean() adds mean diamonds, .show_n() reports the sample sizes, and .refline(20) marks a baseline.](../assets/figures/box-means-sample-sizes-and-reference-lines.svg)
+
+*`.mean()` adds mean diamonds, `.show_n()` reports the sample sizes, and `.refline(20)` marks a baseline.*
 
 With `hue`, `.show_n()` lists one n per group, in legend order
 (`n = 15, 15`).
@@ -246,6 +277,11 @@ Brackets are stacked so that none of them overlap:
 ```python
 sp.box(df, x="dose", y="weight").compare(ref="0", correction="holm")
 ```
+<!-- figure: box-significance-brackets -->
+
+![Significance brackets: output of the example above.](../assets/figures/box-significance-brackets.svg)
+
+*Significance brackets: output of the example above.*
 
 Choose what to compare:
 

@@ -22,10 +22,21 @@ df = pd.DataFrame(rows)
 
 sp.line(df, x="day", y="weight", hue="diet", error="ci")
 ```
+<!-- figure: line-overview -->
+
+![Line example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/line-overview.svg)
+
+*Line example rendered by SecretPlots. All data on this page are synthetic.*
 
 Every example on this page uses the `df` above: body weight of 18 mice (6 per
 diet) measured daily for 15 days. Like every SecretPlots plot, nothing is drawn
 until the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
+
+!!! tip "Explore the options from Python"
+    Run `sp.LinePlot.options()` to list chainable steps, then
+    `sp.LinePlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -123,6 +134,11 @@ point a gap; it is not silently excluded from the summary.
 ```python
 sp.line(df, x="day", y="weight", hue="diet")
 ```
+<!-- figure: line-groups-dashes-and-markers -->
+
+![Groups, dashes and markers: output of the example above.](../assets/figures/line-groups-dashes-and-markers.svg)
+
+*Groups, dashes and markers: output of the example above.*
 
 `style=` varies the dash pattern; with `.markers()` it also varies the marker
 shape. It can be the same column as `hue`, which helps in black-and-white
@@ -165,6 +181,11 @@ Rename groups with `.grouplabels()` and the legend title with
 ```python
 sp.line(df, x="day", y="weight", hue="diet", error="sd")
 ```
+<!-- figure: line-error-bands-and-error-bars -->
+
+![Error bands and error bars: output of the example above.](../assets/figures/line-error-bands-and-error-bars.svg)
+
+*Error bands and error bars: output of the example above.*
 
 `.errorbars("bars")` draws error bars at each x instead of a band. When groups
 share x values their bars overlap; `dodge=` moves them apart (a fraction of the
@@ -235,6 +256,11 @@ give them in doesn't matter.
     .errorbars(level=(0.5, 0.8, 0.95))
 )
 ```
+<!-- figure: line-fan-charts-nested-intervals -->
+
+![error="pi" with .errorbars(level=(0.5, 0.8, 0.95)) shows nested percentile intervals; overlapping bands appear darker.](../assets/figures/line-fan-charts-nested-intervals.svg)
+
+*`error="pi"` with `.errorbars(level=(0.5, 0.8, 0.95))` shows nested percentile intervals; overlapping bands appear darker.*
 
 ```python
 (
@@ -292,6 +318,11 @@ together:
 ```python
 sp.line(df, x="day", y="weight", hue="diet", units="mouse")
 ```
+<!-- figure: line-individual-units-spaghetti-plots -->
+
+![units="mouse" shows individual trajectories behind the group summary.](../assets/figures/line-individual-units-spaghetti-plots.svg)
+
+*`units="mouse"` shows individual trajectories behind the group summary.*
 
 With `estimator=None`, only the individual lines are drawn:
 
@@ -311,6 +342,11 @@ that would overlap are moved apart. `values=` adds the last value:
     .endlabels(values=".1f")
 )
 ```
+<!-- figure: line-direct-labels-at-the-line-ends -->
+
+![Direct labels at the line ends: output of the example above.](../assets/figures/line-direct-labels-at-the-line-ends.svg)
+
+*Direct labels at the line ends: output of the example above.*
 
 Without groups, `values=` alone labels the last value:
 
@@ -337,6 +373,11 @@ labels.
 ```python
 sp.line(ts).fill(gradient=True).endlabels(values=".0f")
 ```
+<!-- figure: line-shading-under-a-line -->
+
+![.fill(gradient=True) fades the fill toward zero; .endlabels(values=".0f") identifies the series at its endpoint.](../assets/figures/line-shading-under-a-line.svg)
+
+*`.fill(gradient=True)` fades the fill toward zero; `.endlabels(values=".0f")` identifies the series at its endpoint.*
 
 ```python
 sp.line(ts).fill(to=100, alpha=0.3)

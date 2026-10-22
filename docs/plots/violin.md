@@ -22,11 +22,22 @@ df = pd.DataFrame(
 
 sp.violin(df, x="dose", y="weight")
 ```
+<!-- figure: violin-overview -->
+
+![Violin example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/violin-overview.svg)
+
+*Violin example rendered by SecretPlots. All data on this page are synthetic.*
 
 Violins take the same data as [box plots](box.md), and the same steps:
 `.points()`, `.mean()`, `.show_n()`, `.refline()`, `.compare()`,
 `.ticklabels()`, `.grouplabels()`, `.test_results()`, `.caption()` and
 `.source_data()`. They are documented on the box plot page.
+
+!!! tip "Explore the options from Python"
+    Run `sp.ViolinPlot.options()` to list chainable steps, then
+    `sp.ViolinPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -70,6 +81,11 @@ sp.raincloud(data, x=None, y=None, hue=None, *,
 ```python
 sp.violin(df, x="dose", y="weight", bw_adjust=0.5)     # more detail
 ```
+<!-- figure: violin-density-and-scaling -->
+
+![bw_adjust=0.5 uses a smaller smoothing bandwidth to expose finer distribution detail.](../assets/figures/violin-density-and-scaling.svg)
+
+*`bw_adjust=0.5` uses a smaller smoothing bandwidth to expose finer distribution detail.*
 
 ```python
 sp.violin(df, x="dose", y="weight", scale="count")     # bigger groups look bigger
@@ -88,6 +104,11 @@ the log scale.
 ```python
 sp.violin(df, x="dose", y="weight", inner="quartiles")  # dashed quartiles, solid median
 ```
+<!-- figure: violin-inside-the-violin -->
+
+![inner="quartiles" draws quartile and median lines inside each density.](../assets/figures/violin-inside-the-violin.svg)
+
+*`inner="quartiles"` draws quartile and median lines inside each density.*
 
 ```python
 sp.violin(df, x="dose", y="weight", inner=None).points(kind="quasirandom")
@@ -106,6 +127,11 @@ sp.violin(df, x="dose", y="weight", hue="sex")
 ```python
 sp.violin(df, x="dose", y="weight", hue="sex", split=True, inner="quartiles")
 ```
+<!-- figure: violin-groups-and-split-violins -->
+
+![split=True puts the two hue groups on opposite halves; inner="quartiles" retains the summaries.](../assets/figures/violin-groups-and-split-violins.svg)
+
+*`split=True` puts the two hue groups on opposite halves; `inner="quartiles"` retains the summaries.*
 
 ## Half violins and rainclouds
 
@@ -116,6 +142,11 @@ sp.violin(df, x="dose", y="weight", side="right")
 ```python
 sp.raincloud(df, x="dose", y="weight")
 ```
+<!-- figure: violin-half-violins-and-rainclouds -->
+
+![sp.raincloud() combines a half density, a box summary, and the observed values; its default orientation is horizontal.](../assets/figures/violin-half-violins-and-rainclouds.svg)
+
+*`sp.raincloud()` combines a half density, a box summary, and the observed values; its default orientation is horizontal.*
 
 Rainclouds are horizontal by default, with the cloud above each category and
 the rain below it. Change how the dots are placed with
@@ -135,6 +166,11 @@ sp.violin(df, x="dose", y="weight", inner=None, edgecolor="none").points(
     color="black", edgecolor="white", linewidth=0.4
 )
 ```
+<!-- figure: violin-points-and-significance-brackets -->
+
+![Points and significance brackets: output of the example above.](../assets/figures/violin-points-and-significance-brackets.svg)
+
+*Points and significance brackets: output of the example above.*
 
 ```python
 (

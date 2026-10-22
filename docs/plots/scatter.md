@@ -23,10 +23,21 @@ df = pd.DataFrame(
 
 sp.scatter(df, x="age", y="bp", hue="sex").fit("linear")
 ```
+<!-- figure: scatter-overview -->
+
+![Scatter example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/scatter-overview.svg)
+
+*Scatter example rendered by SecretPlots. All data on this page are synthetic.*
 
 Every example on this page uses the `df` above (age, systolic blood pressure,
 sex and BMI for 60 people). Like every SecretPlots plot, nothing is drawn until
 the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
+
+!!! tip "Explore the options from Python"
+    Run `sp.ScatterPlot.options()` to list chainable steps, then
+    `sp.ScatterPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -119,6 +130,11 @@ Groups appear in order of first appearance (or the category order of a pandas
 df["smoker"] = rng.choice(["no", "yes"], 60)
 sp.scatter(df, x="age", y="bp", hue="sex", style="smoker")
 ```
+<!-- figure: scatter-marker-shape-from-a-column -->
+
+![style="smoker" changes marker shape independently of the colors assigned by hue="sex".](../assets/figures/scatter-marker-shape-from-a-column.svg)
+
+*`style="smoker"` changes marker shape independently of the colors assigned by `hue="sex"`.*
 
 Each `style` value gets its own marker shape. The first value uses the theme's
 `marker` (default circle), and the rest follow in this order: square, triangle,
@@ -142,6 +158,11 @@ still follow `hue`.
 ```python
 sp.scatter(df, x="age", y="bp", size="bmi")
 ```
+<!-- figure: scatter-marker-size-from-a-column-bubbles -->
+
+![size="bmi" maps the BMI column to marker area and adds reference sizes to the legend.](../assets/figures/scatter-marker-size-from-a-column-bubbles.svg)
+
+*`size="bmi"` maps the BMI column to marker area and adds reference sizes to the legend.*
 
 Marker **area** grows linearly from 0.4× to 3× the theme's `marker_size`
 area, from the smallest to the largest value in the column. The legend shows
@@ -208,6 +229,11 @@ Marker look comes from four theme fields:
 ```python
 sp.scatter(df, x="age", y="bp").theme(marker_size=8, marker_alpha=0.5)
 ```
+<!-- figure: scatter-marker-style -->
+
+![marker_size=8 increases the points and marker_alpha=0.5 reveals overlapping observations.](../assets/figures/scatter-marker-style.svg)
+
+*`marker_size=8` increases the points and `marker_alpha=0.5` reveals overlapping observations.*
 
 ```python
 sp.scatter(df, x="age", y="bp", hue="sex").theme(marker="s")
@@ -221,6 +247,11 @@ in a preset's `[plots.scatter]` section.
 ```python
 sp.scatter(df, x="age", y="bp").colors("#2a9d8f")                       # one color
 ```
+<!-- figure: scatter-colors-and-highlighting -->
+
+![.colors("#2a9d8f") applies a single teal color to the points.](../assets/figures/scatter-colors-and-highlighting.svg)
+
+*`.colors("#2a9d8f")` applies a single teal color to the points.*
 
 ```python
 sp.scatter(df, x="age", y="bp", hue="sex").colors({"F": "#e76f51", "M": "#264653"})

@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --group docs --group dev
+      - run: uv pip install -r docs/requirements.txt
+      - run: .venv/bin/python scripts/render_docs.py
+      - run: .venv/bin/python -m pytest tests/test_docs.py
+      - run: .venv/bin/mkdocs build --strict
+
   lint:
     runs-on: ubuntu-latest
     steps:

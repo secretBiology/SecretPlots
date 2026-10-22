@@ -539,7 +539,8 @@ def scatter(
     Args:
         data: DataFrame or dict of columns (with ``x``/``y`` names), or an array
             with two columns. Leave out to pass ``x=`` and ``y=`` as sequences.
-        x, y: Column names (or sequences of numbers when ``data`` is omitted).
+        x: Column name for x (or a numeric sequence when ``data`` is omitted).
+        y: Column name for y (or a numeric sequence when ``data`` is omitted).
         hue: Column with groups, drawn in different colors.
         size: Numeric column scaling marker area (with a size legend).
         style: Column with groups, drawn in different marker shapes (up to

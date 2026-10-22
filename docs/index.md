@@ -1,37 +1,102 @@
 # SecretPlots
 
-Easy, publication-ready plots in your own visual design.
+<div class="hero" markdown>
+
+<p class="eyebrow">Python · Scientific figures · Visual storytelling</p>
+
+## Let the data make an impression.
+
+Turn a table into a thoughtful figure with a few readable steps. Explore
+uncertainty, show individual observations, and shape the result for a paper,
+a presentation, or the web.
+
+[Make your first figure](quickstart.md){ .md-button .md-button--primary }
+[Explore the gallery](gallery.md){ .md-button }
+
+</div>
+
+![A polished treatment-response chart with explanatory headline, error bars, values, and source text.](assets/figures/quickstart-styled.svg)
+
+*Real SecretPlots output, generated from the [quickstart example](quickstart.md).
+All datasets in the visual guides are synthetic.*
+
+## A small API with room to explore
 
 ```python
 import SecretPlots as sp
 
-sp.use(preset="nature")
-sp.bar(df, x="gene", y="tpm", hue="sample", error="sd").values(".1f").save("fig1.pdf")
+plot = (
+    sp.bar({"Control": 12, "Low dose": 19, "High dose": 28})
+    .colors({
+        "Control": "#9baebc",
+        "Low dose": "#36a99a",
+        "High dose": "#5b57cf",
+    })
+    .values(".0f")
+    .labels(y="Response (a.u.)")
+)
+plot.save("response.svg")
 ```
 
-## How style is decided
+!!! tip "Don't memorize options—ask the plot"
+    `plot.options()` lists the steps you can chain.
+    `plot.options("legend")` shows one step's parameters, allowed values, and defaults.
+    `sp.BarPlot.options("values")` works without data.
+    `sp.theme_options()` lists visual style fields.
+    Follow the **[option discovery guide](options.md)** to search all of these tables.
 
-Every style field is looked up in these layers, first match wins:
+<div class="grid cards" markdown>
 
-1. your settings on the plot (`.theme(font_size=8)`, `.colors([...])`)
-2. the preset's per-plot section (`[plots.bar]`)
-3. the preset's theme
-4. your active theme (`sp.use(theme="dark")`)
-5. the built-in `"secret"` theme (defines everything)
+-   **Start with a working example**
 
-Then the preset's limits (e.g. Nature's 5–7 pt text range) are applied to
-values that came from themes and presets. Values you set on the plot are kept
-even if they break a limit, with a `LimitExceededWarning`; set
-`sp.config.enforce_limits = True` to apply the limits to them too. Use
-`plot.explain("primary")` or `plot.style_report()` to see where each value came from.
+    ---
 
-## Plot types
+    Install, create, label, style, and export a complete figure.
 
-- [Bar plots](plots/bar.md)
-- [Scatter plots](plots/scatter.md)
-- [Line plots](plots/line.md)
-- [Area plots and fill between](plots/area.md)
-- [Histograms](plots/histogram.md)
-- [Heatmaps](plots/heatmap.md)
-- [Box plots](plots/box.md)
-- [Violin plots and rainclouds](plots/violin.md)
+    [Your first figure →](quickstart.md)
+
+-   **Choose by what you want to show**
+
+    ---
+
+    Compare categories, follow a trend, or explore a distribution.
+
+    [Visual gallery →](gallery.md)
+
+-   **Find the setting you need**
+
+    ---
+
+    Search methods, inspect sub-options, and explain resolved styles.
+
+    [Find any option →](options.md)
+
+-   **Design for your destination**
+
+    ---
+
+    Reuse the same data with journal, screen, and presentation presets.
+
+    [Presets and themes →](presets.md)
+
+</div>
+
+## Choose a plot
+
+| Your question | Start here | Useful options |
+| --- | --- | --- |
+| How do categories compare? | [Bar](plots/bar.md) | `error`, `orient`, `.values()`, `.highlight()` |
+| How are two variables related? | [Scatter](plots/scatter.md) | `hue`, `size`, `style`, `.fit()` |
+| How does a response change? | [Line](plots/line.md) | `error`, `units`, `.errorbars()`, `.endlabels()` |
+| How does a total or interval evolve? | [Area / fill between](plots/area.md) | `stack`, `.split()`, `.gradient()` |
+| What is the shape of one distribution? | [Histogram](plots/histogram.md) | `bins`, `stat`, `.kde()`, `.rug()` |
+| Where are the patterns in a matrix? | [Heatmap](plots/heatmap.md) | `.scale()`, `.cmap()`, `.cluster()`, `.values()` |
+| How do medians and spreads compare? | [Box](plots/box.md) | `.points()`, `.mean()`, `.show_n()` |
+| How do whole distributions compare? | [Violin / raincloud](plots/violin.md) | `inner`, `split`, `bw_adjust`, `.points()` |
+
+## From exploration to a finished figure
+
+The [plot guides](gallery.md) pair runnable code with rendered figures and option
+tables. [Data and workflow](usage.md) covers missing values, independent copies,
+axis formatting, and Matplotlib integration. The [API reference](api.md) provides
+signatures and detailed method documentation.

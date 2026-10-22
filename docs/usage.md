@@ -1,4 +1,4 @@
-# Data handling and reusable plots
+# Data, formatting, and export
 
 Every plot constructor defaults to `missing="raise"`. Missing values (`None`,
 `NaN`, `pd.NA`, `NaT`) and numeric infinities in the plotted fields produce an
@@ -88,3 +88,86 @@ including long unbroken words. If the wrapped text leaves too little plot area,
 increase `.size(height="5in")`, increase the width, or shorten the text. The
 figure retains its requested physical dimensions; export does not silently
 enlarge it to accommodate overflow.
+
+
+## See missing-data policies
+
+The same measurements can tell different visual stories when a time point is
+missing. Choose the policy explicitly instead of silently changing the data.
+
+```python
+observed = [1.0, 2.2, np.nan, 4.0, 3.4, 5.2]
+sp.line(x=range(6), y=observed, missing="gap").markers().labels(
+    x="Time", y="Signal", title="Gap: preserve the missing position"
+)
+```
+<!-- figure: usage-gap -->
+
+![A time series with a visible break at its missing observation.](assets/figures/usage-gap.svg)
+
+*`missing="gap"` breaks the line around the missing position; `.markers()`
+makes the observed values visible.*
+
+```python
+sp.line(x=range(6), y=observed, missing="drop").markers().labels(
+    x="Time", y="Signal", title="Drop: connect the remaining observations"
+)
+```
+<!-- figure: usage-drop -->
+
+![The same observations connected across the missing time point.](assets/figures/usage-drop.svg)
+
+*`missing="drop"` removes the invalid observation and connects the remaining
+points. This visual connection is not an imputed measurement.*
+
+## Format numbers without changing them
+
+```python
+sp.bar({"Search": 0.42, "Direct": 0.35, "Referral": 0.23}).format_axis(
+    "y", "percent", decimals=0
+).values("{:.0%}").labels(x="", y="Share of visits")
+```
+<!-- figure: usage-percent -->
+
+![Three traffic-source bars with percentage ticks and percentage value labels.](assets/figures/usage-percent.svg)
+
+*`.format_axis("y", "percent")` controls ticks; `.values("{:.0%}")` controls
+bar labels. The source values remain fractions.*
+
+```python
+sp.BarPlot.options("format_axis")
+```
+
+## Export and Matplotlib
+
+Use SVG for sharp web graphics, PDF for vector artwork, and PNG for raster
+output. A preset may warn if you choose a format outside its expected list.
+
+```python
+plot = sp.line([2, 3, 5, 4, 7]).labels(x="Time", y="Response")
+plot.save("figure.svg")
+plot.save("figure.pdf")
+plot.save("figure.png", dpi=300)
+```
+
+`.fig` and `.ax` expose the underlying Matplotlib figure and axes. For a
+multi-panel layout, supply axes you created yourself:
+
+```python
+import matplotlib.pyplot as plt
+
+fig, axes = plt.subplots(1, 2, figsize=(8, 3), layout="constrained")
+sp.line([2, 3, 5, 4, 7]).labels(title="Trajectory").render(ax=axes[0])
+sp.bar({"A": 4, "B": 7, "C": 5}).labels(title="Comparison").render(ax=axes[1])
+fig.savefig("panels.svg")
+plt.close(fig)
+```
+
+Your figure owns the panel layout and dimensions when you pass `ax=`.
+Make direct artist changes after finishing the SecretPlots chain: changing the
+plot specification can trigger a fresh render. `.copy()` copies the specification
+and data, not manual Matplotlib artist edits.
+
+For data export, call `.source_data()` on plot types that provide it (see their
+guides). This returns the data used for drawing, including summaries where
+applicable; it is distinct from saving the figure.

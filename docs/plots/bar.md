@@ -10,17 +10,29 @@ import SecretPlots as sp
 df = pd.DataFrame(
     {
         "gene": ["GATA4", "NKX2-5", "TBX5", "HAND2"] * 6,
-        "tpm": [12, 8, 15, 4, 13, 9, 14, 5, 11, 7, 16, 4] * 2,
+        "tpm": [12, 8, 15, 4, 13, 9, 14, 5, 11, 7, 16, 4,
+                18, 12, 20, 8, 20, 13, 22, 9, 19, 11, 21, 7],
         "sample": ["ctrl"] * 12 + ["treated"] * 12,
     }
 )
 
 sp.bar(df, x="gene", y="tpm", hue="sample", error="sd")
 ```
+<!-- figure: bar-overview -->
+
+![Bar example rendered by SecretPlots. All data on this page are synthetic.](../assets/figures/bar-overview.svg)
+
+*Bar example rendered by SecretPlots. All data on this page are synthetic.*
 
 Every example on this page uses the `df` above. Nothing is drawn until the plot
 is displayed in a notebook, saved, shown, or you access `.fig` / `.ax`, so you
 can chain as many steps as you like.
+
+!!! tip "Explore the options from Python"
+    Run `sp.BarPlot.options()` to list chainable steps, then
+    `sp.BarPlot.options("legend")` for a step's parameters and defaults.
+    Use `sp.theme_options()` for style fields. See the [option discovery guide](../options.md)
+    for searching these tables and inspecting constructor arguments.
 
 ## Contents
 
@@ -159,6 +171,11 @@ values downward.
 ```python
 sp.bar(df, x="gene", y="tpm", hue="sample", stack=True)
 ```
+<!-- figure: bar-groups-side-by-side-or-stacked -->
+
+![stack=True adds group values within each category; each segment retains its group color.](../assets/figures/bar-groups-side-by-side-or-stacked.svg)
+
+*`stack=True` adds group values within each category; each segment retains its group color.*
 
 Reorder groups with `hue_order=`:
 
@@ -187,6 +204,11 @@ their stack total.
 ```python
 sp.bar(df, x="gene", y="tpm", orient="h")
 ```
+<!-- figure: bar-horizontal-bars -->
+
+![orient="h" puts category names on the vertical axis and values on the horizontal axis.](../assets/figures/bar-horizontal-bars.svg)
+
+*`orient="h"` puts category names on the vertical axis and values on the horizontal axis.*
 
 or, on an existing plot, `.orient("h")`. Horizontal bars suit long category
 names. The first category is drawn at the top.
@@ -206,6 +228,11 @@ sp.bar(df, x="gene", y="tpm", orient="h").labels(x="TPM", y="").xlim(0, 20)
 ```python
 sp.bar(df, x="gene", y="tpm").values(".1f")
 ```
+<!-- figure: bar-value-labels -->
+
+![.values(".1f") prints the summarized value above each bar to one decimal place.](../assets/figures/bar-value-labels.svg)
+
+*`.values(".1f")` prints the summarized value above each bar to one decimal place.*
 
 ```python
 shares = {"A": 0.42, "B": 0.35, "C": 0.23}
@@ -251,6 +278,11 @@ turns off the automatic rotation.
 ```python
 sp.bar(df, x="gene", y="tpm").colors("#2a9d8f")                 # one color
 ```
+<!-- figure: bar-colors-and-highlighting -->
+
+![.colors("#2a9d8f") gives every ungrouped bar the same teal fill.](../assets/figures/bar-colors-and-highlighting.svg)
+
+*`.colors("#2a9d8f")` gives every ungrouped bar the same teal fill.*
 
 ```python
 sp.bar(df, x="gene", y="tpm", hue="sample").colors(["#264653", "#e9c46a"])  # palette
@@ -314,6 +346,11 @@ it works the same way everywhere.
 ```python
 sp.bar(df, x="gene", y="tpm").refline(10)                  # horizontal line at 10
 ```
+<!-- figure: bar-reference-lines -->
+
+![.refline(10) marks a horizontal comparison threshold at 10.](../assets/figures/bar-reference-lines.svg)
+
+*`.refline(10)` marks a horizontal comparison threshold at 10.*
 
 ```python
 sp.bar(df, x="gene", y="tpm").refline("TBX5", axis="x")    # vertical, through a bar
@@ -405,6 +442,11 @@ sp.bar(df, x="gene", y="tpm").chrome(
     note="HAND2 below detection in one replicate",
 )
 ```
+<!-- figure: bar-headline-subtitle-source-and-note -->
+
+![Headline, subtitle, source and note: output of the example above.](../assets/figures/bar-headline-subtitle-source-and-note.svg)
+
+*Headline, subtitle, source and note: output of the example above.*
 
 Each call only changes the fields you pass. Chrome is drawn only when
 SecretPlots creates the figure (not with `.render(ax=...)`). Journal figures

@@ -350,7 +350,9 @@ def violin(
         data: Same inputs as :func:`box`: a long DataFrame with ``y=`` (and
             ``x=``/``hue=``), a wide DataFrame, a dict, a Series, list or
             array.
-        x, y, hue: Column names for categories, values and groups.
+        x: Column name for categories.
+        y: Column name for numeric values.
+        hue: Column name for groups.
         bw_adjust: Multiplies the automatic bandwidth (Scott's rule on a
             robust spread). Smaller follows the data more closely.
         cut: How far past the smallest and largest value to draw, in
@@ -370,7 +372,8 @@ def violin(
             only the outline.
         linewidth: Width of the violin outlines in pt; 0 removes them.
         orient: ``"v"`` (values up) or ``"h"`` (values to the right).
-        order, hue_order: Explicit category / group order.
+        order: Explicit category order.
+        hue_order: Explicit group order.
         missing: "raise" (default) rejects missing/non-finite data; "drop"
             ignores affected observations.
 
