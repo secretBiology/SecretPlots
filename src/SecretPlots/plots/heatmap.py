@@ -48,6 +48,10 @@ from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
 
 Axis = Literal["row", "col"]
 ScaleMethod = Literal["zscore", "minmax"]
+# Module-level aliases: on Python 3.14 (lazy annotations) `cluster.Method` inside
+# the class body would resolve `cluster` to the HeatmapPlot.cluster method.
+ClusterMethod = cluster.Method
+ClusterMetric = cluster.Metric
 ColorbarPosition = Literal["right", "bottom", "none"]
 Extend = Literal["neither", "both", "min", "max"]
 Triangle = Literal["upper", "lower"]
@@ -539,8 +543,8 @@ class HeatmapPlot(Plot):
         rows: bool = True,
         cols: bool = True,
         *,
-        method: cluster.Method = "average",
-        metric: cluster.Metric = "euclidean",
+        method: ClusterMethod = "average",
+        metric: ClusterMetric = "euclidean",
         dendrogram: bool = True,
         split_rows: int | None = None,
         split_cols: int | None = None,

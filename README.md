@@ -12,18 +12,18 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/SecretPlots/"><img src="https://img.shields.io/pypi/v/SecretPlots?color=0f8b8d&label=PyPI" alt="PyPI"></a>
+  <a href="https://pypi.org/project/SecretPlots/"><img src="https://img.shields.io/pypi/v/SecretPlots?include_prereleases&color=0f8b8d&label=PyPI" alt="PyPI"></a>
   <a href="https://pypi.org/project/SecretPlots/"><img src="https://img.shields.io/pypi/pyversions/SecretPlots?color=5b4fcf" alt="Python versions"></a>
   <a href="https://github.com/secretBiology/SecretPlots/actions/workflows/ci.yml"><img src="https://github.com/secretBiology/SecretPlots/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://secretplots.readthedocs.io"><img src="https://img.shields.io/readthedocs/secretplots?label=docs" alt="Documentation"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/secretBiology/SecretPlots?color=e4572e" alt="MIT license"></a>
+  <a href="https://github.com/secretBiology/SecretPlots/blob/master/LICENSE"><img src="https://img.shields.io/github/license/secretBiology/SecretPlots?color=e4572e" alt="MIT license"></a>
 </p>
 
 <p align="center">
   <a href="https://secretplots.readthedocs.io"><b>Documentation</b></a> ·
   <a href="https://secretplots.readthedocs.io/en/latest/gallery/">Gallery</a> ·
   <a href="https://secretplots.readthedocs.io/en/latest/publication/">Journal-ready figures</a> ·
-  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="https://github.com/secretBiology/SecretPlots/blob/master/CHANGELOG.md">Changelog</a> ·
   <a href="https://github.com/secretBiology/SecretPlots/issues">Report a bug</a>
 </p>
 
@@ -43,7 +43,9 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
 )
 ```
 
-> **Status:** version 1.0 is a ground-up rewrite and is in **alpha**. APIs may still change.
+> **Status:** version 1.0 is a ground-up rewrite and is in **alpha**. APIs may still
+> change. It is not compatible with the 0.1.x releases; pin `SecretPlots<1` if you
+> depend on the old API.
 
 ## Why SecretPlots?
 
@@ -68,8 +70,11 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
 ## Installation
 
 ```bash
-pip install SecretPlots          # or: uv add SecretPlots
+pip install --pre SecretPlots    # or: uv add --prerelease=allow SecretPlots
 ```
+
+The `--pre` flag is needed while 1.0 is in alpha. Without it, pip installs the
+legacy 0.1.x release.
 
 Requires Python 3.12+. Depends only on matplotlib, numpy, pandas and SecretColors.
 
@@ -198,7 +203,7 @@ uv run python scripts/render_docs.py      # regenerate documentation figures
 uv run mkdocs serve                       # preview the documentation
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for adding presets and documentation.
+See [CONTRIBUTING.md](https://github.com/secretBiology/SecretPlots/blob/master/CONTRIBUTING.md) for adding presets and documentation.
 Bug reports, preset requests and pull requests are very welcome.
 
 ## License
