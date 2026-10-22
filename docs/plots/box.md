@@ -203,6 +203,25 @@ sp.box(df, x="dose", y="weight", edgecolor="black", linewidth=1)
 With `hue`, `.show_n()` lists one n per group, in legend order
 (`n = 15, 15`).
 
+`label=` is a template with `{n}` where the number goes, in Python's format
+syntax, so you can add thousand separators or change the wording. `sep=`
+goes between the numbers of several groups:
+
+```python
+sp.box(df, x="dose", y="weight").show_n(label="n = {n:,}")     # n = 1,250
+```
+
+```python
+sp.box(df, x="dose", y="weight").show_n(label="({n})")         # (30)
+```
+
+```python
+sp.box(df, x="dose", y="weight", hue="sex").show_n(label="{n} mice", sep=" / ")
+```
+
+`{n:_}` uses underscores as thousand separators. Write `{{` and `}}` for
+literal braces.
+
 ## Significance brackets
 
 `.compare()` runs a two-sample test and draws a bracket with the result.

@@ -36,7 +36,8 @@ All notable changes to this project are documented here. The format follows
   (figure-legend text defining the elements), `.source_data()`.
   `SmallSampleWarning` below 5 values per box (10 per violin) without points.
   `edgecolor=` / `linewidth=` for box and violin outlines and for the
-  ring around `.points()` dots.
+  ring around `.points()` dots. `.show_n(label=..., sep=...)` formats the
+  sample sizes (e.g. `"n = {n:,}"`).
 - Numpy-only statistics module (`SecretPlots.core.stats`): scipy is not needed.
 
 ### Removed

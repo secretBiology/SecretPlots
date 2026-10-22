@@ -4,6 +4,7 @@ individual points, means, sample sizes and significance brackets."""
 
 import difflib
 import math
+import re
 from abc import abstractmethod
 from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
@@ -63,6 +64,9 @@ _SWARM_GAP = 1.05  # spacing between swarm points, in point diameters
 _BRACKET_STEP = 0.1
 _BRACKET_LEG = 0.02
 _BRACKET_GAP = 0.04
+#: The ``{n}`` / ``{n:,}`` field in a ``.show_n(label=...)`` template; group 1
+#: is the format spec.
+_N_FIELD = re.compile(r"(?<!\{)\{n(?::([^{}]*))?\}(?!\})")
 
 
 # ------------------------------------------------------------------ data input
@@ -341,6 +345,8 @@ class DistributionPlot(Plot):
         self._points: dict[str, Any] | None = None
         self._mean = False
         self._show_n = False
+        self._n_label = "n = {n}"
+        self._n_sep = ", "
         self._compare: dict[str, Any] | None = None
         self._reflines: tuple[float, ...] = ()
         self._tick_rotation: float | None = None
@@ -421,14 +427,35 @@ class DistributionPlot(Plot):
         self._mean = show
         return self._changed()
 
-    def show_n(self, show: bool = True) -> Self:
+    def show_n(
+        self, show: bool = True, *, label: str = "n = {n}", sep: str = ", "
+    ) -> Self:
         """Print the number of values under each category label (one number
         per group, in legend order, with ``hue``).
 
         Args:
             show: ``False`` hides them again.
+            label: Template with ``{n}`` where the number goes, using Python's
+                format syntax: ``"n = {n:,}"`` adds thousand separators
+                (1,250), ``"({n})"`` or ``"{n} cells"`` change the text.
+            sep: Between the numbers of several groups, e.g. ``" / "``.
         """
+        fields = _N_FIELD.findall(label)
+        if len(fields) != 1:
+            raise ValueError(
+                f"label must contain {{n}} exactly once, e.g. 'n = {{n:,}}'; "
+                f"got {label!r}"
+            )
+        try:
+            format(1000, fields[0])
+        except ValueError:
+            raise ValueError(
+                f"Bad number format {{n:{fields[0]}}} in label; try {{n:,}} "
+                "for thousand separators"
+            ) from None
         self._show_n = show
+        self._n_label = label
+        self._n_sep = sep
         return self._changed()
 
     def refline(self, *values: float) -> Self:
@@ -1015,10 +1042,12 @@ class DistributionPlot(Plot):
                 xy=self._xy((x1 + x2) / 2, float(self._inv(level))),
                 xytext=(0, 1.5) if vertical else (1.5, 0),
                 textcoords="offset points",
-                ha="center" if vertical else "left",
-                va="bottom" if vertical else "center",
+                # Aligned before rotating: centred along the bracket, on its
+                # outer side (turned clockwise, the text's bottom faces left).
+                ha="center",
+                va="bottom",
                 rotation=0 if vertical else -90,
-                rotation_mode="anchor" if not vertical else "default",
+                rotation_mode="anchor",
                 fontsize=style.sizes.tick,
                 color=theme.text_color,
                 zorder=6,
@@ -1026,6 +1055,15 @@ class DistributionPlot(Plot):
         top = float(self._inv(highest + step * 0.8))
         ax.update_datalim([self._xy(by_key[next(iter(by_key))].center, top)])
         ax.autoscale_view()
+
+    def _n_text(self, counts: list[int]) -> str:
+        """``counts`` formatted into the ``.show_n(label=...)`` template."""
+        match = _N_FIELD.search(self._n_label)
+        assert match is not None
+        numbers = self._n_sep.join(format(c, match.group(1) or "") for c in counts)
+        before = self._n_label[: match.start()].replace("{{", "{").replace("}}", "}")
+        after = self._n_label[match.end() :].replace("{{", "{").replace("}}", "}")
+        return before + numbers + after
 
     def _tick_texts(self) -> list[str]:
         labels = []
@@ -1037,7 +1075,7 @@ class DistributionPlot(Plot):
                     for g in self._groups
                     if len(self._values(cat, g))
                 ]
-                n = f"n = {', '.join(map(str, counts))}"
+                n = self._n_text(counts)
                 text = f"{text}\n{n}" if text else n
             labels.append(text)
         return labels

@@ -377,3 +377,50 @@ def test_outline_validation(mice: pd.DataFrame) -> None:
         sp.box(mice, x="dose", y="weight", edgecolor="blak")
     with pytest.raises(ValueError, match="linewidth"):
         sp.box(mice, x="dose", y="weight").points(linewidth=-1)
+
+
+@pytest.mark.parametrize("orient", ["v", "h"])
+def test_bracket_labels_sit_outside_their_brackets(
+    mice: pd.DataFrame, orient: str
+) -> None:
+    plot = sp.box(mice, x="dose", y="weight", orient=orient).compare(ref="0")
+    renderer = plot.fig.canvas.get_renderer()
+    brackets = [line for line in plot.ax.lines if len(line.get_xdata()) == 4]
+    for text, line in zip(plot.ax.texts, brackets, strict=True):
+        label = text.get_window_extent(renderer)
+        bracket = line.get_window_extent(renderer)
+        if orient == "v":
+            assert label.y0 >= bracket.y1 - 1  # above
+            assert label.x0 > bracket.x0
+            assert label.x1 < bracket.x1
+        else:
+            assert label.x0 >= bracket.x1 - 1  # to the right
+            assert label.y0 > bracket.y0
+            assert label.y1 < bracket.y1
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected"),
+    [
+        ({"label": "n = {n:,}"}, "n = 1,250"),
+        ({"label": "({n})"}, "(1250)"),
+        ({"label": "{n:_} cells"}, "1_250 cells"),
+        ({"label": "{{n}} = {n}"}, "{n} = 1250"),
+    ],
+)
+def test_show_n_label(kwargs: dict, expected: str) -> None:
+    plot = sp.box({"a": np.arange(1250.0)}).show_n(**kwargs)
+    assert plot.ax.get_xticklabels()[0].get_text() == f"a\n{expected}"
+
+
+def test_show_n_label_with_groups(mice: pd.DataFrame) -> None:
+    plot = sp.box(mice, x="dose", y="weight", hue="sex").show_n(
+        label="N: {n}", sep=" / "
+    )
+    assert plot.ax.get_xticklabels()[0].get_text() == "0\nN: 10 / 10"
+
+
+@pytest.mark.parametrize("label", ["count", "{n} and {n}", "{n:q}"])
+def test_show_n_bad_label(label: str) -> None:
+    with pytest.raises(ValueError, match="label"):
+        sp.box({"a": np.arange(10.0)}).show_n(label=label)
