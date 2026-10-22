@@ -1,6 +1,7 @@
 """Shared parts of line and area plots: values along an x axis (numbers, dates or
 categories), one series per ``hue`` group."""
 
+import string
 from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Literal, Self
@@ -17,12 +18,11 @@ from matplotlib.text import Annotation
 from matplotlib.ticker import ScalarFormatter
 
 from SecretPlots.core.data import _order, _relabel, _rename_map
-from SecretPlots.core.plot import Plot
+from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError
 
 XKind = Literal["numeric", "datetime", "category"]
-Axis = Literal["x", "y"]
 
 #: Gap between the end of a line and its label, in pt.
 _LABEL_PAD = 4.0
@@ -283,15 +283,15 @@ def spread(wanted: Sequence[float], sizes: Sequence[float]) -> list[float]:
     return placed
 
 
+def _has_group_field(template: str) -> bool:
+    return any(
+        field == "group" for _, field, _, _ in string.Formatter().parse(template)
+    )
+
+
 def _formatter(fmt: str) -> Any:
     template = fmt if "{" in fmt else "{:" + fmt + "}"
     return template.format
-
-
-def _text(value: Any) -> str:
-    if isinstance(value, pd.Timestamp | np.datetime64):
-        return str(pd.Timestamp(value).date())
-    return f"{value:.3g}" if _is_number(value) else str(value)
 
 
 class SeriesPlot(Plot):
@@ -304,12 +304,20 @@ class SeriesPlot(Plot):
         self._data = data
         self._end_labels = False
         self._end_values: str | None = None
-        self._reflines: dict[str, tuple[tuple[Any, ...], bool]] = {}
+        self._end_template: str | None = None
+        self._end_pad = _LABEL_PAD
         self._tick_rotation: float | None = None
         self._end_texts: list[Annotation] = []
 
     # ----------------------------------------------------------------- verbs
-    def endlabels(self, show: bool = True, *, values: str | None = None) -> Self:
+    def endlabels(
+        self,
+        show: bool = True,
+        *,
+        values: str | None = None,
+        label: str | None = None,
+        pad: float = _LABEL_PAD,
+    ) -> Self:
         """Name each line at its right end, in its color, instead of a legend
         (as news graphics do). Labels that would overlap are moved apart.
 
@@ -317,26 +325,28 @@ class SeriesPlot(Plot):
             show: ``False`` removes the labels and brings the legend back.
             values: Also print the last value, with a format like ``".1f"`` or
                 ``"{:.0%}"``. Without groups, the label is just this value.
+            label: Text in place of the group name, with ``{group}`` where the
+                name goes: ``"Diet {group}"`` adds a prefix. Without groups,
+                plain text such as ``"Revenue"`` names the single line.
+            pad: Gap in points before the labels. When the value axis is on
+                the right, the labels start after its tick labels.
         """
+        if pad < 0:
+            raise ValueError(f"pad is a gap in points and can't be negative; got {pad}")
         if values is not None:
             _formatter(values)(1.0)
+        if label is not None:
+            try:
+                label.format(group="")
+            except (KeyError, IndexError, ValueError):
+                raise ValueError(
+                    "label takes text with an optional {group} field, e.g. "
+                    f"'Diet {{group}}'; got {label!r}"
+                ) from None
         self._end_labels = show
         self._end_values = values
-        return self._changed()
-
-    def refline(self, *values: Any, axis: Axis = "y", label: bool = False) -> Self:
-        """Dashed reference lines, e.g. ``.refline(0)`` for a baseline or
-        ``.refline("2020-03-11", axis="x")`` for an event.
-
-        Args:
-            *values: Positions on ``axis``: numbers, dates or x categories. No
-                values removes the lines on that axis.
-            axis: ``"y"`` for horizontal lines, ``"x"`` for vertical ones.
-            label: Write the value next to each line.
-        """
-        if axis not in ("x", "y"):
-            raise ValueError("refline axis must be 'x' or 'y'")
-        self._reflines[axis] = (values, label)
+        self._end_template = label
+        self._end_pad = float(pad)
         return self._changed()
 
     def grouplabels(self, labels: Sequence[Any] | Mapping[Any, Any]) -> Self:
@@ -389,16 +399,11 @@ class SeriesPlot(Plot):
             return x
         return [order[int(i)] for i in x]
 
-    def _x_position(self, value: Any) -> Any:
+    def _refline_categories(self, axis: RefAxis) -> Mapping[Any, float] | None:
         order = self._data.x_order
-        if order is None:
-            return pd.Timestamp(value) if self._data.x_kind == "datetime" else value
-        if value not in order:
-            raise DataShapeError(
-                f"{value!r} is not an x category. Categories: "
-                + ", ".join(map(str, order))
-            )
-        return float(order.index(value))
+        if axis != "x" or order is None:
+            return None
+        return {value: float(i) for i, value in enumerate(order)}
 
     # --------------------------------------------------------------- drawing
     def _default_labels(self) -> dict[str, str | None]:
@@ -434,46 +439,23 @@ class SeriesPlot(Plot):
         for side, spine in ax.spines.items():
             spine.set_visible(side in visible)
 
-    def _draw_reflines(self, ax: Axes, style: Style) -> None:
-        theme = style.theme
-        color = theme.text_color or "#333333"
-        for axis, (values, label) in self._reflines.items():
-            for value in values:
-                position = self._x_position(value) if axis == "x" else value
-                line = ax.axvline if axis == "x" else ax.axhline
-                line(
-                    position,
-                    color=color,
-                    lw=theme.axis_line_width,
-                    ls="--",
-                    zorder=1.5,
-                )
-                if not label:
-                    continue
-                if axis == "x":  # annotations don't convert dates themselves
-                    position = ax.convert_xunits(position)  # type: ignore[no-untyped-call]
-                ax.annotate(
-                    _text(value),
-                    xy=(position, 1) if axis == "x" else (0, position),
-                    xycoords=ax.get_xaxis_transform()
-                    if axis == "x"
-                    else ax.get_yaxis_transform(),
-                    xytext=(2, -2) if axis == "x" else (2, 2),
-                    textcoords="offset points",
-                    ha="left",
-                    va="top" if axis == "x" else "bottom",
-                    fontsize=style.sizes.tick,
-                    color=color,
-                )
-
     def _end_label(self, group: Any, last: float) -> str:
-        parts = [] if group is None else [str(group)]
+        template = self._end_template
+        if template is not None and group is None and _has_group_field(template):
+            raise DataShapeError(
+                "endlabels(label=) has {group} but the plot has no hue= groups"
+            )
+        if template is not None:
+            parts = [template.format(group="" if group is None else group)]
+        else:
+            parts = [] if group is None else [str(group)]
         if self._end_values is not None:
             parts.append(_formatter(self._end_values)(last))
         if not parts:
             raise DataShapeError(
                 "endlabels() names hue= groups; without groups pass a format "
-                "for the last value, e.g. .endlabels(values='.1f')"
+                "for the last value, e.g. .endlabels(values='.1f'), or a "
+                "name, e.g. .endlabels(label='Revenue')"
             )
         return "  ".join(parts)
 
@@ -487,7 +469,7 @@ class SeriesPlot(Plot):
             text = ax.annotate(
                 self._end_label(group, value),
                 xy=(ax.convert_xunits(x), y),  # type: ignore[no-untyped-call]
-                xytext=(_LABEL_PAD, 0),
+                xytext=(self._end_pad, 0),
                 textcoords="offset points",
                 va="center",
                 ha="left",
@@ -548,7 +530,33 @@ class SeriesPlot(Plot):
     ) -> None:
         if self._data.x_order is not None:
             self._fit_category_labels(fig, ax, renderer, self._tick_rotation)
+        self._clear_right_ticks(fig, ax, renderer)
         self._spread_end_labels(fig, renderer)
+
+    def _clear_right_ticks(self, fig: Figure, ax: Axes, renderer: RendererBase) -> None:
+        """Move the end labels past tick labels on the right axis."""
+        ticks = [
+            t.label2
+            for t in ax.yaxis.get_major_ticks()
+            if t.label2.get_visible() and t.label2.get_text()
+        ]
+        if not self._end_texts or not ticks:
+            return
+        low, high = sorted(ax.get_ylim())
+        inside = [t for t in ticks if low <= t.get_position()[1] <= high]
+        if not inside:
+            return
+        edge = max(t.get_window_extent(renderer).x1 for t in inside)
+        pad = self._end_pad * fig.dpi / 72
+        moved = False
+        for text in self._end_texts:
+            gap = edge + pad - text.get_window_extent(renderer).x0
+            if gap > 1e-3:
+                dx, dy = text.xyann
+                text.xyann = (dx + gap * 72 / fig.dpi, dy)
+                moved = True
+        if moved:
+            fig.draw_without_rendering()
 
     def _spread_end_labels(self, fig: Figure, renderer: RendererBase) -> None:
         texts = self._end_texts

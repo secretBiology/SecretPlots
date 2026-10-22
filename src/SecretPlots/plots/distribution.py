@@ -20,7 +20,7 @@ from matplotlib.figure import Figure
 
 from SecretPlots.core.colors import combined_alpha, darken
 from SecretPlots.core.data import Tidy, _order
-from SecretPlots.core.plot import Plot
+from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import (
     TEST_NAMES,
@@ -348,7 +348,6 @@ class DistributionPlot(Plot):
         self._n_label = "n = {n}"
         self._n_sep = ", "
         self._compare: dict[str, Any] | None = None
-        self._reflines: tuple[float, ...] = ()
         self._tick_rotation: float | None = None
         self._tick_italic = False
         self._point_sets: list[_PointSet] = []
@@ -456,19 +455,6 @@ class DistributionPlot(Plot):
         self._show_n = show
         self._n_label = label
         self._n_sep = sep
-        return self._changed()
-
-    def refline(self, *values: float) -> Self:
-        """Dashed lines across the plot at fixed values, e.g. ``.refline(0)``
-        or ``.refline(1)`` for fold changes.
-
-        Args:
-            *values: Positions on the value axis. No values removes the lines.
-        """
-        for value in values:
-            if isinstance(value, bool) or not isinstance(value, int | float):
-                raise TypeError("refline values must be numbers")
-        self._reflines = tuple(float(v) for v in values)
         return self._changed()
 
     def compare(
@@ -580,6 +566,14 @@ class DistributionPlot(Plot):
     @property
     def _log(self) -> bool:
         return self._value_axis in self._log_axes
+
+    def _refline_axis(self) -> RefAxis:
+        return "y" if self._orient == "v" else "x"
+
+    def _refline_categories(self, axis: RefAxis) -> Mapping[Any, float] | None:
+        if axis == self._refline_axis():
+            return None
+        return {cat: float(i) for i, cat in enumerate(self._data.x_order)}
 
     def _fwd(self, values: np.ndarray) -> np.ndarray:
         if not self._log:
@@ -886,15 +880,6 @@ class DistributionPlot(Plot):
             self._draw_points(ax, style, items)
         if self._mean:
             self._draw_means(ax, style, items)
-        for value in self._reflines:
-            line = ax.axhline if self._orient == "v" else ax.axvline
-            line(
-                value,
-                color=style.theme.text_color,
-                lw=style.theme.axis_line_width,
-                ls="--",
-                zorder=1.5,
-            )
         if self._compare is not None:
             self._draw_brackets(ax, style, items)
         self._style_axes(ax, style)

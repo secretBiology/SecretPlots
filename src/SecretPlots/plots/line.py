@@ -526,7 +526,6 @@ class LinePlot(SeriesPlot):
                     if group not in ends or end[1] > ends[group][1]:
                         ends[group] = end
 
-        self._draw_reflines(ax, style)
         margin = 0.03 if self._markers is not None or self._display == "bars" else 0.0
         self._style_axes(ax, style, x_margin=margin)
         if self._end_labels:

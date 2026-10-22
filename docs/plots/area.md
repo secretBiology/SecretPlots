@@ -225,7 +225,9 @@ own value in a stack):
 sp.area(long, x="year", y="TWh", hue="source", stack="percent").endlabels(values=".0f")
 ```
 
-`.refline()` adds dashed reference lines, horizontal or (`axis="x"`) vertical:
+`.refline()` adds dashed reference lines, horizontal or (`axis="x"`)
+vertical, with optional `label`, `color`, `linestyle` and `linewidth` (see
+[bar plots](bar.md#reference-lines)):
 
 ```python
 sp.area(energy, x="year", y="Wind").refline(2015, axis="x", label=True)

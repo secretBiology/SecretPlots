@@ -233,7 +233,23 @@ counterpart. With `stat="density"` the axis is "Cumulative proportion".
 ```
 
 `.refline()` takes `"mean"`, `"median"` and numbers (e.g. a clinical cutoff:
-`.refline(65)`). `label=True` prints the value next to each line.
+`.refline(65)`). `"mean"` and `"median"` draw one line per group, in the
+group's colour; their labels are stacked so close lines stay readable.
+`label=True` prints the value next to each line, and text prints that text.
+
+Without `axis=` the lines cross the binned axis (vertical lines for vertical
+bars). `axis="y"` draws horizontal lines on the count axis instead, e.g. a
+count threshold. Each call adds lines and can have its own `color`,
+`linestyle` and `linewidth`; see [bar plots](bar.md#reference-lines) for all
+options.
+
+```python
+(
+    sp.histogram(df, x="age")
+    .refline(65, label="retirement", color="#da1e28", linestyle="-")
+    .refline(20, axis="y", linestyle=":")
+)
+```
 
 With few values, a histogram's shape mostly reflects the bin choice.
 SecretPlots warns below 30 values (`SmallSampleWarning`). `.rug()` adds a tick

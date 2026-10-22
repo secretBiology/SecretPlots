@@ -262,6 +262,38 @@ def test_end_labels_replace_the_legend_and_do_not_overlap() -> None:
         sp.line(x=[0, 1], y=[1, 2]).endlabels().render()
 
 
+def test_end_labels_template() -> None:
+    frame = pd.DataFrame({"x": [0, 1] * 2, "y": [1, 2, 3, 4], "g": list("aabb")})
+    plot = sp.line(frame, x="x", y="y", hue="g").endlabels(
+        label="Diet {group}", values=".0f"
+    )
+    texts = sorted(t.get_text() for t in plot.ax.texts if t.get_text())
+    assert texts == ["Diet a  2", "Diet b  4"]
+    single = sp.line(x=[0, 1], y=[1, 2]).endlabels(label="Revenue")
+    assert [t.get_text() for t in single.ax.texts] == ["Revenue"]
+    with pytest.raises(sp.DataShapeError, match="no hue"):
+        sp.line(x=[0, 1], y=[1, 2]).endlabels(label="{group}!").render()
+    with pytest.raises(ValueError, match="optional"):
+        sp.line(x=[0, 1], y=[1, 2]).endlabels(label="{name}")
+
+
+def test_end_labels_clear_right_ticks_and_pad() -> None:
+    frame = pd.DataFrame({"x": [0, 1] * 2, "y": [1, 2, 3, 4], "g": list("aabb")})
+    for pad in (4, 20):
+        plot = sp.area(frame, x="x", hue="g", y="y", stack=True)
+        plot = plot.preset("economist-like").endlabels(pad=pad)
+        ax = plot.ax
+        renderer = plot.fig.canvas.get_renderer()
+        ticks = [t.label2 for t in ax.yaxis.get_major_ticks() if t.label2.get_visible()]
+        assert ticks
+        edge = max(t.get_window_extent(renderer).x1 for t in ticks)
+        texts = [t for t in ax.texts if t.get_text()]
+        gaps = [t.get_window_extent(renderer).x0 - edge for t in texts]
+        assert min(gaps) >= pad * plot.fig.dpi / 72 - 0.5
+    with pytest.raises(ValueError, match="negative"):
+        sp.line(x=[0, 1], y=[1, 2]).endlabels(pad=-1)
+
+
 def test_spread_keeps_labels_apart_and_centered() -> None:
     assert spread([0, 10], [2, 2]) == [0, 10]
     assert spread([5, 5], [2, 2]) == [4, 6]

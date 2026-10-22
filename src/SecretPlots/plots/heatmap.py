@@ -35,7 +35,7 @@ from matplotlib.transforms import (
 
 from SecretPlots.core import cluster
 from SecretPlots.core.colors import extend_palette, readable_on, resolve_cmap
-from SecretPlots.core.plot import Plot
+from SecretPlots.core.plot import Plot, RefAxis, _is_number
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.units import PT_PER_INCH
 from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
@@ -317,6 +317,8 @@ class HeatmapPlot(Plot):
     """Created by :func:`heatmap`."""
 
     kind = "heatmap"
+    _refline_zorder = 4  # above the cells
+    _reflines_in_draw = True  # redrawn with the cells after layout
 
     def __init__(self, matrix: _Matrix, *, square: bool = False) -> None:
         super().__init__()
@@ -341,6 +343,8 @@ class HeatmapPlot(Plot):
         self._tick_rotation: float | None = None
         self._tick_italic = False
         self._body = _Body()
+        #: Row ("y") and column ("x") labels and cell starts, for reflines.
+        self._cell_starts: dict[str, tuple[list[Any], np.ndarray]] = {}
         self._layout_cache: dict[str, _AxisLayout] | None = None
         self._cax: Axes | None = None
         self._track_legend: AnchoredOffsetbox | None = None
@@ -1077,6 +1081,11 @@ class HeatmapPlot(Plot):
         if self._colorbar["position"] != "none":
             self._draw_colorbar(ax, style, mesh, extend)
         self._draw_track_legend(ax, style, colors)
+        self._cell_starts = {
+            "y": (rows.order, row_starts),
+            "x": (cols.order, col_starts),
+        }
+        self._draw_reflines(ax, style)
 
         self._body.artists = [
             a
@@ -1084,6 +1093,41 @@ class HeatmapPlot(Plot):
             if a not in before_children and not isinstance(a, Axes)
         ]
         self._body.axes = [a for a in ax.child_axes if a not in before_axes]
+
+    def _refline_axis(self) -> RefAxis:
+        raise ValueError(
+            "Heatmap reference lines need an axis: refline(..., axis='y') for "
+            "rows, axis='x' for columns"
+        )
+
+    def _refline_categories(self, axis: RefAxis) -> Mapping[Any, float] | None:
+        order, starts = self._cell_starts[axis]
+        which = "row" if axis == "y" else "col"
+        centers: dict[Any, float] = {}
+        for label, start in zip(order, starts, strict=True):
+            centers[label] = centers[self._shown(which, label)] = float(start) + 0.5
+        return centers
+
+    def _refline_position(self, ax: Axes, axis: RefAxis, value: Any) -> Any:
+        """Row/column names go through the cells' centers; a number ``n``
+        is the edge after the first ``n`` rows/columns (0 = the first edge),
+        in the middle of a group gap if there is one."""
+        order, starts = self._cell_starts[axis]
+        names = self._refline_categories(axis) or {}
+        if value in names or not _is_number(value):
+            return super()._refline_position(ax, axis, value)
+        n = len(order)
+        if float(value) != int(value) or not 0 <= value <= n:
+            what = "rows" if axis == "y" else "columns"
+            raise DataShapeError(
+                f"refline {value!r}: numbers count edges between {what}, from 0 to {n}"
+            )
+        k = int(value)
+        if k == 0:
+            return float(starts[0])
+        if k == n:
+            return float(starts[-1]) + 1
+        return (float(starts[k - 1]) + 1 + float(starts[k])) / 2
 
     def _shown(self, axis: str, label: Any) -> str:
         return str(self._renames[axis].get(label, label))

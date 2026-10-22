@@ -254,6 +254,17 @@ These work exactly as for [bar plots](bar.md):
 sp.scatter(x=[1, 10, 100, 1000], y=[3, 30, 280, 3100]).log("xy")
 ```
 
+Reference lines (see [bar plots](bar.md#reference-lines)) mark thresholds on
+either axis, e.g. the limits of normal blood pressure and an age cutoff:
+
+```python
+(
+    sp.scatter(df, x="age", y="bp", hue="sex")
+    .refline(140, label="hypertension", color="#da1e28")
+    .refline(50, axis="x", linestyle=":")
+)
+```
+
 Unlike bar plots, `.labels(x=...)` here always means your `x` column's axis,
 since a scatter plot has no orientation. `grid="value"` (the default) draws
 horizontal gridlines and `grid="category"` vertical ones; `"both"`, `"x"`,

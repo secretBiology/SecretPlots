@@ -15,7 +15,7 @@ from matplotlib.colors import is_color_like
 
 from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order
-from SecretPlots.core.plot import Plot
+from SecretPlots.core.plot import Plot, RefAxis, _RefLine
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import bandwidth, gaussian_kde
 from SecretPlots.errors import DataShapeError, SmallSampleWarning, emit
@@ -25,7 +25,6 @@ Multiple = Literal["layer", "stack", "dodge"]
 Element = Literal["bars", "step"]
 Orient = Literal["v", "h"]
 BinRule = Literal["auto", "fd", "sturges", "scott", "rice", "sqrt", "doane"]
-RefLine = Literal["mean", "median"] | float
 
 _STATS = ("count", "frequency", "probability", "percent", "density")
 _STAT_ALIASES = {"proportion": "probability", "fraction": "probability"}
@@ -177,6 +176,8 @@ class HistogramPlot(Plot):
     """Created by :func:`histogram`."""
 
     kind = "histogram"
+    _refline_zorder = 4  # above the bars
+    _refline_words = ("mean", "median")
 
     def __init__(
         self,
@@ -231,8 +232,6 @@ class HistogramPlot(Plot):
         self._orient: str = orient
         self._kde: dict[str, Any] | None = None
         self._fit: str | None = None
-        self._reflines: tuple[Any, ...] = ()
-        self._refline_labels = False
         self._rug = False
         self._show_n = False
 
@@ -289,24 +288,6 @@ class HistogramPlot(Plot):
         if dist is not None:
             _choice(dist, ("normal",), "dist")
         self._fit = dist
-        return self._changed()
-
-    def refline(self, *values: RefLine, label: bool = False) -> Self:
-        """Dashed reference lines across the value axis. ``"mean"`` and
-        ``"median"`` are drawn per group in the group's color.
-
-        Args:
-            *values: ``"mean"``, ``"median"`` or numbers, e.g.
-                ``.refline("median", 0)``. No values removes the lines.
-            label: Write the value next to each line.
-        """
-        for value in values:
-            if isinstance(value, str):
-                _choice(value, ("mean", "median"), "refline")
-            elif isinstance(value, bool) or not isinstance(value, int | float):
-                raise TypeError("refline values must be 'mean', 'median' or numbers")
-        self._reflines = values
-        self._refline_labels = label
         return self._changed()
 
     def rug(self, show: bool = True) -> Self:
@@ -526,8 +507,6 @@ class HistogramPlot(Plot):
             self._draw_curves(ax, style, colors, edges, heights)
         if self._rug:
             self._draw_rug(ax, style, colors)
-        if self._reflines:
-            self._draw_reflines(ax, style, colors)
         self._style_axes(ax, style, edges)
         if grouped:
             self._draw_legend(ax, style, n=len(groups), title=self._samples.hue_name)
@@ -639,40 +618,29 @@ class HistogramPlot(Plot):
                     zorder=5,
                 )
 
-    def _draw_reflines(self, ax: Axes, style: Style, colors: dict[Any, str]) -> None:
-        theme = style.theme
+    def _refline_axis(self) -> RefAxis:
+        return "x" if self._orient == "v" else "y"
+
+    def _refline_items(
+        self, ref: _RefLine, axis: RefAxis, style: Style
+    ) -> list[tuple[Any, str | None, str]]:
+        """``"mean"``/``"median"`` draw one line per group, in its color."""
+        if ref.value not in self._refline_words:
+            return super()._refline_items(ref, axis, style)
+        if axis != self._refline_axis():
+            raise DataShapeError(
+                f"refline {ref.value!r} lies on the binned axis "
+                f"({self._refline_axis()}), not on {axis}"
+            )
         grouped = self._samples.hue_order is not None
-        lines: list[tuple[float, str, str]] = []
-        for value in self._reflines:
-            if isinstance(value, str):
-                for group in self._groups:
-                    data = self._values(group)
-                    center = float(
-                        np.mean(data) if value == "mean" else np.median(data)
-                    )
-                    color = colors[group] if grouped else (theme.text_color or "#333")
-                    lines.append((center, color, value))
-            else:
-                lines.append((float(value), theme.text_color or "#333", ""))
-        vertical = self._orient == "v"
-        for position, color, name in lines:
-            line = ax.axvline if vertical else ax.axhline
-            line(position, color=color, lw=theme.axis_line_width, ls="--", zorder=4)
-            if self._refline_labels:
-                text = f"{name} {position:.3g}".strip()
-                ax.annotate(
-                    text,
-                    xy=(position, 1) if vertical else (1, position),
-                    xycoords=ax.get_xaxis_transform()
-                    if vertical
-                    else ax.get_yaxis_transform(),
-                    xytext=(2, -2),
-                    textcoords="offset points",
-                    ha="left" if vertical else "right",
-                    va="top" if vertical else "bottom",
-                    fontsize=style.sizes.tick,
-                    color=color,
-                )
+        colors = self._group_colors(style, self._groups, grouped=grouped)
+        items: list[tuple[Any, str | None, str]] = []
+        for group in self._groups:
+            data = self._values(group)
+            center = float(np.mean(data) if ref.value == "mean" else np.median(data))
+            color = colors[group] if grouped else None
+            items.append((center, color, f"{ref.value} {center:.3g}"))
+        return items
 
     def _style_axes(self, ax: Axes, style: Style, edges: np.ndarray) -> None:
         theme = style.theme

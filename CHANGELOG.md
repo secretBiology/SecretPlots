@@ -48,8 +48,16 @@ All notable changes to this project are documented here. The format follows
   columns, stacked and 100 % stacked areas, `.split()` above/below colors,
   `.gradient()`, `.lines()`.
 - Shared steps for line and area plots: `.endlabels()` direct labels at the
-  line ends (moved apart when they would overlap), `.refline()` on either axis
+  line ends (moved apart when they would overlap; `label=` template with
+  `{group}` for prefixes or a single line's name, `pad=`; labels clear
+  right-side tick labels), `.refline()` on either axis
   (dates too), `.grouplabels()`, `.ticklabels()`. Numeric, date and category x.
+- `.refline()` on every plot (bar, scatter, line, area, histogram, heatmap,
+  box, violin, raincloud), like matplotlib's `axhline` / `axvline`: `axis="y"`
+  or `"x"` (default: the value axis), numbers, dates or category names,
+  `label=` (value or your own text), `color=`, `linestyle=`, `linewidth=`.
+  Calls add lines; `.refline()` without values removes them. Heatmaps take
+  row/column names or edge numbers (gap-aware with `.groups()`).
 - Theme field `fill_alpha` (opacity of error bands and filled areas).
 - Numpy-only statistics module (`SecretPlots.core.stats`): scipy is not needed.
 

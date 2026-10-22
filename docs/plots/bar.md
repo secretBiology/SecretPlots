@@ -34,6 +34,7 @@ can chain as many steps as you like.
 - [Category and group names](#category-and-group-names)
 - [Colors and highlighting](#colors-and-highlighting)
 - [Axes: titles, limits, log scale](#axes-titles-limits-log-scale)
+- [Reference lines](#reference-lines)
 - [Legend](#legend)
 - [Headline, subtitle, source and note](#headline-subtitle-source-and-note)
 - [Size, presets and themes](#size-presets-and-themes)
@@ -302,6 +303,69 @@ sp.bar(df, x="gene", y="tpm").log("y")
 `.xlim()` / `.ylim()` take `(low, high)`; pass `None` for an end to keep it
 automatic. Remember these are axes as drawn (see
 [Horizontal bars](#horizontal-bars)).
+
+## Reference lines
+
+`.refline()` draws lines across the whole plot, like matplotlib's `axhline`
+and `axvline`: a target, a baseline, a threshold. Every plot type has it and
+it works the same way everywhere.
+
+```python
+sp.bar(df, x="gene", y="tpm").refline(10)                  # horizontal line at 10
+```
+
+```python
+sp.bar(df, x="gene", y="tpm").refline("TBX5", axis="x")    # vertical, through a bar
+```
+
+```text
+.refline(*values, axis=None, label=False, color=None, linestyle="--", linewidth=None)
+```
+
+| Option | Effect |
+|---|---|
+| `*values` | Where the lines go: numbers, dates (on a date axis, also text like `"2024-03-01"`), or category names (on a category axis). |
+| `axis` | `"y"`: horizontal lines (`axhline`); `"x"`: vertical lines (`axvline`). Axes as drawn. Default: the value axis (see below). |
+| `label` | `True` writes the value next to each line; text (e.g. `"target"`) writes that text instead, one value per call. |
+| `color` | Line color; default: the theme's text color. |
+| `linestyle` | `"--"` (default), `":"`, `"-."` or `"-"`. |
+| `linewidth` | Width in pt; default: the theme's `axis_line_width`. |
+
+Each call adds lines, so lines can differ in style. `.refline()` with no values
+removes them all; `.refline(axis="x")` removes only the vertical ones.
+
+```python
+(
+    sp.bar(df, x="gene", y="tpm", hue="sample")
+    .refline(10, label="target", color="#da1e28")
+    .refline(5, label="detection limit", linestyle=":")
+)
+```
+
+Without `axis=`, lines go across the **value axis**:
+
+| Plot | Default `axis` |
+|---|---|
+| bar, box, violin, raincloud | `"y"`, or `"x"` with `orient="h"` |
+| scatter, line, area | `"y"` |
+| histogram | the binned axis: `"x"`, or `"y"` with `orient="h"` |
+| heatmap | none: say `axis="y"` (rows) or `axis="x"` (columns) |
+
+On a category axis a name puts the line through that category's center,
+wherever sorting has moved it:
+
+```python
+sp.bar(df, x="gene", y="tpm", sort="desc").refline("HAND2", axis="x", label=True)
+```
+
+Horizontal bars swap the axes, so the value axis is `"x"`:
+
+```python
+sp.bar(df, x="gene", y="tpm", orient="h").refline(10).refline("TBX5", axis="y")
+```
+
+On bars, histograms and heatmaps the lines are drawn above the marks so they
+stay visible; on points, lines, boxes and violins they sit behind the data.
 
 ## Legend
 

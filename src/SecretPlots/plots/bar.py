@@ -15,7 +15,7 @@ from matplotlib.text import Text
 
 from SecretPlots.core.colors import readable_on
 from SecretPlots.core.data import Tidy, tidy
-from SecretPlots.core.plot import Plot
+from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
 
@@ -80,6 +80,7 @@ class BarPlot(Plot):
     """Created by :func:`bar`."""
 
     kind = "bar"
+    _refline_zorder = 4  # above the bars, e.g. a target value
 
     def __init__(
         self,
@@ -111,6 +112,7 @@ class BarPlot(Plot):
         self._tick_italic = False
         self._table = self._aggregate()
         self._value_texts: list[tuple[list[Text], BarContainer]] = []
+        self._cat_positions: dict[Any, float] = {}
 
     # ----------------------------------------------------------------- verbs
     def values(self, fmt: str = ".3g", *, inside: bool | None = None) -> Self:
@@ -213,6 +215,12 @@ class BarPlot(Plot):
         )
 
     # --------------------------------------------------------------- drawing
+    def _refline_axis(self) -> RefAxis:
+        return "y" if self._orient == "v" else "x"
+
+    def _refline_categories(self, axis: RefAxis) -> Mapping[Any, float] | None:
+        return None if axis == self._refline_axis() else self._cat_positions
+
     def _default_labels(self) -> dict[str, str | None]:
         cat, val = self._data.x_name, self._data.y_name
         return {"x": cat, "y": val} if self._orient == "v" else {"x": val, "y": cat}
@@ -224,6 +232,7 @@ class BarPlot(Plot):
         groups: list[Any] = list(self._data.hue_order or [None])
         color = self._category_color_fn(style, groups, cats, grouped=self._data.has_hue)
         positions = np.arange(len(cats), dtype=float)
+        self._cat_positions = dict(zip(cats, positions.tolist(), strict=True))
 
         span = 1 - (theme.bar_gap or 0)
         grouped = self._data.has_hue and not self._stack

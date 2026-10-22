@@ -256,7 +256,6 @@ class FillBetweenPlot(SeriesPlot):
                     y = (y1[-1] + y2[-1]) / 2 if self._band else y1[-1]
                     ends.append((group, x[-1], float(y), color, float(y1[-1])))
 
-        self._draw_reflines(ax, style)
         self._style_axes(ax, style, x_margin=0.0)
         if self._stack == "percent":
             ax.set_ylim(0, 100)

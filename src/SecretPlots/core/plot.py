@@ -5,16 +5,21 @@ import inspect
 import io
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
+from dataclasses import dataclass
+from datetime import date
 from os import PathLike
 from pathlib import Path
-from typing import Any, ClassVar, Self, get_type_hints
+from typing import Any, ClassVar, Literal, Self, get_type_hints
 
+import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.transforms import ScaledTranslation
 
 from SecretPlots import presets
@@ -35,6 +40,38 @@ from SecretPlots.theme import (
 
 _LEGEND_POSITIONS = ("auto", "top", "right", "inside", "none")
 _LEGEND_GAP_IN = 0.08
+
+RefAxis = Literal["x", "y"]
+
+
+@dataclass(frozen=True)
+class _RefLine:
+    """One ``.refline()`` value with its options (``axis=None``: the plot's
+    value axis, decided when drawing)."""
+
+    value: Any
+    axis: RefAxis | None
+    label: bool | str
+    color: str | None
+    linestyle: str
+    linewidth: float | None
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, int | float | np.number) and not isinstance(value, bool)
+
+
+def _ref_text(value: Any) -> str:
+    """How a reference line's value is written next to it."""
+    if isinstance(value, pd.Timestamp | np.datetime64 | date):
+        return str(pd.Timestamp(value).date())
+    return f"{value:.3g}" if _is_number(value) else str(value)
+
+
+def _is_date_axis(axis: Any) -> bool:
+    get = getattr(axis, "get_converter", None)
+    converter = get() if callable(get) else getattr(axis, "converter", None)
+    return converter is not None and "Date" in type(converter).__name__
 
 
 def _outside_anchor(ax: Axes, side: str, offset_in: float) -> dict[str, Any]:
@@ -119,6 +156,14 @@ class Plot(ABC):
     notebook display."""
 
     kind: ClassVar[str] = "plot"
+    #: Reference lines sit behind points and lines; plots of filled marks
+    #: (bars, cells) raise this so the lines stay visible.
+    _refline_zorder: ClassVar[float] = 1.5
+    #: Plots that redraw their body after layout draw reference lines
+    #: themselves (with :meth:`_draw_reflines`) so they are redrawn too.
+    _reflines_in_draw: ClassVar[bool] = False
+    #: Words a plot's ``.refline()`` accepts besides positions (statistics).
+    _refline_words: ClassVar[tuple[str, ...]] = ()
     #: Legend handle length in font sizes; plots of lines need room for dashes.
     _handle_length: ClassVar[float] = 1.0
 
@@ -138,6 +183,7 @@ class Plot(ABC):
         self._highlight: tuple[Any, ...] = ()
         self._color_map: dict[Any, str] = {}
         self._color_alpha: float | None = None
+        self._reflines: list[_RefLine] = []
 
         self._figure: Figure | None = None
         self._axes: Axes | None = None
@@ -379,6 +425,83 @@ class Plot(ABC):
         self._log_axes.update(axis)
         return self._changed()
 
+    def refline(
+        self,
+        *values: Any,
+        axis: RefAxis | None = None,
+        label: bool | str = False,
+        color: str | None = None,
+        linestyle: str = "--",
+        linewidth: float | None = None,
+    ) -> Self:
+        """Reference lines across the plot, like matplotlib's ``axhline``
+        (``axis="y"``) and ``axvline`` (``axis="x"``). Each call adds lines, so
+        calls can differ in style; ``.refline()`` without values removes them.
+
+        Args:
+            *values: Positions: numbers, dates (on a date axis, also as text
+                like ``"2024-03-01"``) or category names (on a category axis).
+                Histograms also take ``"mean"`` and ``"median"``.
+            axis: ``"y"`` for horizontal lines, ``"x"`` for vertical ones (axes
+                as drawn). Default: the value axis (y for vertical bars, boxes,
+                violins, lines and scatter plots; the binned axis of a
+                histogram). Heatmaps need it: ``"y"`` rows, ``"x"`` columns.
+            label: ``True`` writes the value next to each line; text writes
+                that text instead (one value per call).
+            color: Line color (default: the theme's text color).
+            linestyle: ``"--"`` (default), ``":"``, ``"-."`` or ``"-"``.
+            linewidth: Line width in pt (default: the theme's
+                ``axis_line_width``).
+        """
+        if axis not in (None, "x", "y"):
+            raise ValueError("refline axis must be 'x', 'y' or None (the value axis)")
+        if not values:
+            self._reflines = [
+                r
+                for r in self._reflines
+                if axis is not None and (r.axis or self._refline_axis()) != axis
+            ]
+            return self._changed()
+        for value in values:
+            if not (
+                _is_number(value)
+                or isinstance(value, str | pd.Timestamp | np.datetime64 | date)
+                or (isinstance(value, Hashable) and not isinstance(value, bool))
+            ):
+                raise TypeError(
+                    f"refline value {value!r} must be a number, a date or a "
+                    "category name"
+                )
+        for value in values:
+            words = self._refline_words
+            if isinstance(value, str) and words and value not in words:
+                close = difflib.get_close_matches(value, words, n=1)
+                if close:
+                    raise ValueError(
+                        f"Unknown refline {value!r}. Did you mean {close[0]!r}?"
+                    )
+        if isinstance(label, str) and len(values) > 1:
+            raise ValueError(
+                "label as text names one line; call .refline() once per value"
+            )
+        if color is not None:
+            try:
+                to_rgba(color)
+            except ValueError:
+                raise ValueError(f"Unknown refline color {color!r}") from None
+        try:
+            Line2D([], [], linestyle=linestyle)  # type: ignore[arg-type]
+        except ValueError:
+            raise ValueError(
+                f"Unknown linestyle {linestyle!r}; use '--', ':', '-.' or '-'"
+            ) from None
+        if linewidth is not None and linewidth < 0:
+            raise ValueError("refline linewidth must be 0 or more")
+        self._reflines += [
+            _RefLine(v, axis, label, color, linestyle, linewidth) for v in values
+        ]
+        return self._changed()
+
     @classmethod
     def options(cls, verb: str | None = None) -> pd.DataFrame:
         """What you can chain on this plot, and what each step accepts.
@@ -475,6 +598,8 @@ class Plot(ABC):
         self._legend_side = None
         self._legend_wrap = False
         self._draw(ax, style)
+        if not self._reflines_in_draw:
+            self._draw_reflines(ax, style)
         self._finish_axes(ax, style)
         if own:
             apply_chrome(fig, style, self._chrome)
@@ -559,6 +684,99 @@ class Plot(ABC):
             fig.savefig(buffer, format="png", dpi=self._style.target.px_per_inch * 2)
         css_width = round(self._style.width * self._style.target.px_per_inch)
         return buffer.getvalue(), {"width": css_width}
+
+    # ------------------------------------------------------ reference lines
+    def _refline_axis(self) -> RefAxis:
+        """Axis (as drawn) of reference lines without ``axis=``."""
+        return "y"
+
+    def _refline_categories(self, axis: RefAxis) -> Mapping[Any, float] | None:
+        """``{category: position}`` when ``axis`` shows categories."""
+        return None
+
+    def _refline_items(
+        self, ref: _RefLine, axis: RefAxis, style: Style
+    ) -> list[tuple[Any, str | None, str]]:
+        """``(value, color, text)`` of each line one requested value draws
+        (statistics such as a histogram's ``"median"`` may draw one per group)."""
+        return [(ref.value, None, _ref_text(ref.value))]
+
+    def _refline_position(self, ax: Axes, axis: RefAxis, value: Any) -> Any:
+        """Data position of ``value`` on ``axis``."""
+        categories = self._refline_categories(axis)
+        if (
+            categories is not None
+            and isinstance(value, Hashable)
+            and value in categories
+        ):
+            return categories[value]
+        target = ax.xaxis if axis == "x" else ax.yaxis
+        if _is_number(value):
+            return float(value)
+        if isinstance(value, str | pd.Timestamp | np.datetime64 | date) and (
+            _is_date_axis(target)
+        ):
+            try:
+                stamp = pd.Timestamp(value)
+            except ValueError:
+                raise DataShapeError(
+                    f"refline {value!r} is not a date this axis understands"
+                ) from None
+            return target.convert_units(stamp)  # type: ignore[no-untyped-call]
+        if categories:
+            shown = ", ".join(map(str, categories))
+            close = difflib.get_close_matches(
+                str(value), list(map(str, categories)), n=1
+            )
+            hint = f" Did you mean {close[0]!r}?" if close else ""
+            raise DataShapeError(
+                f"refline {value!r} is not a category on the {axis} axis.{hint} "
+                f"Categories: {shown}"
+            )
+        words = "".join(f", {w!r}" for w in self._refline_words)
+        raise DataShapeError(
+            f"refline {value!r} on the {axis} axis must be a number"
+            + (" or a date" if _is_date_axis(target) else "")
+            + (f" (or one of {words[2:]})" if words else "")
+        )
+
+    def _draw_reflines(self, ax: Axes, style: Style) -> None:
+        theme = style.theme
+        for ref in self._reflines:
+            axis = ref.axis or self._refline_axis()
+            items = self._refline_items(ref, axis, style)
+            for i, (value, item_color, text) in enumerate(items):
+                position = self._refline_position(ax, axis, value)
+                color = ref.color or item_color or theme.text_color or "#333333"
+                draw = ax.axvline if axis == "x" else ax.axhline
+                draw(
+                    position,
+                    color=color,
+                    lw=theme.axis_line_width
+                    if ref.linewidth is None
+                    else ref.linewidth,
+                    ls=ref.linestyle,
+                    zorder=self._refline_zorder,
+                )
+                if not ref.label:
+                    continue
+                vertical = axis == "x"
+                step = style.sizes.tick * 1.3
+                ax.annotate(
+                    ref.label if isinstance(ref.label, str) else text,
+                    xy=(position, 1) if vertical else (1, position),
+                    xycoords=ax.get_xaxis_transform()
+                    if vertical
+                    else ax.get_yaxis_transform(),
+                    # One value can draw several lines (a median per group):
+                    # stack their labels so close lines stay readable.
+                    xytext=(2, -2 - step * i) if vertical else (-2, 2 + step * i),
+                    textcoords="offset points",
+                    ha="left" if vertical else "right",
+                    va="top" if vertical else "bottom",
+                    fontsize=style.sizes.tick,
+                    color=color,
+                )
 
     # --------------------------------------------------------------- helpers
     def _finish_axes(self, ax: Axes, style: Style) -> None:

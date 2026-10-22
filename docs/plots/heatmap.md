@@ -40,6 +40,7 @@ is drawn until the plot is displayed, saved, shown, or you access `.fig` / `.ax`
 - [Clustering](#clustering)
 - [Masks and missing values](#masks-and-missing-values)
 - [Row and column labels](#row-and-column-labels)
+- [Reference lines](#reference-lines)
 - [Size, presets and saving](#size-presets-and-saving)
 - [Recipes](#recipes)
 - [Journal checklist](#journal-checklist)
@@ -328,6 +329,30 @@ sp.heatmap(big).ticklabels(rows=False)            # no row labels, no warning
 ```
 
 `.highlight("GATA4", "TBX5")` makes those labels bold and mutes the rest.
+
+## Reference lines
+
+`.refline()` draws lines across the heatmap (see
+[bar plots](bar.md#reference-lines) for all options). A heatmap has no value
+axis, so say which way: `axis="y"` for horizontal lines between or through
+rows, `axis="x"` for vertical lines through columns.
+
+- A row or column **name** draws the line through the middle of its cells.
+- A **number** `n` draws the line on the edge after the first `n` rows or
+  columns (0 is the top or left edge). With `.groups()` the edge falls in the
+  middle of the gap.
+
+```python
+(
+    sp.heatmap(expr.drop(columns="pathway"))
+    .scale("row")
+    .refline(3, axis="x", color="black", linestyle="-", linewidth=1)   # ctrl | trt
+    .refline("MYH6", axis="y", label=True)
+)
+```
+
+The lines are drawn above the cells, and kept in place when clustering
+reorders the rows: names follow their row.
 
 ## Size, presets and saving
 

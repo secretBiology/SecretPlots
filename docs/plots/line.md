@@ -33,6 +33,7 @@ until the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
 - [Input data](#input-data)
 - [Groups, dashes and markers](#groups-dashes-and-markers)
 - [Error bands and error bars](#error-bands-and-error-bars)
+- [Error level: how wide the interval is](#error-level-how-wide-the-interval-is)
 - [Fan charts: nested intervals](#fan-charts-nested-intervals)
 - [Your own error values](#your-own-error-values)
 - [Individual units (spaghetti plots)](#individual-units-spaghetti-plots)
@@ -176,20 +177,53 @@ smallest step between x values):
 | `.errorbars()` option | Effect |
 |---|---|
 | `display` | `"band"` (default) or `"bars"`. |
-| `level` | Coverage for `"ci"`/`"pi"` (0 to 1), multiple for `"sd"`/`"sem"`; several values draw nested intervals. |
+| `level` | How wide the interval is; see [below](#error-level-how-wide-the-interval-is). Several values draw nested intervals. |
 | `edges` | Bands only: thin lines along the band edges. |
 | `capsize` | Bars only: cap length in pt (default: the theme's `errorbar_capsize`); 0 for none. |
 | `dodge` | Shift groups apart along x (0 to 1). |
 
 ```python
-sp.line(df, x="day", y="weight", hue="diet", error="sd").errorbars(level=2, edges=True)
+sp.line(df, x="day", y="weight", hue="diet", error="sd").errorbars(edges=True)
 ```
+
+## Error level: how wide the interval is
+
+`level` in `.errorbars()` sets the width of each error band or bar. What the
+number means depends on `error=`:
+
+| `error=` | `level` means | Default | Example |
+|---|---|---|---|
+| `"ci"` | Coverage of the confidence interval, 0 to 1 | 0.95 | `level=0.9`: 90 % confidence interval of the mean |
+| `"pi"` | Share of the values the interval covers, 0 to 1 | 0.95 | `level=0.5`: the middle 50 % of the values (25th to 75th percentile) |
+| `"sd"` | Multiple of the standard deviation | 1 | `level=2`: mean ± 2 SD |
+| `"sem"` | Multiple of the standard error of the mean | 1 | `level=1.96`: mean ± 1.96 SEM |
+
+```python
+sp.line(df, x="day", y="weight", hue="diet", error="ci").errorbars(level=0.9)
+```
+
+```python
+sp.line(df, x="day", y="weight", hue="diet", error="sd").errorbars(level=2)
+```
+
+- For `"ci"` and `"pi"`, `level` is a fraction: `0.95`, not `95`. Values
+  outside 0 to 1 raise an error that says so.
+- For `"sd"` and `"sem"`, `level` is any positive multiple.
+- `level` only applies to `error=`. Errors you pass with `yerr=` already have
+  their size, so `level` raises an error there.
+- Report the level in the figure legend: `.caption()` includes it (see
+  [Reporting](#reporting-caption-and-source-data)).
 
 ## Fan charts: nested intervals
 
-Several levels draw nested intervals, the way forecasts show uncertainty: the
-inner, more likely range is darker. With bars, inner intervals are thicker (a
-"point-interval" plot):
+A list of levels, e.g. `level=(0.5, 0.8, 0.95)`, draws one interval per level,
+nested inside each other, the way forecasts show uncertainty. The order you
+give them in doesn't matter.
+
+- **Bands** overlap, so the inner (narrower, more likely) range comes out
+  darkest and the outer range palest: "likely" against "possible".
+- **Bars** draw inner intervals thicker, a "point-interval" plot as in ggdist.
+  Only the widest interval gets caps.
 
 ```python
 (
@@ -204,6 +238,19 @@ inner, more likely range is darker. With bars, inner intervals are thicker (a
     .errorbars("bars", level=(0.66, 0.95), dodge=0.4)
     .markers()
 )
+```
+
+With several levels, `.source_data()` has one low/high column pair per level
+(e.g. `ci0.66_low`, `ci0.95_high`; with one level just `ci_low`, `ci_high`),
+and `.caption()` lists every level, e.g. "bands the 50%, 80%, 95% percentile
+intervals":
+
+```python
+fan = sp.line(df, x="day", y="weight", hue="diet", error="pi").errorbars(
+    level=(0.5, 0.8, 0.95)
+)
+print(fan.caption())
+fan.source_data().columns.tolist()
 ```
 
 ## Your own error values
@@ -267,6 +314,17 @@ Without groups, `values=` alone labels the last value:
 sp.line(ts).endlabels(values=".0f")
 ```
 
+`label=` changes the text: `{group}` stands for the group name, so
+`label="Diet {group}"` adds a prefix. Without groups, plain text names the line:
+
+```python
+sp.line(ts).endlabels(label="Revenue", values=".0f")
+```
+
+`pad=` sets the gap before the labels, in points (default 4). When the value
+axis sits on the right (as in the news preset), the labels start after its tick
+labels.
+
 ## Shading under a line
 
 `.fill()` shades the area between the line and a baseline (`to=`, default 0).
@@ -286,7 +344,10 @@ For stacked areas, bands between two columns or areas split by sign, see
 ## Reference lines
 
 `.refline()` adds dashed lines across the plot: horizontal by default,
-vertical with `axis="x"`. Values on a date axis can be dates or date strings.
+vertical with `axis="x"`. Values on a date axis can be dates or date strings;
+on a category x axis, category names. Each call adds lines and can set its own
+`label` (text or `True`), `color`, `linestyle` and `linewidth`; see
+[bar plots](bar.md#reference-lines) for all options.
 
 ```python
 (
@@ -297,7 +358,11 @@ vertical with `axis="x"`. Values on a date axis can be dates or date strings.
 ```
 
 ```python
-sp.line(ts).refline("2024-02-14", axis="x", label=True)
+(
+    sp.line(ts)
+    .refline("2024-02-14", axis="x", label="campaign", color="#da1e28")
+    .refline(100, linestyle=":")
+)
 ```
 
 ## Reporting: caption and source data
@@ -336,5 +401,7 @@ Set them for line plots only in a preset's `[plots.line]` section.
 - Unknown error kinds suggest the closest one (`error="std"` → `"sd"`).
 - `error=` and `yerr=` can't be combined; `yerr=` needs one row per x per line,
   and errors can't be negative.
-- `level` for `"ci"`/`"pi"` is a coverage between 0 and 1 (`0.95`, not `95`).
-- `.endlabels()` without groups needs `values=`.
+- `level` for `"ci"`/`"pi"` is a coverage between 0 and 1 (`0.95`, not `95`);
+  for `"sd"`/`"sem"` a positive multiple. It can't be used with `yerr=`.
+- `.endlabels()` without groups needs `values=` or `label=`; `label=` with
+  `{group}` needs groups.

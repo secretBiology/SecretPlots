@@ -203,6 +203,20 @@ sp.box(df, x="dose", y="weight", edgecolor="black", linewidth=1)
 With `hue`, `.show_n()` lists one n per group, in legend order
 (`n = 15, 15`).
 
+`.refline()` works as on every plot (see
+[bar plots](bar.md#reference-lines)): lines go across the value axis by
+default, `axis="x"` gives vertical lines (a category name puts one through that
+box), and each call can have its own `label`, `color`, `linestyle` and
+`linewidth`:
+
+```python
+(
+    sp.box(df, x="dose", y="weight")
+    .refline(20, label="baseline")
+    .refline(25, label="toxic", color="#da1e28", linestyle=":")
+)
+```
+
 `label=` is a template with `{n}` where the number goes, in Python's format
 syntax, so you can add thousand separators or change the wording. `sep=`
 goes between the numbers of several groups:
