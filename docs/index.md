@@ -31,3 +31,5 @@ even if they break a limit, with a `LimitExceededWarning`; set
 - [Scatter plots](plots/scatter.md)
 - [Histograms](plots/histogram.md)
 - [Heatmaps](plots/heatmap.md)
+- [Box plots](plots/box.md)
+- [Violin plots and rainclouds](plots/violin.md)

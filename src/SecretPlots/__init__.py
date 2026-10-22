@@ -27,9 +27,11 @@ from SecretPlots.errors import (
     SmallSampleWarning,
 )
 from SecretPlots.plots.bar import BarPlot, bar
+from SecretPlots.plots.box import BoxPlot, box, boxplot
 from SecretPlots.plots.heatmap import HeatmapPlot, heatmap
 from SecretPlots.plots.histogram import HistogramPlot, hist, histogram
 from SecretPlots.plots.scatter import ScatterPlot, scatter
+from SecretPlots.plots.violin import RaincloudPlot, ViolinPlot, raincloud, violin
 from SecretPlots.theme import (
     Theme,
     get_theme,
@@ -40,6 +42,7 @@ from SecretPlots.theme import (
 
 __all__ = [
     "BarPlot",
+    "BoxPlot",
     "ColormapWarning",
     "ConstraintAdjustedWarning",
     "DataShapeError",
@@ -53,13 +56,17 @@ __all__ = [
     "Plot",
     "PresetError",
     "PresetNotFoundError",
+    "RaincloudPlot",
     "ScatterPlot",
     "SecretPlotsError",
     "SecretPlotsWarning",
     "SmallSampleWarning",
     "Theme",
+    "ViolinPlot",
     "__version__",
     "bar",
+    "box",
+    "boxplot",
     "colormaps",
     "config",
     "fonts",
@@ -69,9 +76,11 @@ __all__ = [
     "histogram",
     "list_themes",
     "presets",
+    "raincloud",
     "register_theme",
     "reset",
     "scatter",
     "theme_options",
     "use",
+    "violin",
 ]

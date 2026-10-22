@@ -132,3 +132,41 @@ def test_histogram_dodge_nature(ages: pd.DataFrame) -> Figure:
         .preset("nature")
         .fig
     )
+
+
+@pytest.fixture
+def weights() -> pd.DataFrame:
+    rng = np.random.default_rng(4)
+    return pd.DataFrame(
+        {
+            "dose": np.repeat(["0", "10", "50"], 24),
+            "weight": np.r_[
+                rng.normal(20, 2, 24), rng.normal(21, 2.5, 24), rng.normal(25, 3, 24)
+            ],
+            "sex": np.tile(["F", "M"], 36),
+        }
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_box_points_compare_nature(weights: pd.DataFrame) -> Figure:
+    return (
+        sp.box(weights, x="dose", y="weight")
+        .points()
+        .compare(ref="0", correction="holm")
+        .show_n()
+        .preset("nature")
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_violin_split_quartiles(weights: pd.DataFrame) -> Figure:
+    return sp.violin(
+        weights, x="dose", y="weight", hue="sex", split=True, inner="quartiles"
+    ).fig
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_raincloud_default(weights: pd.DataFrame) -> Figure:
+    return sp.raincloud(weights, x="dose", y="weight").fig

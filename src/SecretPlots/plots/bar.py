@@ -13,7 +13,7 @@ from matplotlib.container import BarContainer
 from matplotlib.figure import Figure
 from matplotlib.text import Text
 
-from SecretPlots.core.colors import extend_palette, readable_on
+from SecretPlots.core.colors import readable_on
 from SecretPlots.core.data import Tidy, tidy
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
@@ -212,44 +212,6 @@ class BarPlot(Plot):
             order, key=lambda c: totals.get(c, -np.inf), reverse=self._sort == "desc"
         )
 
-    def _color_fn(
-        self, style: Style, groups: Sequence[Any], cats: Sequence[Any]
-    ) -> Callable[[Any, Any], str]:
-        color = self._base_color_fn(style, groups, cats)
-        return lambda g, c: self._faded(color(g, c))
-
-    def _base_color_fn(
-        self, style: Style, groups: Sequence[Any], cats: Sequence[Any]
-    ) -> Callable[[Any, Any], str]:
-        theme = style.theme
-        highlight = set(self._highlight)
-        unknown = highlight - set(groups) - set(cats)
-        if unknown:
-            raise DataShapeError(
-                f"Cannot highlight {sorted(map(str, unknown))}: not in the data"
-            )
-        muted = theme.muted or "#c6c6c6"
-
-        if self._data.has_hue:
-            base = extend_palette(
-                theme.palette or (),
-                len(groups),
-                background=theme.background or "#ffffff",
-                source=f"the palette from {style.provenance['palette']}",
-            )
-            mapping = {g: self._color_map.get(g, base[i]) for i, g in enumerate(groups)}
-            if highlight:
-                return lambda g, c: (
-                    mapping[g] if g in highlight or c in highlight else muted
-                )
-            return lambda g, c: mapping[g]
-
-        primary = theme.primary or "#4589ff"
-        if highlight:
-            accent = theme.highlight or primary
-            return lambda g, c: accent if c in highlight else muted
-        return lambda g, c: self._color_map.get(c, primary)
-
     # --------------------------------------------------------------- drawing
     def _default_labels(self) -> dict[str, str | None]:
         cat, val = self._data.x_name, self._data.y_name
@@ -260,7 +222,7 @@ class BarPlot(Plot):
         vertical = self._orient == "v"
         cats = self._categories()
         groups: list[Any] = list(self._data.hue_order or [None])
-        color = self._color_fn(style, groups, cats)
+        color = self._category_color_fn(style, groups, cats, grouped=self._data.has_hue)
         positions = np.arange(len(cats), dtype=float)
 
         span = 1 - (theme.bar_gap or 0)
@@ -407,26 +369,8 @@ class BarPlot(Plot):
         self, fig: Figure, ax: Axes, style: Style, renderer: RendererBase
     ) -> None:
         if self._orient == "v":
-            self._fit_category_labels(fig, ax, renderer)
+            self._fit_category_labels(fig, ax, renderer, self._tick_rotation)
         self._fit_values(fig, renderer)
-
-    def _fit_category_labels(
-        self, fig: Figure, ax: Axes, renderer: RendererBase
-    ) -> None:
-        labels = [t for t in ax.get_xticklabels() if t.get_text()]
-        if not labels or self._tick_rotation is not None:
-            return
-        slot = ax.get_window_extent(renderer).width / len(labels)
-        widest = max(t.get_window_extent(renderer).width for t in labels)
-        if widest <= slot * 0.95:
-            return
-        line_height = max(t.get_window_extent(renderer).height for t in labels)
-        steep = slot < line_height * 1.6
-        for t in labels:
-            t.set_rotation(90 if steep else 45)
-            t.set_horizontalalignment("center" if steep else "right")
-            t.set_rotation_mode("default" if steep else "anchor")
-        fig.draw_without_rendering()
 
     def _fit_values(self, fig: Figure, renderer: RendererBase) -> None:
         if not self._value_texts:

@@ -610,6 +610,55 @@ class Plot(ABC):
             colors = {g: c if g in highlight else muted for g, c in colors.items()}
         return {g: self._faded(c) for g, c in colors.items()}
 
+    def _category_color_fn(
+        self, style: Style, groups: Sequence[Any], cats: Sequence[Any], *, grouped: bool
+    ) -> Callable[[Any, Any], str]:
+        """Color of each ``(group, category)`` mark in categorical plots: palette
+        colors per ``hue`` group, or the primary color (``.colors({category:
+        ...})`` per category) without groups. ``.highlight()`` may name groups
+        or categories."""
+        theme = style.theme
+        highlight = set(self._highlight)
+        unknown = highlight - set(groups) - set(cats)
+        if unknown:
+            raise DataShapeError(
+                f"Cannot highlight {sorted(map(str, unknown))}: not in the data"
+            )
+        muted = theme.muted or "#c6c6c6"
+        color: Callable[[Any, Any], str]
+        if grouped:
+            base = extend_palette(
+                theme.palette or (),
+                len(groups),
+                background=theme.background or "#ffffff",
+                source=f"the palette from {style.provenance['palette']}",
+            )
+            mapping = {g: self._color_map.get(g, base[i]) for i, g in enumerate(groups)}
+            if highlight:
+
+                def color(g: Any, c: Any) -> str:
+                    return mapping[g] if g in highlight or c in highlight else muted
+
+            else:
+
+                def color(g: Any, c: Any) -> str:
+                    return mapping[g]
+
+        else:
+            primary = theme.primary or "#4589ff"
+            accent = theme.highlight or primary
+            if highlight:
+
+                def color(g: Any, c: Any) -> str:
+                    return accent if c in highlight else muted
+
+            else:
+
+                def color(g: Any, c: Any) -> str:
+                    return self._color_map.get(c, primary)
+
+        return lambda g, c: self._faded(color(g, c))
+
     def _faded(self, color: str) -> str:
         """``color`` with the ``.colors(alpha=...)`` opacity applied."""
         return with_alpha(color, self._color_alpha)
@@ -669,6 +718,26 @@ class Plot(ABC):
         self._legend_wrap = (
             position == "top" and not moved and options.get("ncols") is None
         )
+
+    def _fit_category_labels(
+        self, fig: Figure, ax: Axes, renderer: RendererBase, rotation: float | None
+    ) -> None:
+        """Rotate category labels on the x axis (45 or 90 degrees) when they
+        overlap, unless ``rotation`` was set by the user."""
+        labels = [t for t in ax.get_xticklabels() if t.get_text()]
+        if not labels or rotation is not None:
+            return
+        slot = ax.get_window_extent(renderer).width / len(labels)
+        widest = max(t.get_window_extent(renderer).width for t in labels)
+        if widest <= slot * 0.95:
+            return
+        line_height = max(t.get_window_extent(renderer).height for t in labels)
+        steep = slot < line_height * 1.6
+        for t in labels:
+            t.set_rotation(90 if steep else 45)
+            t.set_horizontalalignment("center" if steep else "right")
+            t.set_rotation_mode("default" if steep else "anchor")
+        fig.draw_without_rendering()
 
     def _clear_axis_decorations(
         self, fig: Figure, ax: Axes, renderer: RendererBase

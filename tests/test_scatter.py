@@ -283,3 +283,55 @@ def test_colors_alpha_multiplies_marker_alpha(people: pd.DataFrame) -> None:
     (points,) = _points(plot)
     expected = plot.style().theme.marker_alpha * 0.5
     assert points.get_facecolor()[0][3] == pytest.approx(expected, abs=0.005)
+
+
+def _legend_texts(plot: sp.ScatterPlot) -> list[str]:
+    return [t.get_text() for t in plot.ax.get_legend().get_texts()]
+
+
+@pytest.mark.parametrize("labels", [["Female", "Male"], {"F": "Female", "M": "Male"}])
+def test_grouplabels_rename_legend(people: pd.DataFrame, labels) -> None:
+    plot = sp.scatter(people, x="age", y="bp", hue="sex").grouplabels(labels)
+    assert _legend_texts(plot) == ["Female", "Male"]
+
+
+def test_grouplabels_partial_mapping_and_new_names_for_colors(
+    people: pd.DataFrame,
+) -> None:
+    plot = (
+        sp.scatter(people, x="age", y="bp", hue="sex")
+        .grouplabels({"M": "Male"})
+        .colors({"Male": "#000000"})
+    )
+    assert _legend_texts(plot) == ["F", "Male"]
+    male = [c for c in _points(plot) if c.get_label() == "Male"]
+    assert to_hex(male[0].get_facecolor()[0], keep_alpha=False) == "#000000"
+
+
+def test_grouplabels_keeps_combined_style_legend(people: pd.DataFrame) -> None:
+    plot = sp.scatter(people, x="age", y="bp", hue="sex", style="sex").grouplabels(
+        {"F": "Female", "M": "Male"}
+    )
+    assert _legend_texts(plot) == ["Female", "Male"]
+
+
+def test_grouplabels_with_categorical_hue(people: pd.DataFrame) -> None:
+    people["sex"] = pd.Categorical(people["sex"], categories=["M", "F"])
+    plot = sp.scatter(people, x="age", y="bp", hue="sex").grouplabels(
+        ["Male", "Female"]
+    )
+    assert _legend_texts(plot) == ["Male", "Female"]
+
+
+@pytest.mark.parametrize(
+    ("hue", "labels", "message"),
+    [
+        (None, ["g"], "no groups"),
+        ("sex", ["only one"], "1 labels for 2"),
+        ("sex", ["a", "a"], "unique"),
+        ("sex", {"X": "y"}, "not in the data"),
+    ],
+)
+def test_grouplabels_errors(people: pd.DataFrame, hue, labels, message: str) -> None:
+    with pytest.raises(sp.DataShapeError, match=message):
+        sp.scatter(people, x="age", y="bp", hue=hue).grouplabels(labels)

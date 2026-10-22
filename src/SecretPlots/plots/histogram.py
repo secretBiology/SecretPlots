@@ -17,6 +17,7 @@ from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
+from SecretPlots.core.stats import bandwidth, gaussian_kde
 from SecretPlots.errors import DataShapeError, SmallSampleWarning, emit
 
 Stat = Literal["count", "frequency", "probability", "percent", "density"]
@@ -170,44 +171,6 @@ def _check_stat(stat: str) -> str:
     stat = _STAT_ALIASES.get(stat, stat)
     _choice(stat, _STATS, "stat")
     return stat
-
-
-def _bandwidth(values: np.ndarray, adjust: float) -> float:
-    """Scott's rule (n^-1/5) on a robust spread (the smaller of the standard
-    deviation and IQR / 1.349), times ``adjust``."""
-    n = len(values)
-    sd = float(np.std(values, ddof=1)) if n > 1 else 0.0
-    iqr = float(np.subtract(*np.percentile(values, [75, 25])))
-    spread = min(sd, iqr / 1.349) if iqr > 0 else sd
-    if spread == 0:
-        raise DataShapeError("A density curve needs values that are not all equal")
-    return float(spread * n ** (-1 / 5) * adjust)
-
-
-def _erf(x: np.ndarray) -> np.ndarray:
-    """Error function (Abramowitz & Stegun 7.1.26, error < 1.5e-7)."""
-    t = 1 / (1 + 0.3275911 * np.abs(x))
-    poly = t * (
-        0.254829592
-        + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))
-    )
-    return np.asarray(np.sign(x) * (1 - poly * np.exp(-(x**2))), dtype=float)
-
-
-def _gaussian_kde(
-    values: np.ndarray, grid: np.ndarray, bw: float, *, cumulative: bool = False
-) -> np.ndarray:
-    """Gaussian kernel density (or its cumulative distribution) on ``grid``."""
-    total = np.zeros_like(grid)
-    for chunk in np.array_split(values, max(1, len(values) // 2000)):
-        z = (grid[:, None] - chunk[None, :]) / bw
-        if cumulative:
-            total += (0.5 * (1 + _erf(z / math.sqrt(2)))).sum(axis=1)
-        else:
-            total += np.exp(-0.5 * z**2).sum(axis=1)
-    if cumulative:
-        return np.asarray(total / len(values), dtype=float)
-    return np.asarray(total / (len(values) * bw * math.sqrt(2 * math.pi)), dtype=float)
 
 
 class HistogramPlot(Plot):
@@ -621,12 +584,12 @@ class HistogramPlot(Plot):
                     raise DataShapeError(
                         f"A density curve needs at least 2 values{_of(group)}"
                     )
-                bw = _bandwidth(values, self._kde["bw_adjust"])
+                bw = bandwidth(values, self._kde["bw_adjust"])
                 pad = self._kde["cut"] * bw
                 grid = np.linspace(
                     values.min() - pad, values.max() + pad, _CURVE_POINTS
                 )
-                curve = _gaussian_kde(values, grid, bw, cumulative=self._cumulative)
+                curve = gaussian_kde(values, grid, bw, cumulative=self._cumulative)
                 own = self._kde["color"]
                 if isinstance(own, Mapping):
                     own = own.get(group)

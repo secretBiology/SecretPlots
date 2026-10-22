@@ -29,9 +29,11 @@ sp.use(preset="nature")  # 89 mm wide, 5–7 pt text, embedded fonts
 
 sp.histogram(df, x="age", hue="group", stat="density").kde().show_n()
 sp.heatmap(expr).scale("row").groups(rows="pathway").cluster(cols=False)
+sp.box(df, x="dose", y="weight").points().compare(ref="0", correction="holm")
 ```
 
-Plot types: `sp.bar`, `sp.scatter`, `sp.histogram`, `sp.heatmap`. Heatmaps use
+Plot types: `sp.bar`, `sp.scatter`, `sp.histogram`, `sp.heatmap`, `sp.box`,
+`sp.violin`, `sp.raincloud`. Heatmaps use
 [SecretColors](https://github.com/secretBiology/SecretColors) colormaps by name
 (`.cmap("tol_sunset")`; `sp.colormaps()` lists them) as well as matplotlib's.
 

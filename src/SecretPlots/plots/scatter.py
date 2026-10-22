@@ -3,7 +3,7 @@
 import difflib
 import math
 from collections.abc import Hashable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from statistics import NormalDist
 from typing import Any, Literal, Self
 
@@ -13,7 +13,7 @@ from matplotlib.axes import Axes
 from matplotlib.markers import MarkerStyle
 
 from SecretPlots.core.colors import combined_alpha
-from SecretPlots.core.data import _order
+from SecretPlots.core.data import _order, _relabel, _rename_map
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError
@@ -326,6 +326,26 @@ class ScatterPlot(Plot):
         self._fit_per_group = per_group
         self._fit_frac = frac
         self._fit_stats = stats
+        return self._changed()
+
+    def grouplabels(self, labels: Sequence[Any] | Mapping[Any, Any]) -> Self:
+        """Name the ``hue`` groups shown in the legend.
+
+        Args:
+            labels: New names as a list in group order or a mapping
+                ``{old: new}``. The groups themselves are renamed, so later
+                ``.highlight()`` or ``.colors({...})`` use the new names. When
+                ``style`` is the same column as ``hue``, it is renamed too.
+        """
+        points = self._points
+        mapping = _rename_map(points.hue_order, labels, "groups")
+        frame = points.frame.copy()
+        changes: dict[str, Any] = {"hue_order": list(mapping.values())}
+        if "style" in frame and frame["hue"].equals(frame["style"]):
+            frame["style"] = _relabel(frame["style"], mapping)
+            changes["style_order"] = [mapping[v] for v in points.style_order or []]
+        frame["hue"] = _relabel(frame["hue"], mapping)
+        self._points = replace(points, frame=frame, **changes)
         return self._changed()
 
     # --------------------------------------------------------------- drawing

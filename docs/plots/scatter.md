@@ -59,7 +59,7 @@ sp.scatter(data=None, x=None, y=None, hue=None, *,
 | `hue_order` | Explicit group order (a list). |
 | `style_order` | Explicit order of the `style` values, and so of their shapes (a list). |
 
-Chainable steps specific to scatter plots: `.fit()`. Everything else (labels,
+Chainable steps specific to scatter plots: `.fit()`, `.grouplabels()`. Everything else (labels,
 legend, colors, highlight, limits, log axes, presets, themes, saving) works the
 same as for [bar plots](bar.md). Run `sp.ScatterPlot.options()` for the full
 list.
@@ -97,9 +97,18 @@ sp.scatter(df, x="age", y="bp", hue="sex")
 ```
 
 Groups appear in order of first appearance (or the category order of a pandas
-`Categorical`). Set it with `hue_order=["M", "F"]`, and rename groups by renaming
-the values in your DataFrame. The legend title is the `hue` column name; change
-it with `.legend(title="Sex")`.
+`Categorical`). Set it with `hue_order=["M", "F"]`. Rename groups with
+`.grouplabels()`, as a list in group order or a mapping `{old: new}`; later
+`.colors()` and `.highlight()` calls use the new names. The legend title is the
+`hue` column name; change it with `.legend(title="Sex")`:
+
+```python
+(
+    sp.scatter(df, x="age", y="bp", hue="sex")
+    .grouplabels({"M": "Male", "F": "Female"})
+    .legend(title="Sex")
+)
+```
 
 ## Marker shape from a column
 

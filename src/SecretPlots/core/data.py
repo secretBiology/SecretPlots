@@ -45,36 +45,46 @@ class Tidy:
         """
         order = self.x_order if which == "x" else self.hue_order
         what = "categories" if which == "x" else "groups"
-        if order is None:
-            raise DataShapeError("This plot has no groups (hue) to rename")
-        if isinstance(labels, Mapping):
-            unknown = set(labels) - set(order)
-            if unknown:
-                raise DataShapeError(
-                    f"Cannot rename {sorted(map(str, unknown))}: not in the data. "
-                    f"Current {what}: {', '.join(map(str, order))}"
-                )
-            mapping = {key: labels.get(key, key) for key in order}
-        else:
-            if isinstance(labels, str):
-                raise TypeError("Pass a list of labels, not a single string")
-            names = list(labels)
-            if len(names) != len(order):
-                raise DataShapeError(f"Got {len(names)} labels for {len(order)} {what}")
-            mapping = dict(zip(order, names, strict=True))
+        mapping = _rename_map(order, labels, what)
         new_order = list(mapping.values())
-        if len({str(n) for n in new_order}) != len(new_order):
-            raise DataShapeError(
-                f"Labels must be unique; duplicates would merge {what}"
-            )
         frame = self.frame.copy()
-        column = frame[which]
-        if isinstance(column.dtype, pd.CategoricalDtype):
-            column = column.astype(object)
-        frame[which] = column.map(mapping)
+        frame[which] = _relabel(frame[which], mapping)
         if which == "x":
             return replace(self, frame=frame, x_order=new_order)
         return replace(self, frame=frame, hue_order=new_order)
+
+
+def _rename_map(
+    order: list[Any] | None, labels: Sequence[Any] | Mapping[Any, Any], what: str
+) -> dict[Any, Any]:
+    """``{old: new}`` for every value in ``order``, from a list in data order or
+    a (partial) mapping. Raises if the result is ambiguous or doesn't fit."""
+    if order is None:
+        raise DataShapeError("This plot has no groups (hue) to rename")
+    if isinstance(labels, Mapping):
+        unknown = set(labels) - set(order)
+        if unknown:
+            raise DataShapeError(
+                f"Cannot rename {sorted(map(str, unknown))}: not in the data. "
+                f"Current {what}: {', '.join(map(str, order))}"
+            )
+        mapping = {key: labels.get(key, key) for key in order}
+    else:
+        if isinstance(labels, str):
+            raise TypeError("Pass a list of labels, not a single string")
+        names = list(labels)
+        if len(names) != len(order):
+            raise DataShapeError(f"Got {len(names)} labels for {len(order)} {what}")
+        mapping = dict(zip(order, names, strict=True))
+    if len({str(n) for n in mapping.values()}) != len(mapping):
+        raise DataShapeError(f"Labels must be unique; duplicates would merge {what}")
+    return mapping
+
+
+def _relabel(column: pd.Series, mapping: Mapping[Any, Any]) -> pd.Series:
+    if isinstance(column.dtype, pd.CategoricalDtype):
+        column = column.astype(object)
+    return column.map(mapping)
 
 
 def _order(values: Any, explicit: Sequence[Any] | None, what: str) -> list[Any]:

@@ -9,6 +9,8 @@ nav:
       - Scatter: plots/scatter.md
       - Histogram: plots/histogram.md
       - Heatmap: plots/heatmap.md
+      - Box: plots/box.md
+      - Violin and raincloud: plots/violin.md
   - Presets: presets.md
   - API: api.md
 plugins:

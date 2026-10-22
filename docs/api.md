@@ -8,6 +8,11 @@
 ::: SecretPlots.HistogramPlot
 ::: SecretPlots.heatmap
 ::: SecretPlots.HeatmapPlot
+::: SecretPlots.box
+::: SecretPlots.BoxPlot
+::: SecretPlots.violin
+::: SecretPlots.raincloud
+::: SecretPlots.ViolinPlot
 ::: SecretPlots.colormaps
 ::: SecretPlots.core.plot.Plot
 ::: SecretPlots.use

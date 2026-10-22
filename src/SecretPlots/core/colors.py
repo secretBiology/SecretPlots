@@ -29,6 +29,12 @@ def with_alpha(color: str, alpha: float | None) -> str:
     return to_hex((r, g, b, a * alpha), keep_alpha=True)
 
 
+def darken(color: str, amount: float) -> str:
+    """``color`` mixed with black (``amount`` 0 to 1), keeping its alpha."""
+    alpha = to_rgba(color)[3]
+    return with_alpha(_mix(to_hex(color), "#000000", amount), alpha)
+
+
 def combined_alpha(color: Any, alpha: float | None) -> float | None:
     """Artist ``alpha`` that keeps the color's own alpha: matplotlib's
     ``alpha=`` replaces it instead of multiplying."""
