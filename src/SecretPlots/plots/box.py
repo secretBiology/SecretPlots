@@ -39,9 +39,11 @@ class BoxPlot(DistributionPlot):
         outliers: bool | None = None,
         caps: bool = False,
         orient: Orient = "v",
+        edgecolor: str | None = None,
+        linewidth: float | None = None,
     ) -> None:
         check_whiskers(whis)
-        super().__init__(data, orient=orient)
+        super().__init__(data, orient=orient, edgecolor=edgecolor, linewidth=linewidth)
         self._whis_value: Whiskers = tuple(whis) if isinstance(whis, list) else whis
         self._notch = notch
         self._varwidth = varwidth
@@ -90,7 +92,7 @@ class BoxPlot(DistributionPlot):
         labelled: set[Any] = set()
         for item in items:
             s = self._stats(item.values)
-            line = self._line_color(item.color, self._fill)
+            line = self._detail_color(item)
             face = item.color if self._fill else theme.axes_background
             c, half = item.center, item.width / 2
             inv = self._inv
@@ -120,8 +122,8 @@ class BoxPlot(DistributionPlot):
             ax.fill(
                 *self._xy(pos, inv(np.array(val))),
                 facecolor=face,
-                edgecolor=line,
-                linewidth=thin,
+                edgecolor=self._outline_color(item),
+                linewidth=self._outline_width(style),
                 label=label,
                 zorder=2,
             )
@@ -207,6 +209,8 @@ def box(
     fill: bool = True,
     outliers: bool | None = None,
     caps: bool = False,
+    edgecolor: str | None = None,
+    linewidth: float | None = None,
     orient: Orient = "v",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
@@ -231,6 +235,9 @@ def box(
         outliers: Draw values beyond the whiskers. Default: yes, unless
             ``.points()`` already shows every value.
         caps: Short lines at the whisker ends.
+        edgecolor: Color of the box outlines, whiskers and medians (default:
+            a dark shade of the fill). ``"none"`` removes only the outline.
+        linewidth: Width of the box outlines in pt; 0 removes them.
         orient: ``"v"`` (values up) or ``"h"`` (values to the right).
         order, hue_order: Explicit category / group order.
 
@@ -248,6 +255,8 @@ def box(
         outliers=outliers,
         caps=caps,
         orient=orient,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
     )
 
 

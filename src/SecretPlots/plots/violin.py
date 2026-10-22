@@ -65,6 +65,8 @@ class ViolinPlot(DistributionPlot):
         fill: bool = True,
         orient: Orient = "v",
         rain: bool = False,
+        edgecolor: str | None = None,
+        linewidth: float | None = None,
     ) -> None:
         if bw_adjust <= 0:
             raise ValueError("bw_adjust must be positive")
@@ -78,7 +80,7 @@ class ViolinPlot(DistributionPlot):
             raise DataShapeError("split=True needs hue= with exactly 2 groups")
         if split and side != "both":
             raise ValueError("split=True already draws half violins; leave side out")
-        super().__init__(data, orient=orient)
+        super().__init__(data, orient=orient, edgecolor=edgecolor, linewidth=linewidth)
         self._bw_adjust = bw_adjust
         self._cut = cut
         self._scale: str = scale
@@ -158,7 +160,8 @@ class ViolinPlot(DistributionPlot):
         thin = self._line_width(style, 0.6)
         labelled: set[Any] = set()
         for item, curve in zip(items, curves, strict=True):
-            line = self._line_color(item.color, self._fill)
+            line = self._detail_color(item)
+            outline = self._outline_color(item)
             face = item.color if self._fill else theme.axes_background
             base, reach = self._base(item), self._reach(item)
             label = None
@@ -172,7 +175,7 @@ class ViolinPlot(DistributionPlot):
                 ax.plot(
                     *self._xy([low, high], [value, value]),
                     color=line,
-                    lw=thin,
+                    lw=max(self._outline_width(style), thin),
                     label=label,
                     zorder=2,
                 )
@@ -194,8 +197,8 @@ class ViolinPlot(DistributionPlot):
             ax.fill(
                 *self._xy(pos, val),
                 facecolor=face,
-                edgecolor=line,
-                linewidth=thin,
+                edgecolor=outline,
+                linewidth=self._outline_width(style),
                 label=label,
                 zorder=2,
             )
@@ -332,6 +335,8 @@ def violin(
     split: bool = False,
     side: Side = "both",
     fill: bool = True,
+    edgecolor: str | None = None,
+    linewidth: float | None = None,
     orient: Orient = "v",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
@@ -358,6 +363,10 @@ def violin(
         side: ``"left"`` or ``"right"`` for half violins (for horizontal
             violins, ``"right"`` is the upper side).
         fill: Filled violins (default) or outlines in the group color.
+        edgecolor: Color of the violin outlines and the median / quartile
+            lines (default: a dark shade of the fill). ``"none"`` removes
+            only the outline.
+        linewidth: Width of the violin outlines in pt; 0 removes them.
         orient: ``"v"`` (values up) or ``"h"`` (values to the right).
         order, hue_order: Explicit category / group order.
 
@@ -374,6 +383,8 @@ def violin(
         side=side,
         fill=fill,
         orient=orient,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
     )
 
 
@@ -386,6 +397,8 @@ def raincloud(
     bw_adjust: float = 1.0,
     cut: float = 0.0,
     scale: Scale = "area",
+    edgecolor: str | None = None,
+    linewidth: float | None = None,
     orient: Orient = "h",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
@@ -393,7 +406,8 @@ def raincloud(
     """Raincloud plot (Allen et al., Wellcome Open Res 4:63, 2019): a half
     violin (the cloud), a small box plot and every value as a dot (the rain).
 
-    Takes the same arguments as :func:`violin`; horizontal by default. Change
+    Takes the same arguments as :func:`violin` (``edgecolor`` and
+    ``linewidth`` set the cloud's outline); horizontal by default. Change
     the dots with ``.points(kind=...)`` or remove them with
     ``.points(False)``.
 
@@ -408,4 +422,6 @@ def raincloud(
         inner="box",
         orient=orient,
         rain=True,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
     ).points(kind="jitter")

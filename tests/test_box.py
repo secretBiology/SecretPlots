@@ -344,3 +344,36 @@ def test_render_into_existing_axes(mice: pd.DataFrame) -> None:
     ax: Axes = fig.add_subplot()
     sp.box(mice, x="dose", y="weight").render(ax=ax)
     assert len([p for p in ax.patches if isinstance(p, Polygon)]) == 3
+
+
+def test_outline_color_and_width(mice: pd.DataFrame) -> None:
+    plot = sp.box(mice, x="dose", y="weight", edgecolor="black", linewidth=2)
+    box = _boxes(plot)[0]
+    assert to_hex(box.get_edgecolor()) == "#000000"
+    assert box.get_linewidth() == 2
+    assert {to_hex(line.get_color()) for line in plot.ax.lines} == {"#000000"}
+
+
+def test_edgecolor_none_removes_only_the_outline(mice: pd.DataFrame) -> None:
+    plot = sp.box(mice, x="dose", y="weight", edgecolor="none")
+    assert _boxes(plot)[0].get_edgecolor()[3] == 0
+    assert all(line.get_color() != "none" for line in plot.ax.lines)  # medians kept
+    assert (
+        _boxes(sp.box(mice, x="dose", y="weight", linewidth=0))[0].get_linewidth() == 0
+    )
+
+
+def test_point_outline(mice: pd.DataFrame) -> None:
+    dots = sp.box(mice, x="dose", y="weight").points(edgecolor="black", linewidth=1.2)
+    collection = dots.ax.collections[0]
+    assert to_hex(collection.get_edgecolor()[0]) == "#000000"
+    assert collection.get_linewidths()[0] == 1.2
+    bare = sp.box(mice, x="dose", y="weight").points(linewidth=0)
+    assert bare.ax.collections[0].get_linewidths()[0] == 0
+
+
+def test_outline_validation(mice: pd.DataFrame) -> None:
+    with pytest.raises(ValueError, match="Not a color"):
+        sp.box(mice, x="dose", y="weight", edgecolor="blak")
+    with pytest.raises(ValueError, match="linewidth"):
+        sp.box(mice, x="dose", y="weight").points(linewidth=-1)

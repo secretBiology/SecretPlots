@@ -133,3 +133,18 @@ def test_validation() -> None:
         sp.violin([1.0] * 12, scale="aera")  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="bw_adjust"):
         sp.violin([1.0] * 12, bw_adjust=0)
+
+
+def test_outline(scores: pd.DataFrame) -> None:
+    plot = sp.violin(
+        scores, x="group", y="score", inner="quartiles", edgecolor="black", linewidth=1
+    )
+    violin = next(p for p in plot.ax.patches if len(p.get_xy()) > 10)
+    assert violin.get_linewidth() == 1
+    assert violin.get_edgecolor()[:3] == (0, 0, 0)
+    assert all(line.get_color() == "black" for line in plot.ax.lines)
+    cloud = sp.raincloud(scores, x="group", y="score", edgecolor="none")
+    assert (
+        next(p for p in cloud.ax.patches if len(p.get_xy()) > 10).get_edgecolor()[3]
+        == 0
+    )

@@ -43,10 +43,12 @@ Violins take the same data as [box plots](box.md), and the same steps:
 ```text
 sp.violin(data, x=None, y=None, hue=None, *,
           bw_adjust=1.0, cut=0.0, scale="area", inner="box", split=False,
-          side="both", fill=True, orient="v", order=None, hue_order=None) -> ViolinPlot
+          side="both", fill=True, edgecolor=None, linewidth=None, orient="v",
+          order=None, hue_order=None) -> ViolinPlot
 
 sp.raincloud(data, x=None, y=None, hue=None, *,
-             bw_adjust=1.0, cut=0.0, scale="area", orient="h",
+             bw_adjust=1.0, cut=0.0, scale="area", edgecolor=None,
+             linewidth=None, orient="h",
              order=None, hue_order=None) -> RaincloudPlot
 ```
 
@@ -59,6 +61,8 @@ sp.raincloud(data, x=None, y=None, hue=None, *,
 | `split` | With exactly two `hue` groups, draw one half per group. |
 | `side` | `"left"` or `"right"` for half violins. For horizontal violins, `"right"` is the upper side. |
 | `fill` | Filled (default) or outlines in the group colour. |
+| `edgecolor` | Colour of the outline and the median/quartile lines (default: a dark shade of the fill). `"none"` removes only the outline. |
+| `linewidth` | Outline width in pt; `0` removes it. |
 
 ## Density and scaling
 
@@ -121,6 +125,15 @@ sp.raincloud(df, x="dose", y="weight", orient="v").points(kind="swarm")
 ```
 
 ## Points and significance brackets
+
+Dots take the same options as on box plots, including `edgecolor=` and
+`linewidth=` for the ring around each dot:
+
+```python
+sp.violin(df, x="dose", y="weight", inner=None, edgecolor="none").points(
+    color="black", edgecolor="white", linewidth=0.4
+)
+```
 
 ```python
 (

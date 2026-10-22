@@ -35,6 +35,8 @@ All notable changes to this project are documented here. The format follows
   exact p or stars; your own p-values), `.test_results()`, `.caption()`
   (figure-legend text defining the elements), `.source_data()`.
   `SmallSampleWarning` below 5 values per box (10 per violin) without points.
+  `edgecolor=` / `linewidth=` for box and violin outlines and for the
+  ring around `.points()` dots.
 - Numpy-only statistics module (`SecretPlots.core.stats`): scipy is not needed.
 
 ### Removed

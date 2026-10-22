@@ -14,6 +14,7 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
 from matplotlib.collections import PathCollection
+from matplotlib.colors import is_color_like
 from matplotlib.figure import Figure
 
 from SecretPlots.core.colors import combined_alpha, darken
@@ -213,6 +214,13 @@ def _choice(value: object, options: Sequence[str], what: str) -> None:
     )
 
 
+def _check_outline(color: str | None, width: float | None) -> None:
+    if color is not None and not is_color_like(color):
+        raise ValueError(f"Not a color: {color!r}")
+    if width is not None and (isinstance(width, bool) or width < 0):
+        raise ValueError("linewidth must be 0 or more (pt)")
+
+
 def _check_test(test: str) -> str:
     key = test.lower().replace(" ", "-")
     key = _TEST_ALIASES.get(key, key)
@@ -315,9 +323,19 @@ class DistributionPlot(Plot):
     #: Below this many values per distribution, a warning suggests .points().
     small_sample: int = 5
 
-    def __init__(self, data: Tidy, *, orient: Orient = "v") -> None:
+    def __init__(
+        self,
+        data: Tidy,
+        *,
+        orient: Orient = "v",
+        edgecolor: str | None = None,
+        linewidth: float | None = None,
+    ) -> None:
+        _check_outline(edgecolor, linewidth)
         super().__init__()
         self._data = data
+        self._edgecolor = edgecolor
+        self._linewidth = linewidth
         self._orient: Orient = "v"
         self.orient(orient)
         self._points: dict[str, Any] | None = None
@@ -348,6 +366,8 @@ class DistributionPlot(Plot):
         size: float | None = None,
         alpha: float | None = None,
         color: str | None = None,
+        edgecolor: str | None = None,
+        linewidth: float | None = None,
         seed: int = 0,
     ) -> Self:
         """Draw every value as a dot on top (journals ask for this when samples
@@ -363,6 +383,10 @@ class DistributionPlot(Plot):
             alpha: Dot opacity, 0 to 1 (default: the theme's marker_alpha).
             color: One color for all dots. Default: a dark shade of each box's
                 color (filled boxes) or the box color itself (outlines).
+            edgecolor: Color of the ring around each dot (default: the
+                background, which separates overlapping dots).
+            linewidth: Width of that ring in pt (default: the theme's
+                marker_edge_width); 0 removes it.
             seed: Random seed for ``"jitter"``, so figures are reproducible.
         """
         _choice(kind, _POINT_KINDS, "kind")
@@ -370,8 +394,19 @@ class DistributionPlot(Plot):
             raise ValueError("size must be positive")
         if alpha is not None and not 0 <= alpha <= 1:
             raise ValueError("alpha must be between 0 and 1")
+        if color is not None and not is_color_like(color):
+            raise ValueError(f"Not a color: {color!r}")
+        _check_outline(edgecolor, linewidth)
         self._points = (
-            {"kind": kind, "size": size, "alpha": alpha, "color": color, "seed": seed}
+            {
+                "kind": kind,
+                "size": size,
+                "alpha": alpha,
+                "color": color,
+                "edgecolor": edgecolor,
+                "linewidth": linewidth,
+                "seed": seed,
+            }
             if show
             else None
         )
@@ -778,6 +813,23 @@ class DistributionPlot(Plot):
     def _line_color(self, color: str, fill: bool) -> str:
         return darken(color, 0.55) if fill else color
 
+    def _outline_color(self, item: _Item) -> str:
+        """Outline of a box or violin: ``edgecolor=`` or a dark shade of the
+        fill (the fill color itself for outlined shapes)."""
+        return self._edgecolor or self._line_color(item.color, self._filled())
+
+    def _detail_color(self, item: _Item) -> str:
+        """Whiskers, medians and other lines: follow ``edgecolor=`` unless it
+        is ``"none"``, which only removes the outline."""
+        if self._edgecolor is not None and self._edgecolor.lower() != "none":
+            return self._edgecolor
+        return self._line_color(item.color, self._filled())
+
+    def _outline_width(self, style: Style) -> float:
+        if self._linewidth is not None:
+            return float(self._linewidth)
+        return self._line_width(style, 0.6)
+
     # --------------------------------------------------------------- drawing
     @abstractmethod
     def _draw_marks(self, ax: Axes, style: Style, items: list[_Item]) -> None:
@@ -864,8 +916,10 @@ class DistributionPlot(Plot):
                 s=diameter**2,
                 color=color,
                 alpha=combined_alpha(color, alpha),
-                linewidths=theme.marker_edge_width,
-                edgecolors=theme.axes_background,
+                linewidths=options["linewidth"]
+                if options["linewidth"] is not None
+                else theme.marker_edge_width,
+                edgecolors=options["edgecolor"] or theme.axes_background,
                 zorder=4,
             )
             self._point_sets.append(
@@ -891,7 +945,7 @@ class DistributionPlot(Plot):
         theme = style.theme
         size = float(theme.marker_size or 5.0) * 0.9
         for item in items:
-            line = self._line_color(item.color, self._filled())
+            line = self._detail_color(item)
             ax.scatter(
                 *self._xy([item.center], [float(item.values.mean())]),
                 s=size**2,

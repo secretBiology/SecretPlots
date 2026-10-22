@@ -52,7 +52,8 @@ steps.
 ```text
 sp.box(data, x=None, y=None, hue=None, *,
        whis=1.5, notch=False, varwidth=False, fill=True, outliers=None,
-       caps=False, orient="v", order=None, hue_order=None) -> BoxPlot
+       caps=False, edgecolor=None, linewidth=None, orient="v",
+       order=None, hue_order=None) -> BoxPlot
 ```
 
 | Argument | Meaning |
@@ -65,6 +66,8 @@ sp.box(data, x=None, y=None, hue=None, *,
 | `fill` | Filled boxes (default) or outlines in the group colour. |
 | `outliers` | Draw values beyond the whiskers. Default: yes, unless `.points()` already draws every value. |
 | `caps` | Short lines at the whisker ends. |
+| `edgecolor` | Colour of the outlines, whiskers and medians (default: a dark shade of the fill). `"none"` removes only the outline. |
+| `linewidth` | Outline width in pt; `0` removes it. |
 | `orient` | `"v"` (values up) or `"h"` (values to the right). |
 | `order`, `hue_order` | Explicit category and group order. |
 
@@ -168,6 +171,23 @@ sp.box(df, x="dose", y="weight").points(kind="jitter", size=2.5, alpha=0.6)
 On filled boxes the dots take a dark shade of the box colour. On outlined
 boxes (`fill=False`) they take the box colour itself. `color=` sets one
 colour for all of them.
+
+Each dot has a thin ring in the background colour, which keeps overlapping
+dots apart. `edgecolor=` and `linewidth=` change it:
+
+```python
+sp.box(df, x="dose", y="weight").points(color="white", edgecolor="black", linewidth=0.6)
+```
+
+```python
+sp.box(df, x="dose", y="weight").points(linewidth=0)       # no ring
+```
+
+The box outline has the same two options on `sp.box()` itself:
+
+```python
+sp.box(df, x="dose", y="weight", edgecolor="black", linewidth=1)
+```
 
 ## Means, sample sizes and reference lines
 
