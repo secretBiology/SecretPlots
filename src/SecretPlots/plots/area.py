@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
 from SecretPlots.core.colors import combined_alpha, with_alpha
+from SecretPlots.core.missing import MissingPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError
 from SecretPlots.plots.series import SeriesPlot, _is_number, _Series, series
@@ -109,17 +110,40 @@ class FillBetweenPlot(SeriesPlot):
     # ------------------------------------------------------------------ data
     def _layers(self) -> tuple[np.ndarray, dict[Any, tuple[np.ndarray, np.ndarray]]]:
         """Stacked layers on a shared x grid: ``{group: (lower, upper)}``.
-        Missing points count as 0."""
+        Incomplete x positions follow the selected missing-data policy."""
         frame = self._data.frame
         groups = self._groups
         if not self._grouped:
             frame = frame.assign(hue=0)
             groups = [0]
         wide = frame.pivot(index="x", columns="hue", values="y1")
-        wide = wide.reindex(columns=groups).sort_index().fillna(0.0)
+        wide = wide.reindex(columns=groups)
+        wide = (
+            wide.sort_index()
+            if self._data.sort
+            else wide.reindex(pd.unique(frame["x"]))
+        )
+        incomplete = wide.isna().any(axis=1)
+        if incomplete.any():
+            if self._data.missing == "raise":
+                raise DataShapeError(
+                    "Stacked areas need every group at each x. "
+                    "Use missing='drop' to omit incomplete x positions "
+                    "or missing='gap' to leave a gap."
+                )
+            if self._data.missing == "drop":
+                wide = wide.loc[~incomplete]
+            else:
+                wide.loc[incomplete, :] = np.nan
+        if wide.empty:
+            raise DataShapeError("No complete x positions to stack")
         if self._stack == "percent":
-            totals = wide.sum(axis=1).replace(0, np.nan)
-            wide = wide.div(totals, axis=0).fillna(0.0) * 100
+            if (wide < 0).any(axis=None):
+                raise DataShapeError("Percent stacks need non-negative values")
+            totals = wide.sum(axis=1, min_count=1)
+            if (totals == 0).any():
+                raise DataShapeError("Percent stacks need a positive total at every x")
+            wide = wide.div(totals, axis=0) * 100
         base = float(frame["y2"].iloc[0])
         upper = wide.cumsum(axis=1) + base
         lower = upper - wide
@@ -207,15 +231,18 @@ class FillBetweenPlot(SeriesPlot):
                         lw=width * _SEPARATOR,
                         zorder=2.5,
                     )
-                ends.append(
-                    (
-                        group,
-                        x[-1],
-                        (lower[-1] + upper[-1]) / 2,
-                        colors[group],
-                        upper[-1] - lower[-1],
+                finite = np.flatnonzero(np.isfinite(lower) & np.isfinite(upper))
+                if len(finite):
+                    i = finite[-1]
+                    ends.append(
+                        (
+                            group,
+                            x[i],
+                            (lower[i] + upper[i]) / 2,
+                            colors[group],
+                            upper[i] - lower[i],
+                        )
                     )
-                )
         elif self._split is not None:
             ends.append(self._draw_split(ax, style, lines, width))
         else:
@@ -252,9 +279,11 @@ class FillBetweenPlot(SeriesPlot):
                         solid_capstyle="round",
                         solid_joinstyle="round",
                     )
-                if len(x):
-                    y = (y1[-1] + y2[-1]) / 2 if self._band else y1[-1]
-                    ends.append((group, x[-1], float(y), color, float(y1[-1])))
+                finite = np.flatnonzero(np.isfinite(y1) & np.isfinite(y2))
+                if len(finite):
+                    i = finite[-1]
+                    y = (y1[i] + y2[i]) / 2 if self._band else y1[i]
+                    ends.append((group, x[i], float(y), color, float(y1[i])))
 
         self._style_axes(ax, style, x_margin=0.0)
         if self._stack == "percent":
@@ -312,7 +341,9 @@ class FillBetweenPlot(SeriesPlot):
             )
         if self._split["labels"]:
             self._draw_legend(ax, style, n=2, title=None)
-        return (None, x[-1], float(y1[-1]), ink, float(y1[-1]))
+        finite = np.flatnonzero(np.isfinite(y1) & np.isfinite(y2))
+        i = finite[-1] if len(finite) else -1
+        return (None, x[i], float(y1[i]), ink, float(y1[i]))
 
     def _legend_entries(
         self,
@@ -356,6 +387,7 @@ def fill_between(
     sort: bool = True,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> FillBetweenPlot:
     """Filled area between ``y1`` and ``y2`` along x: an area chart (``y2``
     is a baseline), a band between two columns, or stacked areas.
@@ -377,7 +409,11 @@ def fill_between(
         order: Explicit order of category x values.
         hue_order: Explicit group order.
 
-    Each x appears once per area. Rows with a missing value are left out.
+        missing: "raise" (default), "drop" affected rows, or "gap" to
+            break areas at missing values. For stacks, drop removes incomplete
+            x positions from all layers; gap breaks all layers at those positions.
+
+    Each x appears once per area.
 
     Example:
         >>> sp.fill_between(df, x="year", y1="low", y2="high")  # doctest: +SKIP
@@ -391,6 +427,7 @@ def fill_between(
         order=order,
         sort=sort,
         required=("y2",),
+        missing=missing,
     )
     return FillBetweenPlot(data_, band=not _is_number(y2), stack=stack)
 
@@ -406,6 +443,7 @@ def area(
     sort: bool = True,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> FillBetweenPlot:
     """Area chart: the area between ``y`` and a ``baseline``. Same as
     :func:`fill_between` with ``y1=y, y2=baseline``.
@@ -425,4 +463,5 @@ def area(
         sort=sort,
         order=order,
         hue_order=hue_order,
+        missing=missing,
     )

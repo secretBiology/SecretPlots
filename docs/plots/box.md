@@ -53,11 +53,12 @@ steps.
 sp.box(data, x=None, y=None, hue=None, *,
        whis=1.5, notch=False, varwidth=False, fill=True, outliers=None,
        caps=False, edgecolor=None, linewidth=None, orient="v",
-       order=None, hue_order=None) -> BoxPlot
+       order=None, hue_order=None, missing="raise") -> BoxPlot
 ```
 
 | Argument | Meaning |
 |---|---|
+| `missing` | `"raise"` (default), `"drop"`; see [data handling](../usage.md). |
 | `data` | A long DataFrame with column names, a wide DataFrame, a dict, a Series, a list or an array; see [Input data](#input-data). |
 | `x`, `y`, `hue` | Columns for categories, values and groups. |
 | `whis` | Whisker reach: a multiple of the IQR (`1.5`, Tukey), percentiles such as `(5, 95)`, or `"range"`. |
@@ -101,7 +102,8 @@ sp.box({"liver": {"WT": rng.normal(5, 1, 12), "KO": rng.normal(6, 1, 12)},
         "heart": {"WT": rng.normal(3, 1, 12), "KO": rng.normal(3, 1, 12)}})   # nested: groups
 ```
 
-Missing and infinite values are left out. A categorical `x` column keeps its
+Missing and infinite values raise an error by default. Select `missing="drop"`
+to ignore affected observations. A categorical `x` column keeps its
 category order. Otherwise categories appear in data order unless you pass
 `order=`.
 

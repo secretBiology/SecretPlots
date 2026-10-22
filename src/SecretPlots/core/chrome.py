@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.units import PT_PER_INCH
+from SecretPlots.errors import DataShapeError
 
 _LINE_HEIGHT = 1.25
 _ACCENT_SIZE = (0.32, 0.06)  # width, height in inches
@@ -34,6 +35,43 @@ def _height(text: str, size_pt: float) -> float:
     return (text.count("\n") + 1) * size_pt * _LINE_HEIGHT / PT_PER_INCH
 
 
+def _wrap(
+    fig: Figure, content: str, size: float, weight: str | None, available: float
+) -> tuple[str, float]:
+    """Wrap using rendered glyph widths, including long unbroken words."""
+    probe = fig.text(0, 0, "", fontsize=size, fontweight=weight)
+    limit = available * fig.dpi
+
+    def fits(value: str) -> bool:
+        probe.set_text(value)
+        return bool(probe.get_window_extent().width <= limit)
+
+    lines: list[str] = []
+    try:
+        for paragraph in content.split("\n"):
+            current = ""
+            for word in paragraph.split():
+                candidate = f"{current} {word}" if current else word
+                if fits(candidate):
+                    current = candidate
+                    continue
+                if current:
+                    lines.append(current)
+                current = ""
+                for char in word:
+                    if current and not fits(current + char):
+                        lines.append(current)
+                        current = ""
+                    current += char
+            lines.append(current)
+        wrapped = "\n".join(lines)
+        probe.set_text(wrapped)
+        height = max(_height(wrapped, size), probe.get_window_extent().height / fig.dpi)
+        return wrapped, height
+    finally:
+        probe.remove()
+
+
 def apply_chrome(fig: Figure, style: Style, text: ChromeText) -> None:
     if not text:
         return
@@ -43,6 +81,35 @@ def apply_chrome(fig: Figure, style: Style, text: ChromeText) -> None:
     left = chrome.title_align == "left"
     x = pad / width if left else 0.5
     ha = "left" if left else "center"
+
+    available = width - 2 * pad
+    if available <= 0:
+        raise DataShapeError("Figure is too narrow for its text; use .size(width=...)")
+    header_items = [
+        (*_wrap(fig, content, size, weight, available), size, weight, color)
+        for content, size, weight, color in (
+            (text.title, sizes.title, theme.title_weight, theme.text_color),
+            (text.subtitle, sizes.subtitle, "normal", theme.text_color),
+        )
+        if content
+    ]
+    source = f"{chrome.source_prefix}{text.source}" if text.source else None
+    footer_items = [
+        _wrap(fig, content, sizes.note, "normal", available)
+        for content in (source, text.note)
+        if content
+    ]
+    header_needed = sum(h + pad * 0.4 for _, h, *_ in header_items)
+    footer_needed = sum(h + pad * 0.3 for _, h in footer_items)
+    accent = sum(_ACCENT_SIZE[1:]) + pad if chrome.accent_bar and header_items else 0
+    if header_needed + footer_needed + accent + 3 * pad > height * (
+        1 - _MIN_PLOT_FRACTION
+    ):
+        raise DataShapeError(
+            "Title/source text leaves too little plotting space. "
+            "Use .size(height='5in'), increase the width, "
+            "or shorten the text."
+        )
 
     # Header, top down.
     y = height - pad
@@ -59,10 +126,7 @@ def apply_chrome(fig: Figure, style: Style, text: ChromeText) -> None:
             )
         )
         y -= bar_h + pad
-    for content, size, weight, color in (
-        (text.title, sizes.title, theme.title_weight, theme.text_color),
-        (text.subtitle, sizes.subtitle, "normal", theme.text_color),
-    ):
+    for content, text_height, size, weight, color in header_items:
         if content:
             fig.text(
                 x,
@@ -74,13 +138,12 @@ def apply_chrome(fig: Figure, style: Style, text: ChromeText) -> None:
                 fontweight=weight,
                 color=color,
             )
-            y -= _height(content, size) + pad * 0.4
+            y -= text_height + pad * 0.4
     header = height - y if y < height - pad else 0.0
 
     # Footer, bottom up.
     y = pad
-    source = f"{chrome.source_prefix}{text.source}" if text.source else None
-    for content in (source, text.note):
+    for content, text_height in footer_items:
         if content:
             fig.text(
                 x,
@@ -91,7 +154,7 @@ def apply_chrome(fig: Figure, style: Style, text: ChromeText) -> None:
                 fontsize=sizes.note,
                 color=theme.muted_text_color,
             )
-            y += _height(content, sizes.note) + pad * 0.3
+            y += text_height + pad * 0.3
     footer = y + pad * 0.5 if y > pad else 0.0
     if footer and chrome.footer_rule:
         rule_y = (footer - pad * 0.25) / height

@@ -186,8 +186,8 @@ def test_verbs_invalidate_cache() -> None:
 
 
 def test_nan_values_skipped() -> None:
-    plot = sp.bar({"a": 1, "b": np.nan, "c": 2}).values()
-    assert [t.get_text() for t in plot.ax.texts] == ["1", "", "2"]
+    plot = sp.bar({"a": 1, "b": np.nan, "c": 2}, missing="drop").values()
+    assert [t.get_text() for t in plot.ax.texts] == ["1", "2"]
 
 
 def _ticks(plot: sp.BarPlot) -> list[str]:

@@ -13,6 +13,7 @@ from matplotlib.markers import MarkerStyle
 
 from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order, _relabel, _rename_map
+from SecretPlots.core.missing import MissingPolicy, handle_missing
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import t_quantile as _t_quantile
@@ -56,6 +57,7 @@ def _points(
     hue_order: Sequence[Any] | None,
     style: Any = None,
     style_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> _Points:
     if data is None:
         if x is None or y is None:
@@ -71,7 +73,7 @@ def _points(
         columns = {"x": x, "y": y, "hue": hue, "size": size, "style": style}
         try:
             frame = pd.DataFrame(
-                {k: np.asarray(v) for k, v in columns.items() if v is not None}
+                {k: pd.Series(v).array for k, v in columns.items() if v is not None}
             )
         except ValueError:
             raise DataShapeError(
@@ -134,9 +136,12 @@ def _points(
                 raise DataShapeError(
                     f"Values in {shown[column] or column!r} must be numeric"
                 ) from None
-    frame = frame.dropna().reset_index(drop=True)
-    if frame.empty:
-        raise DataShapeError("No data to plot (every row has a missing value)")
+    frame = handle_missing(
+        frame,
+        missing,
+        values=[c for c in ("x", "y", "size") if c in frame],
+        keys=[c for c in ("hue", "style") if c in frame],
+    )
     if hue_order is not None and "hue" not in frame:
         raise DataShapeError("hue_order= needs hue= groups")
     if style_order is not None and "style" not in frame:
@@ -347,6 +352,25 @@ class ScatterPlot(Plot):
         small, large = _SIZE_RANGE
         return np.asarray(base**2 * (small + (large - small) * rel))
 
+    def encode_groups(self) -> Self:
+        """Identify hue groups by color and marker shape, replacing style=."""
+        groups = self._points.hue_order
+        if groups is None:
+            raise DataShapeError("encode_groups() needs hue= groups")
+        if len(groups) > len(_MARKERS):
+            raise DataShapeError(
+                f"Only {len(_MARKERS)} distinct marker shapes are available"
+            )
+        frame = self._points.frame.copy()
+        frame["style"] = frame["hue"]
+        self._points = replace(
+            self._points,
+            frame=frame,
+            style_order=list(groups),
+            style_name=self._points.hue_name,
+        )
+        return self._data_changed()
+
     def _draw(self, ax: Axes, style: Style) -> None:
         theme = style.theme
         frame = self._points.frame
@@ -508,6 +532,7 @@ def scatter(
     style: Any = None,
     hue_order: Sequence[Any] | None = None,
     style_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> ScatterPlot:
     """Scatter plot: one marker per row.
 
@@ -522,9 +547,12 @@ def scatter(
         hue_order: Explicit group order.
         style_order: Explicit order of the ``style`` values (and their shapes).
 
-    Rows with a missing x, y, hue, size or style are left out.
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            ignores affected observations.
 
     Example:
         >>> sp.scatter(df, x="age", y="bp", hue="sex").fit("linear")  # doctest: +SKIP
     """
-    return ScatterPlot(_points(data, x, y, hue, size, hue_order, style, style_order))
+    return ScatterPlot(
+        _points(data, x, y, hue, size, hue_order, style, style_order, missing)
+    )

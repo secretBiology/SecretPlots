@@ -215,7 +215,7 @@ def test_mask_triangle_and_nan_cells() -> None:
     assert data.loc["c", "a"] == 0
     with_diag = sp.heatmap(corr).mask("lower", diagonal=True).values(".0f")
     assert len(with_diag.ax.texts) == 3
-    missing = sp.heatmap([[1.0, np.nan]])
+    missing = sp.heatmap([[1.0, np.nan]], missing="gap")
     assert len([c for c in missing.ax.collections if isinstance(c, QuadMesh)]) == 2
 
 

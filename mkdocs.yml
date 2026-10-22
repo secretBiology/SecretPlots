@@ -13,6 +13,7 @@ nav:
       - Heatmap: plots/heatmap.md
       - Box: plots/box.md
       - Violin and raincloud: plots/violin.md
+  - Data handling and reusable plots: usage.md
   - Presets: presets.md
   - API: api.md
 plugins:

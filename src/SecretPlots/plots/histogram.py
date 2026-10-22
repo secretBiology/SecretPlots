@@ -15,6 +15,7 @@ from matplotlib.colors import is_color_like
 
 from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order
+from SecretPlots.core.missing import MissingPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, RefAxis, _RefLine
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import bandwidth, gaussian_kde
@@ -60,7 +61,13 @@ def _name(value: Hashable | None) -> str | None:
     return None if value is None else str(value)
 
 
-def _samples(data: Any, x: Any, hue: Any, hue_order: Sequence[Any] | None) -> _Samples:
+def _samples(
+    data: Any,
+    x: Any,
+    hue: Any,
+    hue_order: Sequence[Any] | None,
+    missing: MissingPolicy = "raise",
+) -> _Samples:
     x_name: Hashable | None = None
     hue_name: Hashable | None = None
     if data is None:
@@ -73,7 +80,7 @@ def _samples(data: Any, x: Any, hue: Any, hue_order: Sequence[Any] | None) -> _S
         if hue is not None:
             if np.ndim(hue) != 1 or len(hue) != len(frame):
                 raise DataShapeError("hue= must have one group per value")
-            frame["hue"] = np.asarray(hue)
+            frame["hue"] = pd.Series(hue).array
     elif isinstance(data, Mapping) and x is None and hue is None:
         rows = [
             pd.DataFrame({"x": np.asarray(values, dtype=object).ravel(), "hue": key})
@@ -126,7 +133,7 @@ def _samples(data: Any, x: Any, hue: Any, hue_order: Sequence[Any] | None) -> _S
         if x is not None or hue is not None:
             raise DataShapeError("x=/hue= are column names; pass a DataFrame or dict")
         try:
-            arr = np.asarray(data, dtype=float)
+            arr = numeric_array(data)
         except (TypeError, ValueError):
             raise DataShapeError(
                 "Could not read the data as numbers. For groups of different "
@@ -143,9 +150,9 @@ def _samples(data: Any, x: Any, hue: Any, hue_order: Sequence[Any] | None) -> _S
         frame["x"] = pd.to_numeric(frame["x"])
     except (TypeError, ValueError):
         raise DataShapeError(f"Values in {x_name or 'x'!r} must be numeric") from None
-    frame = frame.replace([np.inf, -np.inf], np.nan).dropna().reset_index(drop=True)
-    if frame.empty:
-        raise DataShapeError("No data to plot (every value is missing)")
+    frame = handle_missing(
+        frame, missing, values=["x"], keys=["hue"] if "hue" in frame else []
+    )
     if hue_order is not None and "hue" not in frame:
         raise DataShapeError("hue_order= needs hue= groups")
     return _Samples(
@@ -328,6 +335,10 @@ class HistogramPlot(Plot):
         """Bin edges shared by every group (report the bin width in the
         figure legend: the shape of a histogram depends on it)."""
         values = self._samples.frame["x"].to_numpy(dtype=float)
+        original_low, original_high = self._binrange or (
+            float(values.min()),
+            float(values.max()),
+        )
         if self._log:
             if (values <= 0).any():
                 raise DataShapeError(
@@ -342,6 +353,11 @@ class HistogramPlot(Plot):
         if self._discrete:
             edges = np.arange(math.floor(low) - 0.5, math.ceil(high) + 1.0)
         elif self._binwidth is not None:
+            if self._log and self._binwidth <= 1:
+                raise ValueError(
+                    "On a log axis binwidth is a ratio and must exceed 1; "
+                    "use binwidth=2 for doubling bins, or bins=10"
+                )
             width = math.log10(self._binwidth) if self._log else self._binwidth
             count = max(1, math.ceil((high - low) / width - 1e-9))
             edges = low + width * np.arange(count + 1)
@@ -354,7 +370,11 @@ class HistogramPlot(Plot):
             if edges.ndim != 1 or len(edges) < 2 or (np.diff(edges) <= 0).any():
                 raise ValueError("bins as edges must be an increasing sequence")
             return edges
-        return np.asarray(10**edges if self._log else edges, dtype=float)
+        edges = np.asarray(10**edges if self._log else edges, dtype=float)
+        # Roundoff during log/exp must never exclude an original endpoint.
+        edges[0] = min(edges[0], original_low)
+        edges[-1] = max(edges[-1], original_high)
+        return edges
 
     def _heights(self, edges: np.ndarray) -> dict[Any, tuple[np.ndarray, int]]:
         """``stat`` value per bin and the number of values, per group."""
@@ -700,6 +720,7 @@ def histogram(
     element: Element | None = None,
     orient: Orient = "v",
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> HistogramPlot:
     """Histogram of one numeric variable, optionally split into groups.
 
@@ -711,7 +732,8 @@ def histogram(
         hue: Column with groups (or one group per value without ``data``).
         bins: Number of bins, bin edges, or a rule: ``"auto"`` (default),
             ``"fd"`` (Freedman-Diaconis), ``"sturges"``, ``"scott"``, ...
-        binwidth: Width of each bin; overrides ``bins``.
+        binwidth: Width in data units; on a log axis a ratio greater than 1
+            (e.g. 2 doubles each edge). Overrides ``bins``.
         binrange: ``(low, high)`` range covered by the bins.
         discrete: One bin per integer, centered on it (counts, scores).
         stat: Bar height: ``"count"``, ``"probability"`` (sums to 1),
@@ -727,13 +749,16 @@ def histogram(
         orient: ``"v"`` (bars up) or ``"h"`` (bars to the right).
         hue_order: Explicit group order.
 
-    Missing values are left out. All groups share the same bins.
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            ignores affected observations.
+
+    All groups share the same bins.
 
     Example:
         >>> sp.histogram(df, x="age", hue="sex", stat="density").kde()  # doctest: +SKIP
     """
     return HistogramPlot(
-        _samples(data, x, hue, hue_order),
+        _samples(data, x, hue, hue_order, missing),
         bins=bins,
         binwidth=binwidth,
         binrange=binrange,

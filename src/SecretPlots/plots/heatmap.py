@@ -35,7 +35,13 @@ from matplotlib.transforms import (
 
 from SecretPlots.core import cluster
 from SecretPlots.core.colors import extend_palette, readable_on, resolve_cmap
-from SecretPlots.core.plot import Plot, RefAxis, _is_number
+from SecretPlots.core.missing import (
+    MissingPolicy,
+    check_missing,
+    handle_missing,
+    numeric_array,
+)
+from SecretPlots.core.plot import Plot, RefAxis, _is_number, _root_figure
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.units import PT_PER_INCH
 from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
@@ -84,6 +90,7 @@ def _matrix(
     y: Hashable | None,
     value: Hashable | None,
     aggfunc: str | Callable[[pd.Series], float],
+    missing: MissingPolicy = "raise",
 ) -> _Matrix:
     if isinstance(data, Mapping) and not isinstance(data, pd.DataFrame):
         data = pd.DataFrame(data)
@@ -91,7 +98,7 @@ def _matrix(
         if x is not None or y is not None or value is not None:
             raise DataShapeError("x=/y=/value= are column names; pass a DataFrame")
         try:
-            arr = np.asarray(data, dtype=float)
+            arr = numeric_array(data)
         except (TypeError, ValueError):
             raise DataShapeError(
                 "Could not read the data as a matrix of numbers"
@@ -112,9 +119,22 @@ def _matrix(
                 "For a long table pass x= (columns), y= (rows) and value=; for a "
                 "wide table (rows x columns) pass only y= or nothing"
             )
-        frame = data.assign(**{str(value): pd.to_numeric(data[value], errors="coerce")})
-        if frame[value].isna().all():
-            raise DataShapeError(f"Values in {value!r} must be numeric")
+        frame = data.copy()
+        try:
+            frame[value] = pd.to_numeric(frame[value])
+        except (TypeError, ValueError):
+            raise DataShapeError(f"Values in {value!r} must be numeric") from None
+        # Normalize into private names without reserving user column names.
+        normalized = handle_missing(
+            pd.DataFrame({"row": frame[y], "column": frame[x], "value": frame[value]}),
+            missing,
+            values=["value"],
+            keys=["row", "column"],
+            gap=True,
+        )
+        frame = pd.DataFrame(
+            {y: normalized["row"], x: normalized["column"], value: normalized["value"]}
+        )
         table = frame.pivot_table(
             index=y,
             columns=x,
@@ -124,7 +144,14 @@ def _matrix(
             observed=True,
             dropna=False,
         )
-        table = table.reindex(index=_appearance(data[y]), columns=_appearance(data[x]))
+        table = table.reindex(
+            index=_appearance(frame[y]), columns=_appearance(frame[x])
+        )
+        if missing == "gap":
+            for row, col in frame.loc[frame[value].isna(), [y, x]].itertuples(
+                index=False, name=None
+            ):
+                table.loc[row, col] = np.nan
         return _Matrix(
             table.astype(float), _name(y), _name(x), _name(value), data, x, y
         )
@@ -207,7 +234,7 @@ class _Beside:
         self.parent, self.side, self.offset, self.size = parent, side, offset, size
 
     def __call__(self, child: _AxesBase, renderer: RendererBase | None) -> Bbox:
-        fig = self.parent.get_figure(root=True)
+        fig = _root_figure(self.parent)
         assert fig is not None
         width, height = fig.get_size_inches()
         box = self.parent.get_position(original=False)
@@ -232,7 +259,7 @@ class _ColorbarLocator:
         self.pad = pad / PT_PER_INCH  # inches
 
     def __call__(self, child: _AxesBase, renderer: RendererBase | None) -> Bbox:
-        fig = self.parent.get_figure(root=True)
+        fig = _root_figure(self.parent)
         assert fig is not None
         renderer = renderer or fig.canvas.get_renderer()  # type: ignore[attr-defined]
         dpi = fig.dpi
@@ -288,7 +315,7 @@ class _BelowColorbar(BboxBase):
         self.parent, self.under = parent, under
 
     def get_points(self) -> np.ndarray:
-        fig = self.parent.get_figure(root=True)
+        fig = _root_figure(self.parent)
         assert fig is not None
         box = self.locator(self.parent, None).transformed(fig.transFigure)
         if self.under:  # colorbar on the right: legend under it
@@ -883,8 +910,10 @@ class HeatmapPlot(Plot):
         if center is not None:
             reach = max(abs(vmax - center), abs(center - vmin)) or 1.0
             vmin, vmax = center - reach, center + reach
+        if log and (vmin <= 0 or vmax <= 0):
+            raise DataShapeError("cmap(log=True) needs positive vmin and vmax")
         if vmin == vmax:
-            vmin, vmax = vmin - 0.5, vmax + 0.5
+            vmin, vmax = (vmin / 2, vmax * 2) if log else (vmin - 0.5, vmax + 0.5)
         below = bool(finite.min() < vmin - 1e-12)
         above = bool(finite.max() > vmax + 1e-12)
         extend: Extend = (
@@ -1321,7 +1350,7 @@ class HeatmapPlot(Plot):
         layout: _AxisLayout,
         starts: np.ndarray,
     ) -> None:
-        fig = ax.get_figure(root=True)
+        fig = _root_figure(ax)
         assert fig is not None
         first = 0
         for group, labels in layout.blocks:
@@ -1362,7 +1391,7 @@ class HeatmapPlot(Plot):
         return self._matrix.value_name
 
     def _draw_colorbar(self, ax: Axes, style: Style, mesh: Any, extend: Extend) -> None:
-        fig = ax.get_figure(root=True)
+        fig = _root_figure(ax)
         assert isinstance(fig, Figure)
         theme = style.theme
         position = self._colorbar["position"]
@@ -1449,7 +1478,7 @@ class HeatmapPlot(Plot):
                 sections.append(
                     VPacker(children=rows, pad=0, sep=size * 0.3, align="left")
                 )
-        fig = ax.get_figure(root=True)
+        fig = _root_figure(ax)
         assert fig is not None
         anchor = _BelowColorbar(
             ax,
@@ -1572,6 +1601,7 @@ def heatmap(
     row_order: Sequence[Any] | None = None,
     col_order: Sequence[Any] | None = None,
     square: bool = False,
+    missing: MissingPolicy = "raise",
 ) -> HeatmapPlot:
     """Heatmap: one colored cell per row and column of a matrix.
 
@@ -1589,11 +1619,14 @@ def heatmap(
         row_order: Explicit row order (also selects rows).
         col_order: Explicit column order (also selects columns).
         square: Square cells.
+        missing: "raise" (default) rejects missing/non-finite cells; "gap"
+            displays them as missing; "drop" removes incomplete matrix rows.
 
     Example:
         >>> sp.heatmap(expr).scale("row").cluster(cols=False)  # doctest: +SKIP
     """
-    matrix = _matrix(data, x, y, value, aggfunc)
+    check_missing(missing, gap=True)
+    matrix = _matrix(data, x, y, value, aggfunc, missing)
     values = matrix.values
     for what, order, labels in (
         ("row", row_order, values.index),
@@ -1611,6 +1644,19 @@ def heatmap(
     )
     if not values.index.is_unique or not values.columns.is_unique:
         raise DataShapeError("Row and column labels must be unique")
+    values = values.replace([np.inf, -np.inf], np.nan)
+    if values.isna().any(axis=None):
+        if missing == "raise":
+            raise DataShapeError(
+                "Missing or non-finite heatmap cells. "
+                "Use missing='gap' to show missing cells, "
+                "or missing='drop' to remove incomplete rows. "
+                "Alternatively, fill the matrix before plotting."
+            )
+        if missing == "drop":
+            values = values.dropna(axis=0)
+    if values.empty or not values.notna().any(axis=None):
+        raise DataShapeError("No data to plot after handling missing values")
     matrix = _Matrix(
         values,
         matrix.row_name,

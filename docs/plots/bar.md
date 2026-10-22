@@ -47,7 +47,7 @@ can chain as many steps as you like.
 ```text
 sp.bar(data, x=None, y=None, hue=None, *,
        stack=False, error=None, estimator="mean", orient="v",
-       sort=None, order=None, hue_order=None) -> BarPlot
+       sort=None, order=None, hue_order=None, missing="raise") -> BarPlot
 ```
 
 | Argument | Meaning |
@@ -63,6 +63,7 @@ sp.bar(data, x=None, y=None, hue=None, *,
 | `sort` | `"desc"` / `"asc"` orders categories by value; `None` keeps data order. |
 | `order` | Explicit category order (a list). |
 | `hue_order` | Explicit group order (a list). |
+| `missing` | `"raise"` (default) rejects missing/non-finite plotted fields; `"drop"` ignores affected observations before summarizing. See [data handling](../usage.md). |
 
 `x`, `y` and `hue` always name **data columns**. Which side of the plot they end
 up on depends on `orient`.

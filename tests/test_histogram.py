@@ -223,7 +223,7 @@ def test_input_shapes_with_groups(make, groups: list) -> None:
 
 def test_series_and_missing_values() -> None:
     values = pd.Series([1.0, np.nan, 2, np.inf, 3] * 10, name="dose")
-    plot = sp.histogram(values)
+    plot = sp.histogram(values, missing="drop")
     assert len(plot._samples.frame) == 30
     assert plot.ax.get_xlabel() == "dose"
 

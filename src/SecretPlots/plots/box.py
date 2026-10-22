@@ -10,6 +10,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 from SecretPlots.core.data import Tidy
+from SecretPlots.core.missing import MissingPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import Whiskers, check_whiskers
 from SecretPlots.plots.distribution import (
@@ -214,6 +215,7 @@ def box(
     orient: Orient = "v",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> BoxPlot:
     """Box plot (box-and-whisker) of the values in each category.
 
@@ -240,14 +242,18 @@ def box(
         linewidth: Width of the box outlines in pt; 0 removes them.
         orient: ``"v"`` (values up) or ``"h"`` (values to the right).
         order, hue_order: Explicit category / group order.
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            ignores affected observations.
 
-    Missing values are left out.
+    Missing values raise an error unless missing="drop" is selected.
 
     Example:
         >>> sp.box(df, x="dose", y="weight").points().compare(ref="0")  # doctest: +SKIP
     """
     return BoxPlot(
-        distributions(data, x, y, hue, order=order, hue_order=hue_order),
+        distributions(
+            data, x, y, hue, order=order, hue_order=hue_order, missing=missing
+        ),
         whis=whis,
         notch=notch,
         varwidth=varwidth,

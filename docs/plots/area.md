@@ -50,14 +50,17 @@ long.head()
 
 ```text
 sp.fill_between(data=None, x=None, y1=None, y2=0, hue=None, *,
-                stack=False, sort=True, order=None, hue_order=None) -> FillBetweenPlot
+                stack=False, sort=True, order=None, hue_order=None,
+                missing="raise") -> FillBetweenPlot
 
 sp.area(data=None, x=None, y=None, hue=None, *,
-        baseline=0, stack=False, sort=True, order=None, hue_order=None) -> FillBetweenPlot
+        baseline=0, stack=False, sort=True, order=None, hue_order=None,
+        missing="raise") -> FillBetweenPlot
 ```
 
 | Argument | Meaning |
 |---|---|
+| `missing` | `"raise"` (default), `"drop"` or `"gap"`; see [data handling](../usage.md). |
 | `data` | Long DataFrame or dict of columns; a wide DataFrame (one area per numeric column); a Series; a list/array of values. Can be left out. |
 | `x` | Column name or sequence: numbers, dates or categories. |
 | `y1` (`y`) | The top (or first) edge. |
@@ -93,7 +96,11 @@ sp.area(energy.set_index("year")["Solar"])                    # Series: index ->
 
 Each x appears once per area: summarize replicates first, or use
 [`sp.line(..., error=...)`](line.md) to draw a summary with an error band.
-Rows with a missing value are left out.
+Missing or infinite data raises an error by default. `missing="drop"` removes
+affected rows; `missing="gap"` preserves breaks in the filled area. For stacked
+areas, every group must have a value at each x: drop removes incomplete x
+positions from all layers, and gap breaks all layers there. Percent stacks
+require non-negative values and a positive total at each complete x.
 
 ## Area charts
 

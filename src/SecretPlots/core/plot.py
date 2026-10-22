@@ -1,12 +1,13 @@
 """Base class shared by every plot: chaining verbs, lazy rendering, saving."""
 
+import copy
 import difflib
 import inspect
 import io
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from os import PathLike
 from pathlib import Path
@@ -14,12 +15,15 @@ from typing import Any, ClassVar, Literal, Self, get_type_hints
 
 import numpy as np
 import pandas as pd
+from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.colors import to_rgba
+from matplotlib.dates import DateFormatter
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FuncFormatter
 from matplotlib.transforms import ScaledTranslation
 
 from SecretPlots import presets
@@ -83,6 +87,16 @@ def _outside_anchor(ax: Axes, side: str, offset_in: float) -> dict[str, Any]:
         "bbox_transform": ax.transAxes
         + ScaledTranslation(dx, dy, ax.get_figure().dpi_scale_trans),  # type: ignore[union-attr]
     }
+
+
+def _root_figure(artist: Artist) -> Figure:
+    """Find the root figure, including on Matplotlib 3.9 and nested SubFigures."""
+    root = artist.get_figure()
+    while root is not None and not isinstance(root, Figure):
+        root = root.get_figure()
+    if not isinstance(root, Figure):
+        raise ValueError("artist is not attached to a figure")
+    return root
 
 
 def _renderer(fig: Figure) -> RendererBase:
@@ -168,6 +182,11 @@ class Plot(ABC):
     _handle_length: ClassVar[float] = 1.0
 
     def __init__(self) -> None:
+        selection = state.current()
+        self._selection = replace(selection, theme=selection.theme_obj())
+        self._axis_formats: dict[
+            RefAxis, tuple[str, int, str, str, float, str | None]
+        ] = {}
         self._overrides: dict[str, Any] = {}
         self._labels: dict[str, str] = {}
         self._legend: LegendPosition | None = None
@@ -196,6 +215,72 @@ class Plot(ABC):
     def _changed(self) -> Self:
         self._figure = self._axes = self._style = None
         return self
+
+    def _data_changed(self) -> Self:
+        """Invalidate a data-dependent result; subclasses rebuild summaries here."""
+        return self._changed()
+
+    def copy(self) -> Self:
+        """Independent plot specification and data, without rendered artists.
+
+        Useful for ``paper = plot.copy().preset("nature")`` and a separate
+        presentation version. Direct matplotlib edits are not copied.
+        """
+        # Exclude artists and the resolved style (which contains read-only
+        # mappings); they are recreated by rendering the copied specification.
+        memo: dict[int, Any] = {}
+        for name in (
+            "_figure",
+            "_axes",
+            "_style",
+            "_legend_kwargs",
+            "_cax",
+            "_track_legend",
+        ):
+            value = getattr(self, name, None)
+            if value is not None:
+                memo[id(value)] = None
+        for name in ("_value_texts", "_end_texts", "_point_sets"):
+            if hasattr(self, name):
+                memo[id(getattr(self, name))] = []
+        if hasattr(self, "_body"):
+            memo[id(self._body)] = type(self._body)()
+        result = copy.deepcopy(self, memo)
+        return result._changed()
+
+    def format_axis(
+        self,
+        axis: Literal["x", "y"] = "y",
+        kind: Literal["number", "percent", "currency", "date"] = "number",
+        *,
+        decimals: int = 0,
+        prefix: str = "",
+        suffix: str = "",
+        scale: float = 1.0,
+        date_format: str | None = None,
+    ) -> Self:
+        """Format tick labels consistently across plots; data stay unchanged.
+
+        Args:
+            axis: The displayed "x" or "y" axis.
+            kind: "number", "percent" (fractions), "currency", or "date".
+            decimals: Digits after the decimal point; default 0.
+            prefix: Text before numeric labels; currency defaults to "$".
+            suffix: Text after numeric labels, e.g. " kg".
+            scale: Multiply values for display only. Use 0.01 with percent
+                when data are already percentages, or 1e-6 for millions.
+            date_format: strftime pattern for dates; default "%Y-%m-%d".
+        """
+        if axis not in ("x", "y"):
+            raise ValueError("axis must be 'x' or 'y'")
+        if kind not in ("number", "percent", "currency", "date"):
+            raise ValueError("kind must be 'number', 'percent', 'currency' or 'date'")
+        if isinstance(decimals, bool) or not isinstance(decimals, int) or decimals < 0:
+            raise ValueError("decimals must be a non-negative integer")
+        if not np.isfinite(scale):
+            raise ValueError("scale must be finite")
+        self._axis_formats[axis] = (kind, decimals, prefix, suffix, scale, date_format)
+        return self._changed()
 
     def labels(
         self, *, x: str | None = None, y: str | None = None, title: str | None = None
@@ -547,12 +632,14 @@ class Plot(ABC):
                     "description": docs.get(p.name, ""),
                 }
             )
-        return pd.DataFrame(rows).set_index("option")
+        return pd.DataFrame(
+            rows, columns=["option", "allowed", "default", "description"]
+        ).set_index("option")
 
     # ------------------------------------------------------------ resolution
     def style(self) -> Style:
         """The fully resolved style this plot will be drawn with."""
-        selection = state.current()
+        selection = self._selection
         preset = presets.get(self._preset) if self._preset else selection.preset_obj()
         if self._theme is None:
             theme = selection.theme_obj()
@@ -603,6 +690,9 @@ class Plot(ABC):
         self._finish_axes(ax, style)
         if own:
             apply_chrome(fig, style, self._chrome)
+        # Fit oversized legends before constrained layout sees them; otherwise
+        # an initial many-column legend can collapse the axes to zero width.
+        self._fit_legend(fig, ax, _renderer(fig))
         fig.draw_without_rendering()
         renderer = _renderer(fig)
         self._clear_axis_decorations(fig, ax, renderer)
@@ -620,10 +710,7 @@ class Plot(ABC):
                 FigureCanvasAgg(fig)
                 self._render_into(fig, fig.add_subplot(), style, own=True)
             else:
-                root = ax.get_figure(root=True)
-                if not isinstance(root, Figure):
-                    raise ValueError("ax is not attached to a figure")
-                fig = root
+                fig = _root_figure(ax)
                 self._render_into(fig, ax, style, own=False)
         return fig
 
@@ -794,6 +881,31 @@ class Plot(ABC):
             ax.set_xscale("log")
         if "y" in self._log_axes:
             ax.set_yscale("log")
+        for axis, options in self._axis_formats.items():
+            kind, decimals, prefix, suffix, scale, date_format = options
+            target = ax.xaxis if axis == "x" else ax.yaxis
+            if kind == "date":
+                if not _is_date_axis(target):
+                    raise DataShapeError("Date formatting needs a datetime axis")
+                target.set_major_formatter(DateFormatter(date_format or "%Y-%m-%d"))  # type: ignore[no-untyped-call]
+            else:
+                if self._refline_categories(axis) is not None or _is_date_axis(target):
+                    raise DataShapeError("Numeric formatting needs a numeric axis")
+                factor = scale * (100 if kind == "percent" else 1)
+                before = prefix or ("$" if kind == "currency" else "")
+                after = ("%" if kind == "percent" else "") + suffix
+
+                def tick_label(
+                    value: float,
+                    pos: float,
+                    factor: float = factor,
+                    before: str = before,
+                    after: str = after,
+                    digits: int = decimals,
+                ) -> str:
+                    return f"{before}{value * factor:,.{digits}f}{after}"
+
+                target.set_major_formatter(FuncFormatter(tick_label))
         # A plot that fixes its data aspect (square heatmap cells) keeps it.
         aspect = style.theme.aspect
         if isinstance(aspect, float) and ax.get_aspect() == "auto":
@@ -995,4 +1107,3 @@ class Plot(ABC):
             legend.remove()
             kwargs["ncols"] = ncols
             ax.legend(**kwargs)
-            fig.draw_without_rendering()

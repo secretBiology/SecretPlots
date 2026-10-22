@@ -15,6 +15,7 @@ from matplotlib.text import Text
 
 from SecretPlots.core.colors import readable_on
 from SecretPlots.core.data import Tidy, tidy
+from SecretPlots.core.missing import MissingPolicy
 from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError, LabelsHiddenWarning, emit
@@ -169,7 +170,7 @@ class BarPlot(Plot):
         """
         if labels is not None:
             self._data = self._data.rename("x", labels)
-            self._table = self._aggregate()
+            self._data_changed()
         self._tick_rotation = rotation
         self._tick_italic = italic
         return self._changed()
@@ -182,10 +183,13 @@ class BarPlot(Plot):
                 ``{old: new}``.
         """
         self._data = self._data.rename("hue", labels)
-        self._table = self._aggregate()
-        return self._changed()
+        return self._data_changed()
 
     # ------------------------------------------------------------------ data
+    def _data_changed(self) -> Self:
+        self._table = self._aggregate()
+        return super()._data_changed()
+
     def _aggregate(self) -> pd.DataFrame:
         keys = ["x", "hue"] if self._data.has_hue else ["x"]
         grouped = self._data.frame.groupby(keys, sort=False, observed=True)["y"]
@@ -426,6 +430,7 @@ def bar(
     sort: SortOrder | None = None,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> BarPlot:
     """Bar plot of one value per category (aggregated with ``estimator``).
 
@@ -439,12 +444,16 @@ def bar(
         orient: ``"v"`` or ``"h"``.
         sort: ``"desc"``/``"asc"`` to order categories by value.
         order, hue_order: Explicit category / group order.
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            ignores affected observations.
 
     Example:
         >>> sp.bar(df, x="gene", y="tpm", error="sd").values(".1f")  # doctest: +SKIP
     """
     return BarPlot(
-        tidy(data, x=x, y=y, hue=hue, order=order, hue_order=hue_order),
+        tidy(
+            data, x=x, y=y, hue=hue, order=order, hue_order=hue_order, missing=missing
+        ),
         stack=stack,
         error=error,
         estimator=estimator,

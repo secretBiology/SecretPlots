@@ -54,7 +54,7 @@ def test_input_shapes(make) -> None:
 
 
 def test_missing_values_are_dropped() -> None:
-    plot = sp.scatter(x=[1, 2, np.nan, 4], y=[1, None, 3, 4])
+    plot = sp.scatter(x=[1, 2, np.nan, 4], y=[1, None, 3, 4], missing="drop")
     (points,) = _points(plot)
     assert len(points.get_offsets()) == 2
 

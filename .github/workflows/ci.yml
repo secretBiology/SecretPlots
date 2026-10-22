@@ -31,3 +31,20 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --group dev
       - run: uv run pytest --mpl --cov --cov-report=xml
+
+  minimum-dependencies:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv venv .venv-min --python 3.12
+      - run: >-
+          uv pip install --python .venv-min/bin/python -e .
+          "numpy==2.0.0" "pandas==2.2.2" "matplotlib==3.9.0"
+          "SecretColors==2.0.0" "pytest>=8.3" "pytest-mpl>=0.17" "scipy>=1.14"
+      # Pixel baselines use the locked renderer; minimum versions check behavior
+      # and the PNG/PDF/SVG export smoke tests without comparing raster pixels.
+      - run: .venv-min/bin/python -m pytest

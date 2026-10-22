@@ -44,12 +44,12 @@ Violins take the same data as [box plots](box.md), and the same steps:
 sp.violin(data, x=None, y=None, hue=None, *,
           bw_adjust=1.0, cut=0.0, scale="area", inner="box", split=False,
           side="both", fill=True, edgecolor=None, linewidth=None, orient="v",
-          order=None, hue_order=None) -> ViolinPlot
+          order=None, hue_order=None, missing="raise") -> ViolinPlot
 
 sp.raincloud(data, x=None, y=None, hue=None, *,
              bw_adjust=1.0, cut=0.0, scale="area", edgecolor=None,
              linewidth=None, orient="h",
-             order=None, hue_order=None) -> RaincloudPlot
+             order=None, hue_order=None, missing="raise") -> RaincloudPlot
 ```
 
 | Argument | Meaning |
@@ -63,6 +63,7 @@ sp.raincloud(data, x=None, y=None, hue=None, *,
 | `fill` | Filled (default) or outlines in the group colour. |
 | `edgecolor` | Colour of the outline and the median/quartile lines (default: a dark shade of the fill). `"none"` removes only the outline. |
 | `linewidth` | Outline width in pt; `0` removes it. |
+| `missing` | `"raise"` (default) rejects missing/non-finite plotted fields; `"drop"` ignores affected observations. Applies to both constructors; see [data handling](../usage.md). |
 
 ## Density and scaling
 

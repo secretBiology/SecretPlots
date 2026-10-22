@@ -18,6 +18,7 @@ from matplotlib.text import Annotation
 from matplotlib.ticker import ScalarFormatter
 
 from SecretPlots.core.data import _order, _relabel, _rename_map
+from SecretPlots.core.missing import MissingPolicy, handle_missing
 from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.errors import DataShapeError
@@ -43,6 +44,8 @@ class _Series:
     hue_order: list[Any] | None
     style_order: list[Any] | None = None
     x_order: list[Any] | None = None
+    sort: bool = True
+    missing: MissingPolicy = "raise"
 
 
 def _name(value: Any) -> str | None:
@@ -71,19 +74,19 @@ def _column(spec: Any, data: pd.DataFrame | None, n: int, what: str) -> Any:
                 f"Column {spec!r} not found. "
                 f"Available: {', '.join(map(str, data.columns))}"
             )
-        return data[spec].to_numpy()
+        return data[spec].array
     if _is_number(spec):
         return np.full(n, float(spec))
-    values = np.asarray(spec)
-    if values.ndim != 1 or len(values) != n:
+    if np.ndim(spec) != 1 or len(spec) != n:
         raise DataShapeError(f"{what}= must have one value per row ({n})")
-    return values
+    # NumPy coerces mixed string/numeric lists to strings, hiding NaN/inf.
+    return pd.Series(spec).array
 
 
 def _wide(data: Any, x: Any) -> tuple[pd.DataFrame, dict[str, str | None]]:
     """Wide input (one column per series) as long rows: ``x``, ``value``, ``hue``."""
     if isinstance(data, pd.Series):
-        frame = pd.DataFrame({"x": data.index.to_numpy(), "value": data.to_numpy()})
+        frame = pd.DataFrame({"x": data.index.array, "value": data.to_numpy()})
         return frame, {"x": _name(data.index.name), "value": _name(data.name)}
     if not isinstance(data, pd.DataFrame):
         arr = np.asarray(data)
@@ -91,18 +94,21 @@ def _wide(data: Any, x: Any) -> tuple[pd.DataFrame, dict[str, str | None]]:
             arr = arr[:, None]
         if arr.ndim != 2:
             raise DataShapeError("Pass a 1-D sequence or a 2-D array of numbers")
-        data = pd.DataFrame(arr)
+        try:
+            data = pd.DataFrame(arr).apply(pd.to_numeric)
+        except (TypeError, ValueError):
+            raise DataShapeError("Values must be numeric") from None
     if x is not None:
         if x not in data.columns:
             raise DataShapeError(
                 f"Column {x!r} not found. "
                 f"Available: {', '.join(map(str, data.columns))}"
             )
-        index = data[x].to_numpy()
+        index = data[x].array
         data = data.drop(columns=[x])
         x_name = _name(x)
     else:
-        index = data.index.to_numpy()
+        index = data.index.array
         x_name = _name(data.index.name)
     numeric = data.select_dtypes("number").columns
     if len(numeric) == 0:
@@ -130,6 +136,7 @@ def series(
     order: Sequence[Any] | None = None,
     sort: bool = True,
     required: Sequence[str] = (),
+    missing: MissingPolicy = "raise",
 ) -> _Series:
     """Read ``data`` into a :class:`_Series`.
 
@@ -137,8 +144,8 @@ def series(
     the main value. Left out with a DataFrame (or a Series, list or array as
     ``data``), every numeric column is one series (wide form) and the other
     values can only be single numbers. ``groups`` maps ``hue``/``style``/
-    ``units`` to columns. Rows missing any of them, or a ``required`` value,
-    are left out.
+    ``units`` to columns. Missing plotted fields follow ``missing``: raise
+    by default, drop affected rows, or preserve value gaps with valid keys.
     """
     main, *others = values
     if isinstance(data, Mapping):
@@ -165,7 +172,7 @@ def series(
             raise DataShapeError(
                 f"{main}= names a column, so pass a DataFrame or a dict of columns"
             )
-        if any(groups.values()):
+        if any(v is not None for v in groups.values()):
             used = ", ".join(f"{k}=" for k, v in groups.items() if v is not None)
             raise DataShapeError(
                 f"{used} needs long-form data (a DataFrame with a {main}= column). "
@@ -230,11 +237,13 @@ def series(
     if order is not None and x_kind != "category":
         raise DataShapeError("order= sets the order of category x values")
 
-    needed = ["x", main, *required, *(k for k in groups if k in frame)]
-    frame = frame.dropna(subset=[c for c in needed if c in frame])
-    frame = frame.reset_index(drop=True)
-    if frame.empty:
-        raise DataShapeError("No data to plot (every row has a missing value)")
+    frame = handle_missing(
+        frame,
+        missing,
+        values=[k for k in values if k in frame],
+        keys=["x", *(k for k in groups if k in frame)],
+        gap=True,
+    )
     x_order = None
     if x_kind == "category":
         x_order = _order(frame["x"], order, "x")
@@ -256,6 +265,8 @@ def series(
         if "style" in frame
         else None,
         x_order=x_order,
+        sort=sort,
+        missing=missing,
     )
 
 
@@ -367,7 +378,7 @@ class SeriesPlot(Plot):
             changes["style_order"] = [mapping[v] for v in data.style_order or []]
         frame["hue"] = _relabel(frame["hue"], mapping)
         self._data = replace(data, frame=frame, **changes)
-        return self._changed()
+        return self._data_changed()
 
     def ticklabels(self, *, rotation: float | None = None) -> Self:
         """Style the x tick labels.
@@ -466,6 +477,8 @@ class SeriesPlot(Plot):
         its label goes and the value it prints."""
         self._end_texts = []
         for group, x, y, color, value in ends:
+            if not np.isfinite(y) or not np.isfinite(value):
+                continue
             text = ax.annotate(
                 self._end_label(group, value),
                 xy=(ax.convert_xunits(x), y),  # type: ignore[no-untyped-call]

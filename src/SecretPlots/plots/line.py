@@ -4,6 +4,7 @@ replicates (or your own errors), markers, dashes, per-unit lines and end labels.
 import difflib
 import math
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from typing import Any, Literal, Self
 
 import numpy as np
@@ -13,6 +14,7 @@ from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 
 from SecretPlots.core.colors import combined_alpha
+from SecretPlots.core.missing import MissingPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import t_quantile
 from SecretPlots.errors import DataShapeError
@@ -120,7 +122,10 @@ def _levels(
 def _interval(
     values: np.ndarray, center: float, kind: ErrorKind, level: float, estimator: Any
 ) -> tuple[float, float]:
+    values = values[np.isfinite(values)]
     n = len(values)
+    if n == 0 or not math.isfinite(center):
+        return math.nan, math.nan
     if kind == "pi":
         tail = 50 * (1 - level)
         low, high = np.percentile(values, [tail, 100 - tail])
@@ -299,6 +304,29 @@ class LinePlot(SeriesPlot):
     def _keys(self) -> list[str]:
         return [k for k in ("hue", "style") if k in self._data.frame]
 
+    def encode_groups(self, *, markers: bool = True) -> Self:
+        """Identify hue groups with color and dash patterns (and markers).
+
+        Args:
+            markers: Also use a different marker shape for each group.
+                Replaces any existing style mapping with the hue mapping.
+        """
+        if not self._grouped:
+            raise DataShapeError("encode_groups() needs hue= groups")
+        frame = self._data.frame.copy()
+        frame["style"] = frame["hue"]
+        names = {**self._data.names, "style": self._data.names.get("hue")}
+        self._data = replace(
+            self._data, frame=frame, names=names, style_order=list(self._groups)
+        )
+        if markers:
+            self.markers()
+        return self._data_changed()
+
+    def _data_changed(self) -> Self:
+        self._table = self._aggregate()
+        return super()._data_changed()
+
     def _aggregate(self) -> pd.DataFrame:
         """One row per line point: ``value``, ``n`` and the error columns."""
         frame = self._data.frame
@@ -322,8 +350,12 @@ class LinePlot(SeriesPlot):
                 f"error={self._error!r} needs replicates (several rows per x), "
                 "but every point has a single value."
             )
-        if self._data.x_kind != "category":
-            table = table.sort_values([*self._keys(), "x"], kind="stable")
+        if self._data.missing == "gap":
+            # A missing replicate is unknown, not zero or an observed mean.
+            incomplete = grouped.count().to_numpy() < grouped.size().to_numpy()
+            table.loc[incomplete, "value"] = np.nan
+        if self._data.sort:
+            table = table.sort_values("x", kind="stable")
         return table.reset_index(drop=True)
 
     def _intervals(self, level: float) -> tuple[np.ndarray, np.ndarray]:
@@ -725,6 +757,7 @@ def line(
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
     style_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> LinePlot:
     """Line plot: one line per group along x. Rows sharing an x are summarized
     with ``estimator``, and ``error`` adds error bands (or bars) from them.
@@ -756,8 +789,9 @@ def line(
         hue_order: Explicit group order.
         style_order: Explicit order of the ``style`` values.
 
-    Rows with a missing x, y, hue, style or units are left out (lines connect
-    across them).
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            removes affected rows and connects the remaining points; "gap"
+            breaks lines/bands at missing values (x and groups must be present).
 
     Example:
         >>> sp.line(df, x="day", y="weight", hue="diet", error="ci")  # doctest: +SKIP
@@ -779,6 +813,7 @@ def line(
         style_order=style_order,
         order=order,
         sort=sort,
+        missing=missing,
     )
     if xerr is not None and data_.x_kind == "datetime":
         raise DataShapeError("xerr= needs numeric x values")

@@ -50,11 +50,12 @@ until the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
 sp.line(data=None, x=None, y=None, hue=None, *,
         style=None, units=None, error=None, estimator="mean",
         yerr=None, xerr=None, sort=True,
-        order=None, hue_order=None, style_order=None) -> LinePlot
+        order=None, hue_order=None, style_order=None, missing="raise") -> LinePlot
 ```
 
 | Argument | Meaning |
 |---|---|
+| `missing` | `"raise"` (default), `"drop"` or `"gap"`; see [data handling](../usage.md). |
 | `data` | Long DataFrame or dict of columns; a wide DataFrame (one line per numeric column); a Series; a list/array of y values. Can be left out; see below. |
 | `x`, `y` | Column names, or sequences when `data` is left out. x can be numbers, dates or categories. |
 | `hue` | Column with groups, drawn in different colors. |
@@ -111,8 +112,11 @@ timepoints = pd.DataFrame(
 sp.line(timepoints, x="stage", y="cells").markers()
 ```
 
-Rows with a missing x, y, hue, style or units value are left out, and the line
-connects across them.
+Missing or infinite data raises an error by default (`missing="raise"`). Use
+`missing="drop"` to remove affected rows and connect the remaining points, or
+`missing="gap"` to break the line/band at missing values. Gap mode needs valid x
+coordinates and group/unit labels. A missing replicate makes its aggregated
+point a gap; it is not silently excluded from the summary.
 
 ## Groups, dashes and markers
 

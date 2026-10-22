@@ -46,11 +46,13 @@ the plot is displayed, saved, shown, or you access `.fig` / `.ax`.
 
 ```text
 sp.scatter(data=None, x=None, y=None, hue=None, *,
-           size=None, style=None, hue_order=None, style_order=None) -> ScatterPlot
+           size=None, style=None, hue_order=None, style_order=None,
+           missing="raise") -> ScatterPlot
 ```
 
 | Argument | Meaning |
 |---|---|
+| `missing` | `"raise"` (default), `"drop"`; see [data handling](../usage.md). |
 | `data` | DataFrame or dict of columns, or an array with two columns (x, y). Can be left out; see below. |
 | `x`, `y` | Column names of the two numeric variables, or sequences of numbers when `data` is left out. |
 | `hue` | Column with groups, drawn in different colors with a legend. |
@@ -87,7 +89,8 @@ sp.scatter(np.array([[1, 2], [2, 4], [3, 5]]))        # two-column array: x, y
 sp.scatter(df[["age", "bp"]])                         # exactly two numeric columns
 ```
 
-Rows with a missing x, y, hue, size or style value are left out. Axis titles default
+Missing or infinite x, y, hue, size or style values raise an error by default.
+Select `missing="drop"` to ignore affected rows. Axis titles default
 to the column names; plain sequences have none, so add them with `.labels()`.
 
 ## Groups

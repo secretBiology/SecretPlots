@@ -6,7 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Missing/non-finite input now raises `DataShapeError` by default in every plot
+  constructor. Opt into `missing="drop"`, or `missing="gap"` for lines, areas and
+  heatmaps. Empty categorical levels are omitted and duplicate orders rejected.
+- Plots capture the active theme/preset/width at construction, including inside
+  `with sp.use(...)`; rendering later keeps that selection.
+- Header/footer text wraps to the available figure width. Text that leaves too
+  little plotting space raises an actionable error instead of overlapping.
+
+### Fixed
+- Line group renaming rebuilds summaries and intervals; `sort=False` preserves
+  trajectories, and ordered categorical x metadata survives normalization.
+- Logarithmic histogram endpoints include observations at the original range
+  boundaries; logarithmic bin widths validate their ratio semantics.
+- Invalid p-values are rejected, wide bar columns cannot collide with internal
+  names, zero/small box whiskers handle empty candidate sets, and constant
+  positive heatmaps retain positive logarithmic color limits.
+- Existing-axes and heatmap rendering support the declared Matplotlib 3.9 floor.
+- High-confidence t intervals remain accurate for small samples; asymptotic
+  Mann–Whitney tests retain very small p-values instead of rounding to zero.
+
 ### Added
+- `.copy()` for independent plot variants; `.format_axis()` for number, percent,
+  currency and date ticks; `.encode_groups()` for line/scatter color plus style.
+- Regression, missing-data, numerical-reference and difficult-layout checks,
+  plus a CI job for minimum runtime dependency versions.
 - Ground-up rewrite (1.0.0a1): themes, presets (journal, news, generic), style
   cascade with provenance, font and palette fallbacks, `sp.bar`.
 - `sp.scatter` with groups, marker shapes, sizes and fit lines;

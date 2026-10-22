@@ -38,6 +38,10 @@ Plot types: `sp.bar`, `sp.scatter`, `sp.line`, `sp.fill_between` / `sp.area`,
 [SecretColors](https://github.com/secretBiology/SecretColors) colormaps by name
 (`.cmap("tol_sunset")`; `sp.colormaps()` lists them) as well as matplotlib's.
 
+Missing and infinite data raise an error by default. Pass `missing="drop"` to
+ignore affected observations, or `missing="gap"` for line/area breaks and missing
+heatmap cells. See [data handling and reusable plots](docs/usage.md).
+
 ## Ideas
 
 * **Theme** — how a figure looks (palette from

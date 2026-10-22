@@ -50,11 +50,13 @@ is drawn until the plot is displayed, saved, shown, or you access `.fig` / `.ax`
 
 ```text
 sp.heatmap(data, x=None, y=None, value=None, *,
-           aggfunc="mean", row_order=None, col_order=None, square=False) -> HeatmapPlot
+           aggfunc="mean", row_order=None, col_order=None, square=False,
+           missing="raise") -> HeatmapPlot
 ```
 
 | Argument | Meaning |
 |---|---|
+| `missing` | `"raise"` (default), `"drop"` or `"gap"`; see [data handling](../usage.md). |
 | `data` | Wide DataFrame (rows × columns), long DataFrame, 2-D array or list of lists. |
 | `x`, `y`, `value` | Long table: columns holding the column labels, row labels and values. For a wide table, `y=` names the column with the row labels. |
 | `aggfunc` | Long table: how repeated (x, y) pairs combine: `"mean"`, `"median"`, `"sum"` or a function. |
@@ -287,7 +289,10 @@ data; drop or fill missing values first.
 
 ## Masks and missing values
 
-Missing values (NaN) are drawn in the theme's muted grey. `.mask()` leaves
+Missing or infinite cells raise an error by default. Use `missing="gap"` to
+draw them in the theme's muted grey, or `missing="drop"` to remove incomplete
+matrix rows. This includes absent cells in a long-form table. Clustering still
+needs a complete matrix. `.mask()` leaves
 cells blank instead, for example the redundant half of a correlation matrix:
 
 ```python

@@ -20,6 +20,7 @@ from matplotlib.figure import Figure
 
 from SecretPlots.core.colors import combined_alpha, darken
 from SecretPlots.core.data import Tidy, _order
+from SecretPlots.core.missing import MissingPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, RefAxis
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import (
@@ -144,6 +145,7 @@ def distributions(
     *,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> Tidy:
     """Read data for distribution plots into a :class:`Tidy` table.
 
@@ -168,7 +170,7 @@ def distributions(
         y_name = data.name
     else:
         try:
-            arr = np.asarray(data, dtype=float)
+            arr = numeric_array(data)
         except (TypeError, ValueError):
             try:  # a list of value lists of different lengths
                 frame, _ = _from_mapping(dict(enumerate(data)))
@@ -190,11 +192,10 @@ def distributions(
         frame["y"] = pd.to_numeric(frame["y"])
     except (TypeError, ValueError):
         raise DataShapeError(f"Values in {y_name or 'y'!r} must be numeric") from None
-    frame["y"] = frame["y"].astype(float).replace([np.inf, -np.inf], np.nan)
-    keys = ["x", "y", "hue"] if "hue" in frame else ["x", "y"]
-    frame = frame.dropna(subset=keys).reset_index(drop=True)
-    if frame.empty:
-        raise DataShapeError("No data to plot (every value is missing)")
+    frame["y"] = frame["y"].astype(float)
+    frame = handle_missing(
+        frame, missing, values=["y"], keys=["x", *(["hue"] if "hue" in frame else [])]
+    )
     if hue_order is not None and "hue" not in frame:
         raise DataShapeError("hue_order= needs hue= groups")
     return Tidy(
@@ -501,6 +502,11 @@ class DistributionPlot(Plot):
                 raise ValueError(
                     f"Each comparison is a pair like ('ctrl', 'drug'), got {pair!r}"
                 )
+        if p is not None and any(not math.isfinite(v) or not 0 <= v <= 1 for v in p):
+            raise ValueError(
+                "p-values must be finite numbers between 0 and 1; "
+                "omit comparisons without a valid result"
+            )
         self._compare = {
             "pairs": [tuple(pair) for pair in pairs],
             "ref": ref,

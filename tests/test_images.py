@@ -13,6 +13,66 @@ pytestmark = pytest.mark.usefixtures("only_dejavu")
 TOLERANCE = 3
 
 
+@pytest.mark.mpl_image_compare(
+    tolerance=TOLERANCE, savefig_kwargs={"facecolor": "auto"}
+)
+def test_mobile_wrapped_chrome() -> Figure:
+    return (
+        sp.bar({"Before": 3, "After": 4})
+        .preset("ft-like", width="mobile")
+        .size(height="4in")
+        .chrome(
+            title="A long but ordinary chart title explaining the result",
+            subtitle="A compact figure with readable context",
+            source="An extended source description that wraps inside the figure",
+        )
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(
+    tolerance=TOLERANCE, savefig_kwargs={"facecolor": "auto"}
+)
+def test_dark_groups_with_redundant_styles() -> Figure:
+    frame = pd.DataFrame(
+        {f"Group {i + 1}": np.arange(6) * (i + 1) / 4 for i in range(4)}
+    )
+    return (
+        sp.line(frame)
+        .encode_groups()
+        .theme("dark")
+        .format_axis("y", decimals=1)
+        .legend("top")
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_narrow_long_category_labels() -> Figure:
+    return (
+        sp.bar(
+            {
+                "Untreated baseline control": 2,
+                "Low treatment concentration": 4,
+                "Medium treatment concentration": 6,
+                "High treatment concentration": 5,
+            }
+        )
+        .preset("nature")
+        .size(height="80mm")
+        .values(".0f")
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_many_groups_wrapped_legend() -> Figure:
+    frame = pd.DataFrame(
+        {f"Experimental condition {i + 1}": [i, i + 1, i + 2] for i in range(6)}
+    )
+    return sp.line(frame).size(width="4in", height="4in").legend("top").fig
+
+
 @pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
 def test_bar_default(expression: pd.DataFrame) -> Figure:
     return (

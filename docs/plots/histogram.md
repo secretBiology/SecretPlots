@@ -46,11 +46,13 @@ or you access `.fig` / `.ax`.
 sp.histogram(data=None, x=None, hue=None, *,
              bins="auto", binwidth=None, binrange=None, discrete=False,
              stat="count", common_norm=False, cumulative=False,
-             multiple="layer", element=None, orient="v", hue_order=None) -> HistogramPlot
+             multiple="layer", element=None, orient="v", hue_order=None,
+             missing="raise") -> HistogramPlot
 ```
 
 | Argument | Meaning |
 |---|---|
+| `missing` | `"raise"` (default), `"drop"`; see [data handling](../usage.md). |
 | `data` | Values (list, array, Series), a DataFrame with `x=`/`hue=` column names, a wide DataFrame or 2-D array (one group per column), or a dict `{group: values}`. |
 | `x` | Column with the values (or the values themselves when `data` is left out). |
 | `hue` | Column with groups. |
@@ -82,7 +84,8 @@ sp.histogram({"control": rng.normal(0, 1, 200),          # dict: one group per k
               "treated": rng.normal(1, 1, 150)})         # groups of any size
 ```
 
-Missing and infinite values are left out. All groups share the same bins.
+Missing and infinite values raise an error by default. Select `missing="drop"`
+to ignore affected observations. All groups share the same bins.
 
 ## Count, proportion, percent or density
 

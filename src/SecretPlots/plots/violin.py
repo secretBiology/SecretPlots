@@ -9,6 +9,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 from SecretPlots.core.data import Tidy
+from SecretPlots.core.missing import MissingPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import bandwidth, gaussian_kde
 from SecretPlots.errors import DataShapeError
@@ -340,6 +341,7 @@ def violin(
     orient: Orient = "v",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> ViolinPlot:
     """Violin plot: the distribution of the values in each category as a
     mirrored density curve, with a small box plot inside.
@@ -369,12 +371,16 @@ def violin(
         linewidth: Width of the violin outlines in pt; 0 removes them.
         orient: ``"v"`` (values up) or ``"h"`` (values to the right).
         order, hue_order: Explicit category / group order.
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            ignores affected observations.
 
     Example:
         >>> sp.violin(df, x="dose", y="weight").points()  # doctest: +SKIP
     """
     return ViolinPlot(
-        distributions(data, x, y, hue, order=order, hue_order=hue_order),
+        distributions(
+            data, x, y, hue, order=order, hue_order=hue_order, missing=missing
+        ),
         bw_adjust=bw_adjust,
         cut=cut,
         scale=scale,
@@ -402,6 +408,7 @@ def raincloud(
     orient: Orient = "h",
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> RaincloudPlot:
     """Raincloud plot (Allen et al., Wellcome Open Res 4:63, 2019): a half
     violin (the cloud), a small box plot and every value as a dot (the rain).
@@ -415,7 +422,9 @@ def raincloud(
         >>> sp.raincloud(df, x="group", y="reaction_time")  # doctest: +SKIP
     """
     return RaincloudPlot(
-        distributions(data, x, y, hue, order=order, hue_order=hue_order),
+        distributions(
+            data, x, y, hue, order=order, hue_order=hue_order, missing=missing
+        ),
         bw_adjust=bw_adjust,
         cut=cut,
         scale=scale,

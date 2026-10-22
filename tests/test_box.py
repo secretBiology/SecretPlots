@@ -81,7 +81,7 @@ def test_nested_dict_gives_groups() -> None:
 
 
 def test_missing_values_are_dropped() -> None:
-    plot = sp.box({"a": [1, 2, np.nan, 4, 5, np.inf]})
+    plot = sp.box({"a": [1, 2, np.nan, 4, 5, np.inf]}, missing="drop")
     assert plot.source_data()["n"].tolist() == [4]
 
 

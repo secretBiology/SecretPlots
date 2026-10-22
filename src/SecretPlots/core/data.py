@@ -18,6 +18,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from SecretPlots.core.missing import MissingPolicy, handle_missing, numeric_array
 from SecretPlots.errors import DataShapeError
 
 
@@ -89,12 +90,14 @@ def _relabel(column: pd.Series, mapping: Mapping[Any, Any]) -> pd.Series:
 
 def _order(values: Any, explicit: Sequence[Any] | None, what: str) -> list[Any]:
     if explicit is not None:
+        if len(set(explicit)) != len(explicit):
+            raise DataShapeError(f"{what} order must not contain duplicates")
         missing = set(values.dropna().unique()) - set(explicit)
         if missing:
             raise DataShapeError(f"{what} order is missing {sorted(map(str, missing))}")
         return list(explicit)
     if isinstance(values.dtype, pd.CategoricalDtype):
-        return list(values.cat.categories)
+        return [c for c in values.cat.categories if c in set(values.dropna())]
     return list(pd.unique(values.dropna()))
 
 
@@ -110,8 +113,12 @@ def _from_frame(
             col = numeric.columns[0]
             out = pd.DataFrame({"x": df.index, "y": numeric[col].to_numpy()})
             return out, x_name, str(col), None
-        long = numeric.reset_index(names="x").melt(
-            id_vars="x", var_name="hue", value_name="y"
+        long = pd.concat(
+            [
+                pd.DataFrame({"x": df.index, "hue": col, "y": numeric[col].to_numpy()})
+                for col in numeric
+            ],
+            ignore_index=True,
         )
         return long, x_name, None, numeric.columns.name
 
@@ -148,7 +155,7 @@ def _from_mapping(data: Mapping[Any, Any]) -> tuple[pd.DataFrame, bool]:
         elif np.ndim(value) == 0:
             rows.append((key, None, value))
         else:
-            rows += [(key, None, v) for v in np.asarray(value, dtype=float).ravel()]
+            rows += [(key, None, v) for v in numeric_array(value).ravel()]
     frame = pd.DataFrame(rows, columns=["x", "hue", "y"])
     if not nested:
         frame = frame.drop(columns="hue")
@@ -157,7 +164,7 @@ def _from_mapping(data: Mapping[Any, Any]) -> tuple[pd.DataFrame, bool]:
 
 def _from_array(data: Any) -> tuple[pd.DataFrame, bool]:
     try:
-        arr = np.asarray(data, dtype=float)
+        arr = numeric_array(data)
     except (TypeError, ValueError):
         raise DataShapeError(
             "Could not read the data as numbers. Lists of unequal length are "
@@ -182,6 +189,7 @@ def tidy(
     hue: str | None = None,
     order: Sequence[Any] | None = None,
     hue_order: Sequence[Any] | None = None,
+    missing: MissingPolicy = "raise",
 ) -> Tidy:
     """Convert supported inputs into a :class:`Tidy` table."""
     names_given = any(v is not None for v in (x, y, hue))
@@ -208,8 +216,9 @@ def tidy(
         frame["y"] = pd.to_numeric(frame["y"])
     except (TypeError, ValueError):
         raise DataShapeError(f"Values in {y_name or 'y'!r} must be numeric") from None
-    if frame.empty:
-        raise DataShapeError("No data to plot")
+    frame = handle_missing(
+        frame, missing, values=["y"], keys=["x", *(["hue"] if "hue" in frame else [])]
+    )
 
     return Tidy(
         frame=frame,

@@ -13,7 +13,7 @@ import pytest
 import SecretPlots as sp
 
 DOCS = Path(__file__).parent.parent / "docs" / "plots"
-PAGES = sorted(DOCS.glob("*.md"))
+PAGES = [*sorted(DOCS.glob("*.md")), DOCS.parent / "usage.md"]
 _BLOCK = re.compile(r"^```python\n(.*?)^```", re.DOTALL | re.MULTILINE)
 
 

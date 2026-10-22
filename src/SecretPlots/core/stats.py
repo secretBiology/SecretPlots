@@ -4,6 +4,7 @@ summaries and two-sample tests for significance brackets."""
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from statistics import NormalDist
 from typing import Literal
 
@@ -24,19 +25,38 @@ EXACT_LIMIT = 50
 
 
 # ------------------------------------------------------------ distributions
+@lru_cache(maxsize=256)
 def t_quantile(p: float, df: float) -> float:
-    """Student's t quantile. Exact for df 1 and 2, otherwise the Cornish-Fisher
-    expansion (Abramowitz & Stegun 26.7.5), within 0.2% for df >= 3."""
+    """Student's t quantile by inversion of the incomplete-beta tail.
+
+    Cached because a plot commonly repeats the same level and sample size.
+    Unlike a truncated expansion, this remains accurate at high confidence
+    levels and small (including fractional) degrees of freedom.
+    """
+    if not 0 < p < 1 or not math.isfinite(df) or df <= 0:
+        raise ValueError("t quantile needs 0 < p < 1 and finite df > 0")
+    if p == 0.5:
+        return 0.0
     if df == 1:
         return math.tan(math.pi * (p - 0.5))
     if df == 2:
         return (2 * p - 1) / math.sqrt(2 * p * (1 - p))
-    x = NormalDist().inv_cdf(p)
-    g1 = (x**3 + x) / 4
-    g2 = (5 * x**5 + 16 * x**3 + 3 * x) / 96
-    g3 = (3 * x**7 + 19 * x**5 + 17 * x**3 - 15 * x) / 384
-    g4 = (79 * x**9 + 776 * x**7 + 1482 * x**5 - 1920 * x**3 - 945 * x) / 92160
-    return x + g1 / df + g2 / df**2 + g3 / df**3 + g4 / df**4
+    tail = 2 * min(p, 1 - p)
+    low, high = 0.0, max(1.0, abs(NormalDist().inv_cdf(p)))
+    while t_two_sided(high, df) > tail:
+        high *= 2
+        if not math.isfinite(high):
+            raise ValueError("Requested t quantile exceeds floating-point range")
+    for _ in range(100):
+        mid = (low + high) / 2
+        if t_two_sided(mid, df) > tail:
+            low = mid
+        else:
+            high = mid
+        if high - low <= 1e-13 * high:
+            break
+    result = (low + high) / 2
+    return result if p > 0.5 else -result
 
 
 # --------------------------------------------------------------- densities
@@ -141,7 +161,7 @@ def box_stats(values: np.ndarray, whis: Whiskers = 1.5) -> BoxStats:
     else:
         reach = float(whis) * (q3 - q1)
         inside = values[(values >= q1 - reach) & (values <= q3 + reach)]
-        low, high = float(inside[0]), float(inside[-1])
+        low, high = (float(inside[0]), float(inside[-1])) if inside.size else (q1, q3)
     half_notch = NOTCH_FACTOR * (q3 - q1) / math.sqrt(n)
     return BoxStats(
         n=n,
@@ -289,7 +309,7 @@ def mann_whitney(a: np.ndarray, b: np.ndarray) -> TestResult:
     if sigma == 0:
         return TestResult(u1, 1.0)
     z = (u - n1 * n2 / 2 - 0.5) / sigma
-    return TestResult(u1, float(min(1.0, 2 * (1 - NormalDist().cdf(z)))))
+    return TestResult(u1, float(min(1.0, math.erfc(z / math.sqrt(2)))))
 
 
 TESTS = {"mann-whitney": mann_whitney, "welch": welch, "t-test": student}
