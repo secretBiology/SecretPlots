@@ -96,9 +96,10 @@ The same measurements can tell different visual stories when a time point is
 missing. Choose the policy explicitly instead of silently changing the data.
 
 ```python
-observed = [1.0, 2.2, np.nan, 4.0, 3.4, 5.2]
-sp.line(x=range(6), y=observed, missing="gap").markers().labels(
-    x="Time", y="Signal", title="Gap: preserve the missing position"
+hours = [0, 2, 4, 6, 8, 10, 12]
+glucose = [5.1, 8.9, np.nan, 6.8, 6.0, 5.6, 5.3]     # the 4 h sample was lost
+sp.line(x=hours, y=glucose, missing="gap").preset("nature").markers().labels(
+    x="Time after meal (h)", y="Blood glucose (mmol L⁻¹)", title="missing=\"gap\""
 )
 ```
 <!-- figure: usage-gap -->
@@ -109,8 +110,8 @@ sp.line(x=range(6), y=observed, missing="gap").markers().labels(
 makes the observed values visible.*
 
 ```python
-sp.line(x=range(6), y=observed, missing="drop").markers().labels(
-    x="Time", y="Signal", title="Drop: connect the remaining observations"
+sp.line(x=hours, y=glucose, missing="drop").preset("nature").markers().labels(
+    x="Time after meal (h)", y="Blood glucose (mmol L⁻¹)", title="missing=\"drop\""
 )
 ```
 <!-- figure: usage-drop -->
@@ -123,13 +124,14 @@ points. This visual connection is not an imputed measurement.*
 ## Format numbers without changing them
 
 ```python
-sp.bar({"Search": 0.42, "Direct": 0.35, "Referral": 0.23}).format_axis(
+sp.bar({"Responders": 0.42, "Stable": 0.35, "Progressed": 0.23}).preset("nature").format_axis(
     "y", "percent", decimals=0
-).values("{:.0%}").labels(x="", y="Share of visits")
+).values("{:.0%}").colors({"Responders": "#009E73", "Stable": "#BBBBBB",
+                          "Progressed": "#D55E00"}).labels(x="", y="Share of patients")
 ```
 <!-- figure: usage-percent -->
 
-![Three traffic-source bars with percentage ticks and percentage value labels.](assets/figures/usage-percent.svg)
+![Three response-category bars with percentage ticks and percentage value labels.](assets/figures/usage-percent.svg)
 
 *`.format_axis("y", "percent")` controls ticks; `.values("{:.0%}")` controls
 bar labels. The source values remain fractions.*

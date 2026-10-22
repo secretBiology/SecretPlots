@@ -52,12 +52,26 @@ sp.bar({"Control": 12, "Treatment": 19}).values()
 ````
 
 On pages in `docs/plots/`, use `../assets/figures/` in the image link.
-`python scripts/render_docs.py` executes the examples in temporary directories
-and writes the marked plots to `docs/assets/figures/`. Commit these images so
-GitHub previews and offline builds also display them. SVGs embed glyph paths
-and omit timestamps. Use a `.png` suffix in the marker and link for an explicit
-200 dpi raster preview; the annotation-track heatmap uses this because its
-annotation legend currently needs the raster renderer.
+Fences may also be indented inside content tabs (`=== "label"`) or collapsible
+blocks (`??? example "Show code"`); keep the figure marker at the same
+indentation as the closing fence. Each plot guide starts with
+`sp.use(preset="nature")` so its figures are shown at journal size.
+
+`python scripts/render_docs.py` executes the examples in temporary directories,
+writes the marked plots to `docs/assets/figures/`, and deletes figures no page
+references any more. Pass page paths to render only those pages, and
+`--preview DIR` to write quick PNG previews elsewhere without touching the
+committed assets:
+
+```bash
+uv run python scripts/render_docs.py docs/plots/box.md --preview /tmp/box-preview
+```
+
+Commit the rendered images so GitHub previews and offline builds also display
+them. SVGs embed glyph paths and omit timestamps. A `.png` suffix in the marker
+and link writes a 300 dpi PNG instead; the gallery uses PNGs because the README
+(and PyPI) embed them. After changing gallery figures, run
+`python scripts/render_banner.py` to rebuild `docs/assets/banner.png`.
 
 Keep the caption accurate and add meaningful alt text. Do not change a preview's
 style behind the reader's back: include styling in its displayed code. Preview

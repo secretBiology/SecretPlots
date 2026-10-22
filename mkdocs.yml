@@ -1,46 +1,66 @@
 site_name: SecretPlots
-site_description: Beautiful, reproducible Python figures. Explore every plot and discover every option.
+site_description: Publication-ready scientific figures in a few readable lines of Python, with presets for Nature, Science, Cell, IEEE and more.
+site_url: https://secretplots.readthedocs.io/
 repo_url: https://github.com/secretBiology/SecretPlots
 repo_name: secretBiology/SecretPlots
+edit_uri: edit/master/docs/
+copyright: MIT licensed · Every figure on this site is generated from the code shown next to it.
 theme:
   name: material
   custom_dir: docs_overrides
   font: false
   icon:
-    logo: material/chart-scatter-plot
+    logo: material/chart-bell-curve-cumulative
+    repo: fontawesome/brands/github
+    admonition:
+      example: material/code-braces
+  favicon: assets/favicon.svg
   palette:
     - scheme: default
       primary: custom
-      accent: teal
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - scheme: slate
       primary: custom
-      accent: teal
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
   features:
+    - navigation.tabs
     - navigation.sections
     - navigation.indexes
     - navigation.top
+    - navigation.footer
+    - toc.follow
     - search.suggest
     - search.highlight
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
 extra_css:
   - stylesheets/extra.css
 markdown_extensions:
+  - abbr
   - admonition
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
+  - tables
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
+  - pymdownx.keys
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc:
       permalink: true
 nav:
@@ -48,7 +68,7 @@ nav:
   - Get started:
       - Your first figure: quickstart.md
       - Find any option: options.md
-      - Visual gallery: gallery.md
+  - Gallery: gallery.md
   - Plot guides:
       - Bar: plots/bar.md
       - Scatter: plots/scatter.md
@@ -58,7 +78,8 @@ nav:
       - Heatmap: plots/heatmap.md
       - Box: plots/box.md
       - Violin and raincloud: plots/violin.md
-  - Style and workflow:
+  - Publishing:
+      - Journal-ready figures: publication.md
       - Presets and themes: presets.md
       - Data, formatting and export: usage.md
   - API reference: api.md

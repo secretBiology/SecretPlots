@@ -6,6 +6,7 @@ an expression that is a plot, it is rendered, so drawing errors surface too.
 
 import ast
 import re
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,11 @@ import pytest
 import SecretPlots as sp
 
 DOCS = Path(__file__).parent.parent / "docs"
-_BLOCK = re.compile(r"^```python\n(.*?)^```", re.DOTALL | re.MULTILINE)
+# Fences may be indented inside admonitions ("??? example") or content tabs.
+_BLOCK = re.compile(
+    r"^(?P<indent>[ ]*)```python\n(?P<code>.*?)^(?P=indent)```",
+    re.DOTALL | re.MULTILINE,
+)
 PAGES = [
     page
     for page in sorted(DOCS.rglob("*.md"))
@@ -27,7 +32,10 @@ def test_examples_run(
 ) -> None:
     monkeypatch.chdir(tmp_path)  # examples may save files
     namespace: dict[str, object] = {}
-    blocks = _BLOCK.findall(page.read_text(encoding="utf-8"))
+    blocks = [
+        textwrap.dedent(m["code"])
+        for m in _BLOCK.finditer(page.read_text(encoding="utf-8"))
+    ]
     assert blocks, f"no python examples in {page.name}"
     for number, code in enumerate(blocks, start=1):
         tree = ast.parse(code)

@@ -1,125 +1,179 @@
 # Your first figure
 
-Go from a small table to a labeled, styled figure and a publication export.
-All examples below use synthetic data and run in order in a notebook or script.
+<p class="lead">Five minutes from a table of measurements to a figure you can
+submit. Each step adds one idea; run the blocks in order in a notebook or
+script.</p>
 
 ## Install
 
-SecretPlots requires **Python 3.12 or newer**.
+SecretPlots needs **Python 3.12 or newer**. It builds on matplotlib, pandas
+and [SecretColors](https://github.com/secretBiology/SecretColors).
 
-```bash
-python -m pip install SecretPlots
-```
+=== "pip"
 
-For a checkout of this repository, use `python -m pip install -e .` instead.
+    ```bash
+    python -m pip install SecretPlots
+    ```
 
-## Create a plot
+=== "uv"
+
+    ```bash
+    uv add SecretPlots
+    ```
+
+=== "From source"
+
+    ```bash
+    git clone https://github.com/secretBiology/SecretPlots
+    cd SecretPlots
+    python -m pip install -e .
+    ```
+
+## 1. Start from a tidy table
+
+One row per observation, one column per variable. Here, the weight of 40
+mice after eight weeks on four diets:
 
 ```python
+import numpy as np
 import pandas as pd
 import SecretPlots as sp
 
-measurements = pd.DataFrame({
-    "treatment": ["Control"] * 5 + ["Low dose"] * 5 + ["High dose"] * 5,
-    "response": [11, 13, 10, 14, 12, 18, 20, 17, 22, 19, 26, 29, 25, 31, 28],
+rng = np.random.default_rng(4)
+diets = ["Chow", "High-fat", "High-fat + drug", "Keto"]
+mice = pd.DataFrame({
+    "diet": np.repeat(diets, 10),
+    "weight": np.concatenate(
+        [rng.normal(mean, 1.8, 10) for mean in (27.5, 36.0, 31.0, 26.0)]
+    ),
 })
-plot = sp.bar(measurements, x="treatment", y="response", error="sd")
-plot
+mice.head()
+```
+
+## 2. One line, one plot
+
+Name the columns for each role. That's a complete plot:
+
+```python
+sp.box(mice, x="diet", y="weight")
 ```
 <!-- figure: quickstart-basic -->
 
-![Mean response for three treatments with standard-deviation error bars.](assets/figures/quickstart-basic.svg)
+![Four box plots of mouse weight by diet in the default style.](assets/figures/quickstart-basic.svg)
 
-*`x` selects categories; `y` selects measurements. Replicates become a mean,
-and `error="sd"` adds one sample standard deviation on each side.*
+*The default `screen` preset: 6 in wide, sized for notebooks and slides.*
 
-A plot is a reusable specification. In a notebook, put it on the last line of
-a cell to display it. In a script, call `plot.show()` or `plot.save(...)`.
-Rendering also happens when you access `.fig` or `.ax`.
+A plot is a lazy *specification*. Nothing is drawn until it is displayed
+(the last line of a notebook cell), saved, shown with `.show()`, or you
+access `.fig` / `.ax`. That's why you can keep chaining steps.
 
-## Add a visual hierarchy
+## 3. Add what reviewers ask for
+
+Show every animal, test against the control, and give the axes real names
+with units:
 
 ```python
-styled = (
-    plot.copy()
-    .colors({
-        "Control": "#9baebc",
-        "Low dose": "#36a99a",
-        "High dose": "#5b57cf",
-    })
-    .values(".1f")
-    .labels(x="", y="Response (a.u.)")
-    .chrome(
-        title="A clearer response at higher doses",
-        subtitle="Mean response with ±1 SD · five observations per treatment",
-        source="Synthetic demonstration data",
-    )
-    .size(width="7in", height="4.8in")
-    .theme(font_size=11, grid="value", spines=("left",))
+figure = (
+    sp.box(mice, x="diet", y="weight")
+    .points()                                            # every animal
+    .compare(ref="Chow", correction="holm")              # Mann–Whitney tests vs. Chow, Holm-corrected
+    .show_n()                                            # n under each label
+    .colors({"Chow": "#BBBBBB", "High-fat": "#EE6677",
+             "High-fat + drug": "#4477AA", "Keto": "#228833"})
+    .labels(x="", y="Body weight (g)")
 )
-styled
+figure
 ```
-<!-- figure: quickstart-styled -->
+<!-- figure: quickstart-reviewed -->
 
-![Teal and purple treatment bars with a headline, subtitle, value labels, and source note.](assets/figures/quickstart-styled.svg)
+![Box plots with individual points, significance brackets and sample sizes.](assets/figures/quickstart-reviewed.svg)
 
-| Option | Visible effect |
-| --- | --- |
-| `.colors({...})` | Assigns a specific color to each named treatment. |
-| `.values(".1f")` | Numbers above the error bars, to one decimal place. |
-| `.chrome(...)` | Headline, explanatory subtitle, and source text. |
-| `.size(...)` | Explicit physical canvas dimensions. |
-| `.theme(...)` | Larger type, horizontal grid, and a single visible spine. |
+| Step | What it adds |
+|---|---|
+| `.points()` | Every observation, jittered so none hide. |
+| `.compare(ref="Chow", correction="holm")` | Brackets with multiplicity-corrected *P* values against the reference group. |
+| `.show_n()` | Sample size under each category. |
+| `.colors({...})` | A colour per group; grey for the control. |
+| `.labels(...)` | Axis titles with units; `x=""` drops a redundant one. |
 
-The methods update the plot and return it for chaining. Use `.copy()` when you
-want an independent version while preserving your original.
+Need the numbers behind the brackets for your methods section? Call
+`figure.test_results()`, which returns a table with the test, statistic,
+raw and adjusted *P*.
 
-## Discover your next step
+## 4. Size it for the journal
+
+Select a preset once, and every plot after it follows that journal's
+rules for width, font sizes and resolution:
 
 ```python
-styled.options()              # all chainable steps
-styled.options("chrome")      # parameters, defaults, and descriptions
-sp.theme_options()            # fields accepted by .theme(...)
-```
+sp.use(preset="nature")
 
-Read [Find any option](options.md) for searching these tables, drilling into
-plot-specific methods, and inspecting constructor arguments.
-
-## Export
-
-```python
-styled.save("response.svg")
-styled.save("response.png", dpi=300)
-styled.save("response.pdf")
-```
-
-SVG and PDF retain vector lines and text; PNG is a raster image, so `dpi`
-controls its resolution. The filename extension selects the format. Use
-[export and reuse](usage.md#export-and-matplotlib) for Matplotlib access and
-[the preset guide](presets.md) for physical sizes and journal constraints.
-
-## Choose a different view of the same data
-
-A bar summarizes the observations. A raincloud also shows their spread and
-individual values. Here the small sample is better shown directly with a box
-and points:
-
-```python
-(
-    sp.box(measurements, x="treatment", y="response")
-    .points(kind="swarm")
-    .show_n()
-    .colors({
-        "Control": "#9baebc",
-        "Low dose": "#36a99a",
-        "High dose": "#5b57cf",
-    })
-    .labels(x="", y="Response (a.u.)", title="Show the observations behind the mean")
+paper = (
+    sp.box(mice, x="diet", y="weight")
+    .points()
+    .compare(ref="Chow", correction="holm")
+    .colors({"Chow": "#BBBBBB", "High-fat": "#EE6677",
+             "High-fat + drug": "#4477AA", "Keto": "#228833"})
+    .labels(x="", y="Body weight (g)")
 )
+paper
 ```
-<!-- figure: quickstart-observations -->
+<!-- figure: quickstart-nature -->
 
-![Box plots with all five individual measurements and sample-size labels for each treatment.](assets/figures/quickstart-observations.svg)
+![The same figure at Nature single-column width with 5–7 pt text.](assets/figures/quickstart-nature.svg){ .narrow }
 
-Explore the [visual gallery](gallery.md) to choose a plot, then follow its guide
-for complete input formats, options, and worked examples.
+*89 mm wide, 5–7 pt sans-serif text, ready for a single Nature column.*
+
+To change only one plot, use `.preset("nature")` instead of `sp.use(...)`.
+Use `.size(width="double")` for a full-width figure. Every journal preset is
+listed on [journal-ready figures](publication.md).
+
+## 5. Save it
+
+```python
+paper.save("figure1.pdf")              # vector, fonts embedded
+paper.save("figure1.tiff")             # raster at the preset's 300 dpi
+```
+
+The extension picks the format. PDF, EPS and SVG keep text and lines as
+vectors; raster formats use the preset's dpi unless you pass `dpi=`.
+
+## How it fits together
+
+<div class="grid cards" markdown>
+
+-   :material-chart-box-outline: **Plot**
+
+    ---
+
+    `sp.bar`, `sp.box`, `sp.line`, … take your data and return a plot you
+    keep refining with chained steps.
+
+-   :material-ruler-square: **Preset: where it goes**
+
+    ---
+
+    Physical size, font limits, dpi and formats for a journal, a slide or a
+    newsroom. `sp.presets.list()`
+
+-   :material-palette-outline: **Theme: how it looks**
+
+    ---
+
+    Palette, fonts, grid and spines. Use `.theme(...)` for one field, or
+    `sp.use(theme="dark")` for everything.
+
+-   :material-magnify: **Options: discoverable**
+
+    ---
+
+    `plot.options()` lists every step; `plot.options("legend")` explains one.
+    No need to leave your notebook.
+
+</div>
+
+## Where next?
+
+- Browse the [gallery](gallery.md) for a figure like the one you need.
+- Open the guide for your plot type, e.g. [box plots](plots/box.md).
+- Learn to [find any option](options.md) from Python.

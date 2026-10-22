@@ -13,7 +13,8 @@ to memorize the API or leave your notebook to discover what is available.
 ```python
 import SecretPlots as sp
 
-plot = sp.bar({"Control": 12, "Low dose": 18, "High dose": 27})
+sp.use(preset="nature")
+plot = sp.bar({"Vehicle": 100, "1 µM": 91, "5 µM": 70, "10 µM": 46})
 steps = plot.options()
 steps
 ```
@@ -55,13 +56,13 @@ For example, the `legend` table describes `position`, `title`, `loc`, `anchor`,
 
 ```python
 plot.options("values")
-plot.values(".0f").colors({"Control": "#9baebc", "Low dose": "#36a99a", "High dose": "#5b57cf"}).labels(
-    x="Treatment", y="Response (a.u.)", title="Make the result easy to read"
-)
+plot.values(".0f").colors(
+    {"Vehicle": "#C6DBEF", "1 µM": "#6BAED6", "5 µM": "#2171B5", "10 µM": "#08306B"}
+).labels(x="Dose", y="Cell viability (%)")
 ```
 <!-- figure: options-values -->
 
-![Three colored bars with numeric labels above each bar.](assets/figures/options-values.svg)
+![Four dose bars in a blue ramp with numeric labels above each bar.](assets/figures/options-values.svg)
 
 *`.values(".0f")` adds whole-number labels. `.colors(...)` assigns the palette;
 `.labels(...)` names the axes and adds the title.*
@@ -143,14 +144,14 @@ sp.theme_options().loc[["font_size", "grid", "palette", "marker_size"]]
 Use these fields as keyword arguments to `.theme(...)`:
 
 ```python
-plot.copy().theme(grid="none", font_size=11, bar_gap=0.35)
+plot.copy().theme(grid="none", bar_gap=0.45, spines=("left",))
 ```
 <!-- figure: options-theme -->
 
-![The same labeled bars with larger type, wider gaps, and no grid.](assets/figures/options-theme.svg)
+![The same labeled bars with wider gaps, no grid and only a left spine.](assets/figures/options-theme.svg)
 
-*`grid="none"` removes the grid, `font_size=11` enlarges type, and `bar_gap=0.35`
-increases the gap between bars. The underlying data are unchanged.*
+*`grid="none"` removes the grid, `bar_gap=0.45` widens the gaps, and
+`spines=("left",)` drops the bottom axis line. The underlying data are unchanged.*
 
 ## 6. Explain the style you actually see
 

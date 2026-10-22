@@ -1,102 +1,154 @@
-# SecretPlots
+---
+hide:
+  - navigation
+  - toc
+---
 
-<div class="hero" markdown>
+<div class="sp-hero" markdown>
 
-<p class="eyebrow">Python · Scientific figures · Visual storytelling</p>
+<p class="eyebrow">Python · matplotlib · journal presets</p>
 
-## Let the data make an impression.
+<h1>Figures that are <span class="accent">ready for the paper</span>.</h1>
 
-Turn a table into a thoughtful figure with a few readable steps. Explore
-uncertainty, show individual observations, and shape the result for a paper,
-a presentation, or the web.
+SecretPlots turns a pandas table into a publication-ready figure in a few
+readable lines. It sizes figures to journal columns, keeps text inside the
+journal's font limits, embeds the fonts, and adds the statistics reviewers ask
+for.
 
 [Make your first figure](quickstart.md){ .md-button .md-button--primary }
-[Explore the gallery](gallery.md){ .md-button }
+[Browse the gallery](gallery.md){ .md-button }
+
+`pip install SecretPlots`
 
 </div>
 
-![A polished treatment-response chart with explanatory headline, error bars, values, and source text.](assets/figures/quickstart-styled.svg)
+<div class="sp-banner" markdown>
 
-*Real SecretPlots output, generated from the [quickstart example](quickstart.md).
-All datasets in the visual guides are synthetic.*
+![Six SecretPlots figures: box plot with significance, clustered heatmap, tumour growth curves, raincloud, volcano plot and regression.](assets/banner.png)
 
-## A small API with room to explore
+</div>
+
+## From table to Nature figure
+
+<div class="grid" markdown>
 
 ```python
+import numpy as np
+import pandas as pd
 import SecretPlots as sp
 
-plot = (
-    sp.bar({"Control": 12, "Low dose": 19, "High dose": 28})
-    .colors({
-        "Control": "#9baebc",
-        "Low dose": "#36a99a",
-        "High dose": "#5b57cf",
-    })
-    .values(".0f")
-    .labels(y="Response (a.u.)")
-)
-plot.save("response.svg")
-```
+sp.use(preset="nature")   # 89 mm, 5–7 pt, fonts embedded
 
-!!! tip "Don't memorize options—ask the plot"
-    `plot.options()` lists the steps you can chain.
-    `plot.options("legend")` shows one step's parameters, allowed values, and defaults.
-    `sp.BarPlot.options("values")` works without data.
-    `sp.theme_options()` lists visual style fields.
-    Follow the **[option discovery guide](options.md)** to search all of these tables.
+rng = np.random.default_rng(1)
+cells = pd.DataFrame({
+    "treatment": np.repeat(["Control", "siRNA", "siRNA + rescue"], 15),
+    "area": np.concatenate([rng.normal(m, 45, 15) for m in (420, 290, 400)]),
+})
+
+(
+    sp.box(cells, x="treatment", y="area")
+    .points()
+    .compare(ref="Control", correction="holm")
+    .colors({"Control": "#BBBBBB", "siRNA": "#EE6677",
+             "siRNA + rescue": "#4477AA"})
+    .labels(x="", y="Cell area (µm²)")
+)
+```
+<!-- figure: home-example -->
+
+![Box plots of cell area with individual cells and Holm-corrected P values.](assets/figures/home-example.svg)
+
+</div>
+
+Then call `.save("figure1.pdf")`. The file is 89 mm wide with TrueType fonts
+embedded, the format Nature's production team asks for.
+
+## Why SecretPlots?
 
 <div class="grid cards" markdown>
 
--   **Start with a working example**
+-   :material-ruler-square-compass:{ .lg } **Journal presets**
 
     ---
 
-    Install, create, label, style, and export a complete figure.
+    Nature, Science, Cell, PNAS, IEEE, Springer, Elsevier and more: column
+    widths, font limits, dpi and formats from the publishers' guidelines.
 
-    [Your first figure →](quickstart.md)
+    [:octicons-arrow-right-24: Journal-ready figures](publication.md)
 
--   **Choose by what you want to show**
-
-    ---
-
-    Compare categories, follow a trend, or explore a distribution.
-
-    [Visual gallery →](gallery.md)
-
--   **Find the setting you need**
+-   :material-sigma:{ .lg } **Statistics built in**
 
     ---
 
-    Search methods, inspect sub-options, and explain resolved styles.
+    Significance brackets with Holm or Bonferroni correction, confidence
+    bands, linear fits with R², KDEs and clustering, with the numbers
+    available as tables.
 
-    [Find any option →](options.md)
+    [:octicons-arrow-right-24: Box plots](plots/box.md)
 
--   **Design for your destination**
+-   :material-dots-hexagon:{ .lg } **Show every observation**
 
     ---
 
-    Reuse the same data with journal, screen, and presentation presets.
+    Points over boxes, individual trajectories under means, rainclouds and
+    rug plots: the patterns reviewers expect for small samples.
 
-    [Presets and themes →](presets.md)
+    [:octicons-arrow-right-24: Violin & raincloud](plots/violin.md)
+
+-   :material-palette-swatch-variant:{ .lg } **Colour-blind safe**
+
+    ---
+
+    Palettes and colormaps from [SecretColors](https://github.com/secretBiology/SecretColors),
+    with unsafe maps flagged and a greyscale `print-bw` theme.
+
+    [:octicons-arrow-right-24: Presets & themes](presets.md)
+
+-   :material-magnify-scan:{ .lg } **Discoverable**
+
+    ---
+
+    `plot.options()` lists every step you can chain;
+    `plot.options("legend")` explains one. No need to search the web.
+
+    [:octicons-arrow-right-24: Find any option](options.md)
+
+-   :material-shield-check-outline:{ .lg } **Honest by default**
+
+    ---
+
+    Missing data raises instead of being silently dropped. Font and colour
+    fallbacks are reported, and `plot.explain()` says where each style came from.
+
+    [:octicons-arrow-right-24: Data handling](usage.md)
 
 </div>
 
+## Gallery
+
+<div class="sp-mosaic" markdown>
+
+[![](assets/figures/gallery-dose-response.png)<span>Dose response<small>box · points · stats</small></span>](gallery.md#dose-response)
+[![](assets/figures/gallery-expression-heatmap.png)<span>Expression heatmap<small>groups · tracks · clusters</small></span>](gallery.md#expression-heatmap)
+[![](assets/figures/gallery-tumour-growth.png)<span>Tumour growth<small>units · 95% CI</small></span>](gallery.md#tumour-growth)
+[![](assets/figures/gallery-volcano.png)<span>Volcano plot<small>thresholds · highlight</small></span>](gallery.md#volcano-plot)
+[![](assets/figures/gallery-raincloud.png)<span>Raincloud<small>density · box · raw data</small></span>](gallery.md#raincloud)
+[![](assets/figures/gallery-correlation.png)<span>Correlation matrix<small>masked · annotated</small></span>](gallery.md#correlation-matrix)
+[![](assets/figures/gallery-pharmacokinetics.png)<span>Pharmacokinetics<small>log axis · error bars</small></span>](gallery.md#pharmacokinetics)
+[![](assets/figures/gallery-split-violin.png)<span>Split violins<small>two factors · quartiles</small></span>](gallery.md#split-violins)
+
+</div>
+
+[See all 14 examples with code :octicons-arrow-right-24:](gallery.md){ .md-button }
+
 ## Choose a plot
 
-| Your question | Start here | Useful options |
+| Your question | Plot | Highlights |
 | --- | --- | --- |
-| How do categories compare? | [Bar](plots/bar.md) | `error`, `orient`, `.values()`, `.highlight()` |
-| How are two variables related? | [Scatter](plots/scatter.md) | `hue`, `size`, `style`, `.fit()` |
-| How does a response change? | [Line](plots/line.md) | `error`, `units`, `.errorbars()`, `.endlabels()` |
-| How does a total or interval evolve? | [Area / fill between](plots/area.md) | `stack`, `.split()`, `.gradient()` |
-| What is the shape of one distribution? | [Histogram](plots/histogram.md) | `bins`, `stat`, `.kde()`, `.rug()` |
-| Where are the patterns in a matrix? | [Heatmap](plots/heatmap.md) | `.scale()`, `.cmap()`, `.cluster()`, `.values()` |
-| How do medians and spreads compare? | [Box](plots/box.md) | `.points()`, `.mean()`, `.show_n()` |
-| How do whole distributions compare? | [Violin / raincloud](plots/violin.md) | `inner`, `split`, `bw_adjust`, `.points()` |
-
-## From exploration to a finished figure
-
-The [plot guides](gallery.md) pair runnable code with rendered figures and option
-tables. [Data and workflow](usage.md) covers missing values, independent copies,
-axis formatting, and Matplotlib integration. The [API reference](api.md) provides
-signatures and detailed method documentation.
+| How do groups compare? | [Box](plots/box.md) · [Violin / raincloud](plots/violin.md) | `.points()`, `.compare()`, `.show_n()`, `split=True` |
+| What are the means and errors? | [Bar](plots/bar.md) | `error="sd"`, `hue=`, `stack=`, `.values()` |
+| How are two variables related? | [Scatter](plots/scatter.md) | `hue=`, `size=`, `.fit("linear", stats=True)` |
+| How does a response change over time? | [Line](plots/line.md) | `error="ci"`, `units=`, `.errorbars()`, `.endlabels()` |
+| How do parts of a whole evolve? | [Area / fill between](plots/area.md) | `stack="percent"`, `.split()`, `.gradient()` |
+| What does a distribution look like? | [Histogram](plots/histogram.md) | `stat="density"`, `.kde()`, `.rug()`, `cumulative=` |
+| Where are the patterns in a matrix? | [Heatmap](plots/heatmap.md) | `.scale("row")`, `.cluster()`, `.groups()`, `.tracks()` |
