@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.0.0a1] - 2026-10-22
 
 ### Changed
 - Missing/non-finite input now raises `DataShapeError` by default in every plot
@@ -51,7 +51,7 @@ All notable changes to this project are documented here. The format follows
   currency and date ticks; `.encode_groups()` for line/scatter color plus style.
 - Regression, missing-data, numerical-reference and difficult-layout checks,
   plus a CI job for minimum runtime dependency versions.
-- Ground-up rewrite (1.0.0a1): themes, presets (journal, news, generic), style
+- Ground-up rewrite (3.0.0a1): themes, presets (journal, news, generic), style
   cascade with provenance, font and palette fallbacks, `sp.bar`.
 - `sp.scatter` with groups, marker shapes, sizes and fit lines;
   `.grouplabels()` renames the groups.

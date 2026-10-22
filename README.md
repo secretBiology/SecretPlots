@@ -43,7 +43,7 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
 )
 ```
 
-> **Status:** version 1.0 is a ground-up rewrite and is in **alpha**. APIs may still
+> **Status:** version 3.0 is a ground-up rewrite and is in **alpha**. APIs may still
 > change. It is not compatible with the 0.1.x releases; pin `SecretPlots<1` if you
 > depend on the old API.
 
@@ -73,7 +73,7 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
 pip install --pre SecretPlots    # or: uv add --prerelease=allow SecretPlots
 ```
 
-The `--pre` flag is needed while 1.0 is in alpha. Without it, pip installs the
+The `--pre` flag is needed while 3.0 is in alpha. Without it, pip installs the
 legacy 0.1.x release.
 
 Requires Python 3.12+. Depends only on matplotlib, numpy, pandas and SecretColors.
