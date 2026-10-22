@@ -26,10 +26,12 @@ from SecretPlots.errors import (
     SecretPlotsWarning,
     SmallSampleWarning,
 )
+from SecretPlots.plots.area import FillBetweenPlot, area, fill_between
 from SecretPlots.plots.bar import BarPlot, bar
 from SecretPlots.plots.box import BoxPlot, box, boxplot
 from SecretPlots.plots.heatmap import HeatmapPlot, heatmap
 from SecretPlots.plots.histogram import HistogramPlot, hist, histogram
+from SecretPlots.plots.line import LinePlot, line, plot
 from SecretPlots.plots.scatter import ScatterPlot, scatter
 from SecretPlots.plots.violin import RaincloudPlot, ViolinPlot, raincloud, violin
 from SecretPlots.theme import (
@@ -46,12 +48,14 @@ __all__ = [
     "ColormapWarning",
     "ConstraintAdjustedWarning",
     "DataShapeError",
+    "FillBetweenPlot",
     "FontFallbackWarning",
     "FormatWarning",
     "HeatmapPlot",
     "HistogramPlot",
     "LabelsHiddenWarning",
     "LimitExceededWarning",
+    "LinePlot",
     "PaletteExtendedWarning",
     "Plot",
     "PresetError",
@@ -64,17 +68,21 @@ __all__ = [
     "Theme",
     "ViolinPlot",
     "__version__",
+    "area",
     "bar",
     "box",
     "boxplot",
     "colormaps",
     "config",
+    "fill_between",
     "fonts",
     "get_theme",
     "heatmap",
     "hist",
     "histogram",
+    "line",
     "list_themes",
+    "plot",
     "presets",
     "raincloud",
     "register_theme",

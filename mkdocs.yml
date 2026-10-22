@@ -7,6 +7,8 @@ nav:
   - Plots:
       - Bar: plots/bar.md
       - Scatter: plots/scatter.md
+      - Line: plots/line.md
+      - Area and fill between: plots/area.md
       - Histogram: plots/histogram.md
       - Heatmap: plots/heatmap.md
       - Box: plots/box.md

@@ -23,6 +23,22 @@ NOTCH_FACTOR = 1.58
 EXACT_LIMIT = 50
 
 
+# ------------------------------------------------------------ distributions
+def t_quantile(p: float, df: float) -> float:
+    """Student's t quantile. Exact for df 1 and 2, otherwise the Cornish-Fisher
+    expansion (Abramowitz & Stegun 26.7.5), within 0.2% for df >= 3."""
+    if df == 1:
+        return math.tan(math.pi * (p - 0.5))
+    if df == 2:
+        return (2 * p - 1) / math.sqrt(2 * p * (1 - p))
+    x = NormalDist().inv_cdf(p)
+    g1 = (x**3 + x) / 4
+    g2 = (5 * x**5 + 16 * x**3 + 3 * x) / 96
+    g3 = (3 * x**7 + 19 * x**5 + 17 * x**3 - 15 * x) / 384
+    g4 = (79 * x**9 + 776 * x**7 + 1482 * x**5 - 1920 * x**3 - 945 * x) / 92160
+    return x + g1 / df + g2 / df**2 + g3 / df**3 + g4 / df**4
+
+
 # --------------------------------------------------------------- densities
 def bandwidth(values: np.ndarray, adjust: float) -> float:
     """Scott's rule (n^-1/5) on a robust spread (the smaller of the standard

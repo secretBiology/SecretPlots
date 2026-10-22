@@ -38,6 +38,19 @@ All notable changes to this project are documented here. The format follows
   `edgecolor=` / `linewidth=` for box and violin outlines and for the
   ring around `.points()` dots. `.show_n(label=..., sep=...)` formats the
   sample sizes (e.g. `"n = {n:,}"`).
+- `sp.line` (alias `sp.plot`): lines per group with replicates summarized by
+  an estimator; `error=` `"sd"` / `"sem"` / `"ci"` (t interval, bootstrap for
+  medians) / `"pi"` or your own `yerr=` / `xerr=`; `.errorbars()` as bands or
+  bars, nested levels (fan charts), band edges, caps and dodge; `units=`
+  spaghetti lines, `style=` dashes, `.markers()`, `.fill()` with gradient,
+  `.caption()`, `.source_data()`.
+- `sp.fill_between` (alias `sp.area`): areas to a baseline, bands between two
+  columns, stacked and 100 % stacked areas, `.split()` above/below colors,
+  `.gradient()`, `.lines()`.
+- Shared steps for line and area plots: `.endlabels()` direct labels at the
+  line ends (moved apart when they would overlap), `.refline()` on either axis
+  (dates too), `.grouplabels()`, `.ticklabels()`. Numeric, date and category x.
+- Theme field `fill_alpha` (opacity of error bands and filled areas).
 - Numpy-only statistics module (`SecretPlots.core.stats`): scipy is not needed.
 
 ### Removed

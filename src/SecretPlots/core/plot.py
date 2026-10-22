@@ -119,6 +119,8 @@ class Plot(ABC):
     notebook display."""
 
     kind: ClassVar[str] = "plot"
+    #: Legend handle length in font sizes; plots of lines need room for dashes.
+    _handle_length: ClassVar[float] = 1.0
 
     def __init__(self) -> None:
         self._overrides: dict[str, Any] = {}
@@ -680,7 +682,7 @@ class Plot(ABC):
         kwargs: dict[str, Any] = {
             "title": title if style.theme.legend_title else None,
             "frameon": style.theme.legend_frame,
-            "handlelength": 1.0,
+            "handlelength": self._handle_length,
             "handleheight": 1.0,
             "borderaxespad": 0.0,
             "alignment": "left",

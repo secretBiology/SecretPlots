@@ -4,6 +4,11 @@
 ::: SecretPlots.BarPlot
 ::: SecretPlots.scatter
 ::: SecretPlots.ScatterPlot
+::: SecretPlots.line
+::: SecretPlots.LinePlot
+::: SecretPlots.fill_between
+::: SecretPlots.area
+::: SecretPlots.FillBetweenPlot
 ::: SecretPlots.histogram
 ::: SecretPlots.HistogramPlot
 ::: SecretPlots.heatmap

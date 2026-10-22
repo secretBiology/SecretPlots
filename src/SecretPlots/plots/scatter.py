@@ -4,7 +4,6 @@ import difflib
 import math
 from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from statistics import NormalDist
 from typing import Any, Literal, Self
 
 import numpy as np
@@ -16,6 +15,7 @@ from SecretPlots.core.colors import combined_alpha
 from SecretPlots.core.data import _order, _relabel, _rename_map
 from SecretPlots.core.plot import Plot
 from SecretPlots.core.resolve import Style
+from SecretPlots.core.stats import t_quantile as _t_quantile
 from SecretPlots.errors import DataShapeError
 from SecretPlots.theme import Theme
 
@@ -160,21 +160,6 @@ def _points(
 
 
 # ------------------------------------------------------------------ statistics
-def _t_quantile(p: float, df: int) -> float:
-    """Student's t quantile. Exact for df 1 and 2, otherwise the Cornish-Fisher
-    expansion (Abramowitz & Stegun 26.7.5), within 0.2% for df >= 3."""
-    if df == 1:
-        return math.tan(math.pi * (p - 0.5))
-    if df == 2:
-        return (2 * p - 1) / math.sqrt(2 * p * (1 - p))
-    x = NormalDist().inv_cdf(p)
-    g1 = (x**3 + x) / 4
-    g2 = (5 * x**5 + 16 * x**3 + 3 * x) / 96
-    g3 = (3 * x**7 + 19 * x**5 + 17 * x**3 - 15 * x) / 384
-    g4 = (79 * x**9 + 776 * x**7 + 1482 * x**5 - 1920 * x**3 - 945 * x) / 92160
-    return x + g1 / df + g2 / df**2 + g3 / df**3 + g4 / df**4
-
-
 @dataclass(frozen=True)
 class _Fit:
     grid: np.ndarray

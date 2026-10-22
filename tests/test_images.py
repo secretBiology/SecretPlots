@@ -170,3 +170,76 @@ def test_violin_split_quartiles(weights: pd.DataFrame) -> Figure:
 @pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
 def test_raincloud_default(weights: pd.DataFrame) -> Figure:
     return sp.raincloud(weights, x="dose", y="weight").fig
+
+
+@pytest.fixture
+def mouse_weights() -> pd.DataFrame:
+    rng = np.random.default_rng(5)
+    rows = []
+    for diet, slope in (("chow", 0.5), ("high-fat", 1.1), ("keto", 0.2)):
+        for mouse in range(6):
+            weight = 20 + slope * np.arange(10) + rng.normal(0, 0.5, 10).cumsum()
+            rows += [
+                {"day": d, "weight": w, "diet": diet, "mouse": mouse}
+                for d, w in enumerate(weight)
+            ]
+    return pd.DataFrame(rows)
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_line_fan_endlabels(mouse_weights: pd.DataFrame) -> Figure:
+    return (
+        sp.line(mouse_weights, x="day", y="weight", hue="diet", error="pi")
+        .errorbars(level=(0.5, 0.8, 0.95))
+        .endlabels(values=".1f")
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_line_bars_markers_nature(mouse_weights: pd.DataFrame) -> Figure:
+    return (
+        sp.line(
+            mouse_weights, x="day", y="weight", hue="diet", style="diet", error="sem"
+        )
+        .errorbars("bars", dodge=0.4)
+        .markers()
+        .preset("nature")
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_line_units_gradient_fill(mouse_weights: pd.DataFrame) -> Figure:
+    chow = mouse_weights[mouse_weights["diet"] == "chow"]
+    return (
+        sp.line(chow, x="day", y="weight", units="mouse")
+        .fill(gradient=True)
+        .refline(24, label=True)
+        .fig
+    )
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_area_stacked_percent() -> Figure:
+    years = np.arange(2000, 2011)
+    wide = pd.DataFrame(
+        {
+            "coal": 40 - 2.0 * (years - 2000),
+            "gas": 25 + 0.5 * (years - 2000),
+            "solar": 0.5 * 1.5 ** (years - 2000),
+        },
+        index=pd.Index(years, name="year"),
+    )
+    return sp.area(wide, stack="percent").endlabels().fig
+
+
+@pytest.mark.mpl_image_compare(tolerance=TOLERANCE)
+def test_fill_between_split() -> Figure:
+    t = np.linspace(0, 10, 120)
+    return (
+        sp.fill_between(x=t, y1=np.sin(t) + 0.1 * t - 0.3)
+        .split(labels=("above", "below"))
+        .refline(0)
+        .fig
+    )

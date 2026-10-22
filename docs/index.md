@@ -29,6 +29,8 @@ even if they break a limit, with a `LimitExceededWarning`; set
 
 - [Bar plots](plots/bar.md)
 - [Scatter plots](plots/scatter.md)
+- [Line plots](plots/line.md)
+- [Area plots and fill between](plots/area.md)
 - [Histograms](plots/histogram.md)
 - [Heatmaps](plots/heatmap.md)
 - [Box plots](plots/box.md)

@@ -83,6 +83,7 @@ class Theme:
     marker_size: float | None = None
     marker_alpha: float | None = None
     marker_edge_width: float | None = None
+    fill_alpha: float | None = None
 
     # Legend
     legend_frame: bool | None = None
@@ -163,6 +164,7 @@ def _secret() -> Theme:
         marker_size=5.0,
         marker_alpha=0.85,
         marker_edge_width=0.5,
+        fill_alpha=0.22,
         legend_frame=False,
         legend_position="auto",
         legend_title=True,
@@ -289,6 +291,7 @@ FIELD_DOCS: dict[str, str] = {
     "marker_size": "Scatter marker diameter in pt (base size when size= is used)",
     "marker_alpha": "Scatter marker opacity, 0 (invisible) to 1 (solid)",
     "marker_edge_width": "Outline width around scatter markers in pt",
+    "fill_alpha": "Opacity of error bands and filled areas, 0 (invisible) to 1 (solid)",
     "legend_frame": "Draw a box around the legend",
     "legend_position": "Default legend position",
     "legend_title": "Show the legend title",
