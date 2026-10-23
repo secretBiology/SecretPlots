@@ -79,6 +79,7 @@ Violins take the same data and the same steps as [box plots](box.md):
 on what is specific to densities.
 
 !!! tip "Explore the options from Python"
+    `sp.ViolinPlot.arguments()` lists what `sp.violin(...)` accepts.
     `sp.ViolinPlot.options()` and `sp.RaincloudPlot.options()` list every
     chainable step; `sp.ViolinPlot.options("points")` shows one step's
     parameters, allowed values and defaults. See the

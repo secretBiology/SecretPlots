@@ -3,7 +3,8 @@
 Run from the repository root:
     python scripts/render_docs.py [page.md ...] [--preview DIR]
 Each page is a notebook-like sequence. Put ``<!-- figure: unique-name -->``
-immediately after a Python fence whose final expression is a SecretPlots Plot.
+immediately after a Python fence whose final expression is a SecretPlots Plot
+(or a matplotlib Figure, for comparisons).
 Names ending in ``.png`` are written as 300 dpi PNGs (used by the README);
 all others as SVG. A full run (no pages given) also deletes unreferenced figures.
 """
@@ -21,6 +22,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "sp-docs
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 import SecretPlots as sp
 
@@ -77,14 +79,20 @@ def render(pages: list[Path] | None = None, preview: Path | None = None) -> None
                     if name:
                         if name in names:
                             raise ValueError(f"Duplicate figure name: {name}")
-                        if not isinstance(result, sp.Plot):
-                            raise TypeError(f"{filename}: figure must end with a Plot")
+                        if isinstance(result, sp.Plot):
+                            figure = result.fig
+                        elif isinstance(result, Figure):
+                            figure = result
+                        else:
+                            raise TypeError(
+                                f"{filename}: figure must end with a Plot or Figure"
+                            )
                         names.add(name)
                         png = name.endswith(".png") or preview is not None
                         stem = name.removesuffix(".png")
                         # savefig bypasses publisher format warnings for web previews;
                         # plot sizing, style, and data are exactly those in the example.
-                        result.fig.savefig(
+                        figure.savefig(
                             destination / f"{stem}.{'png' if png else 'svg'}",
                             dpi=110 if preview else 300 if png else 200,
                             metadata={} if png else {"Date": None},

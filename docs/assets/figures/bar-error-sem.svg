@@ -1434,61 +1434,47 @@ L 235.674196 116.220725
    </g>
    <g id="legend_1">
     <g id="text_12">
-     <!-- genotype -->
+     <!-- Genotype -->
      <g style="fill: #262626" transform="translate(24.466078 9.76024) scale(0.05 -0.05)">
       <defs>
-       <path id="HelveticaNeue-4e" d="M 3264 282 
-L 3264 3309 
-L 2752 3309 
-L 2752 2835 
-L 2746 2835 
-Q 2598 3110 2336 3248 
-Q 2074 3386 1760 3386 
-Q 1331 3386 1036 3222 
-Q 742 3059 563 2806 
-Q 384 2554 307 2243 
-Q 230 1933 230 1638 
-Q 230 1299 323 995 
-Q 416 691 601 464 
-Q 787 237 1062 102 
-Q 1338 -32 1709 -32 
-Q 2029 -32 2313 112 
-Q 2598 256 2739 563 
-L 2752 563 
-L 2752 346 
-Q 2752 70 2697 -160 
-Q 2643 -390 2521 -553 
-Q 2400 -717 2214 -809 
-Q 2029 -902 1760 -902 
-Q 1626 -902 1478 -873 
-Q 1331 -845 1206 -781 
-Q 1082 -717 995 -614 
-Q 909 -512 902 -365 
-L 358 -365 
-Q 371 -634 499 -819 
-Q 627 -1005 822 -1120 
-Q 1018 -1235 1258 -1286 
-Q 1498 -1338 1728 -1338 
-Q 2522 -1338 2893 -934 
-Q 3264 -531 3264 282 
-z
-M 1741 442 
-Q 1472 442 1293 554 
-Q 1114 666 1005 848 
-Q 896 1030 851 1254 
-Q 806 1478 806 1702 
-Q 806 1939 860 2156 
-Q 915 2374 1033 2540 
-Q 1152 2707 1337 2806 
-Q 1523 2906 1786 2906 
-Q 2042 2906 2221 2803 
-Q 2400 2701 2512 2531 
-Q 2624 2362 2675 2150 
-Q 2726 1939 2726 1722 
-Q 2726 1491 2672 1260 
-Q 2618 1030 2502 848 
-Q 2387 666 2198 554 
-Q 2010 442 1741 442 
+       <path id="HelveticaNeue-2e" d="M 3917 570 
+L 4077 0 
+L 4461 0 
+L 4461 2406 
+L 2458 2406 
+L 2458 1894 
+L 3917 1894 
+Q 3930 1581 3834 1309 
+Q 3738 1037 3549 835 
+Q 3360 634 3085 518 
+Q 2810 403 2451 403 
+Q 2067 403 1776 553 
+Q 1485 704 1286 957 
+Q 1088 1210 985 1539 
+Q 883 1869 883 2227 
+Q 883 2592 972 2941 
+Q 1062 3290 1251 3562 
+Q 1440 3834 1737 4000 
+Q 2035 4166 2451 4166 
+Q 2707 4166 2934 4105 
+Q 3162 4045 3341 3923 
+Q 3520 3802 3641 3613 
+Q 3763 3424 3808 3162 
+L 4416 3162 
+Q 4352 3565 4176 3849 
+Q 4000 4134 3741 4320 
+Q 3482 4506 3152 4592 
+Q 2822 4678 2451 4678 
+Q 1907 4678 1500 4476 
+Q 1094 4275 822 3936 
+Q 550 3597 412 3145 
+Q 275 2694 275 2195 
+Q 275 1747 422 1331 
+Q 570 915 851 595 
+Q 1133 275 1536 86 
+Q 1939 -102 2451 -102 
+Q 2854 -102 3251 54 
+Q 3648 211 3917 570 
 z
 " transform="scale(0.015625)"/>
        <path id="HelveticaNeue-60" d="M 1709 -442 
@@ -1514,14 +1500,14 @@ L 1709 -442
 z
 " transform="scale(0.015625)"/>
       </defs>
-      <use xlink:href="#HelveticaNeue-4e"/>
-      <use xlink:href="#HelveticaNeue-4c" transform="translate(57.40625 0)"/>
-      <use xlink:href="#HelveticaNeue-55" transform="translate(111.109375 0)"/>
-      <use xlink:href="#HelveticaNeue-56" transform="translate(166.703125 0)"/>
-      <use xlink:href="#HelveticaNeue-5b" transform="translate(224.109375 0)"/>
-      <use xlink:href="#HelveticaNeue-60" transform="translate(255.609375 0)"/>
-      <use xlink:href="#HelveticaNeue-57" transform="translate(305.609375 0)"/>
-      <use xlink:href="#HelveticaNeue-4c" transform="translate(364.90625 0)"/>
+      <use xlink:href="#HelveticaNeue-2e"/>
+      <use xlink:href="#HelveticaNeue-4c" transform="translate(75.90625 0)"/>
+      <use xlink:href="#HelveticaNeue-55" transform="translate(129.609375 0)"/>
+      <use xlink:href="#HelveticaNeue-56" transform="translate(185.203125 0)"/>
+      <use xlink:href="#HelveticaNeue-5b" transform="translate(242.609375 0)"/>
+      <use xlink:href="#HelveticaNeue-60" transform="translate(274.109375 0)"/>
+      <use xlink:href="#HelveticaNeue-57" transform="translate(324.109375 0)"/>
+      <use xlink:href="#HelveticaNeue-4c" transform="translate(383.40625 0)"/>
      </g>
     </g>
     <g id="patch_15">

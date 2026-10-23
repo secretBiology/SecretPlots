@@ -183,6 +183,7 @@ class HistogramPlot(Plot):
     """Created by :func:`histogram`."""
 
     kind = "histogram"
+    _constructor = "histogram"
     _refline_zorder = 4  # above the bars
     _refline_words = ("mean", "median")
 
@@ -783,7 +784,6 @@ def histogram(
             overlaid groups, which stay readable where they overlap.
         orient: ``"v"`` (bars up) or ``"h"`` (bars to the right).
         hue_order: Explicit group order.
-
         missing: "raise" (default) rejects missing/non-finite data; "drop"
             ignores affected observations.
 

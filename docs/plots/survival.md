@@ -70,6 +70,7 @@ Nothing is drawn until the plot is displayed, saved or shown, or until you
 access `.fig` / `.ax`.
 
 !!! tip "Explore the options from Python"
+    `sp.SurvivalPlot.arguments()` lists what `sp.survival(...)` accepts,
     `sp.SurvivalPlot.options()` lists every chainable step and
     `sp.SurvivalPlot.options("pvalue")` shows one step's parameters, allowed
     values and defaults. See the [option discovery guide](../options.md).

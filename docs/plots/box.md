@@ -66,6 +66,7 @@ summary, use [violin plots and rainclouds](violin.md): they take the same data
 and the same steps.
 
 !!! tip "Explore the options from Python"
+    `sp.BoxPlot.arguments()` lists what `sp.box(...)` accepts,
     `sp.BoxPlot.options()` lists every chainable step and
     `sp.BoxPlot.options("compare")` shows one step's parameters, allowed values
     and defaults. See the [option discovery guide](../options.md).

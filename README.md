@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/SecretPlots/"><img src="https://img.shields.io/pypi/v/SecretPlots?include_prereleases&color=0f8b8d&label=PyPI" alt="PyPI"></a>
+  <a href="https://pypi.org/project/SecretPlots/"><img src="https://img.shields.io/pypi/v/SecretPlots?color=0f8b8d&label=PyPI" alt="PyPI"></a>
   <a href="https://pypi.org/project/SecretPlots/"><img src="https://img.shields.io/pypi/pyversions/SecretPlots?color=5b4fcf" alt="Python versions"></a>
   <a href="https://github.com/secretBiology/SecretPlots/actions/workflows/ci.yml"><img src="https://github.com/secretBiology/SecretPlots/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://secretplots.readthedocs.io"><img src="https://img.shields.io/readthedocs/secretplots?label=docs" alt="Documentation"></a>
@@ -29,23 +29,83 @@
 
 ---
 
+## Same calls, better figure
+
+If you can write matplotlib, you can write SecretPlots. Same data, same figure
+size, no styling code on either side:
+
+<table>
+<tr>
+<th width="50%">matplotlib</th>
+<th width="50%">SecretPlots</th>
+</tr>
+<tr>
+<td valign="top">
+
+```python
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(6, 3.7),
+                       layout="constrained")
+for arm, g in tumours.groupby("arm", sort=False):
+    ax.plot(g["day"], g["volume"],
+            marker="o", label=arm)
+ax.set(xlabel="Day",
+       ylabel="Tumour volume (mm³)",
+       title="Tumour growth")
+ax.legend()
+```
+
+</td>
+<td valign="top">
+
 ```python
 import SecretPlots as sp
 
-sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300 dpi
-
 (
-    sp.box(cells, x="treatment", y="area")
-    .points()                                 # show every cell
-    .compare(ref="Control", correction="holm")  # significance brackets
-    .labels(x="", y="Cell area (µm²)")
-    .save("figure1.pdf")                      # fonts embedded, ready to upload
+    sp.plot(tumours, x="day", y="volume",
+            hue="arm")
+    .markers()
+    .labels(x="Day",
+            y="Tumour volume (mm³)",
+            title="Tumour growth")
 )
 ```
 
-> **Status:** version 3.0 is a ground-up rewrite and is in **alpha**. APIs may still
-> change. It is not compatible with the 0.1.x releases; pin `SecretPlots<1` if you
-> depend on the old API.
+</td>
+</tr>
+<tr>
+<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-matplotlib.png" alt="Tumour growth curves with matplotlib defaults"></td>
+<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-secretplots.png" alt="The same curves with SecretPlots defaults"></td>
+</tr>
+</table>
+
+You get a colour-blind-safe palette, a quiet grid, a titled legend outside the
+data and readable type without touching `rcParams`. From there, one more step
+labels the lines directly (`.endlabels()`), one argument summarises replicate
+animals with confidence bands (`error="ci"`), and one line makes it a journal
+figure.
+
+## From table to journal figure
+
+```python
+import SecretPlots as sp
+
+sp.use(preset="nature")                         # 89 mm column, 5–7 pt text, 300 dpi
+
+(
+    sp.box(cells, x="treatment", y="area")
+    .points()                                   # show every cell
+    .compare(ref="Control", correction="holm")  # significance brackets
+    .colors({"Control": "#BBBBBB", "siRNA": "#EE6677", "siRNA + rescue": "#4477AA"})
+    .labels(x="", y="Cell area (µm²)")
+    .save("figure1.pdf")                        # fonts embedded, ready to upload
+)
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/home-example.png" alt="Box plots of cell area with every cell and Holm-corrected P values" width="48%">
+</p>
 
 ## Why SecretPlots?
 
@@ -64,7 +124,8 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
   [SecretColors](https://github.com/secretBiology/SecretColors). Unsafe maps are
   flagged, and a `print-bw` theme renders the figure in greys.
 - **Readable, chainable API.** One constructor plus small steps.
-  `plot.options()` lists every step; `plot.options("legend")` explains one.
+  `plot.arguments()` lists what the constructor takes, `plot.options()` every
+  step, and `plot.options("legend")` explains one.
 - **Honest defaults.** Missing data raises instead of being silently dropped.
   Font and palette fallbacks are reported, and `plot.explain("font_size")` says
   where any style value came from.
@@ -72,13 +133,13 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
 ## Installation
 
 ```bash
-pip install --pre SecretPlots    # or: uv add --prerelease=allow SecretPlots
+pip install SecretPlots          # or: uv add SecretPlots
 ```
 
-The `--pre` flag is needed while 3.0 is in alpha. Without it, pip installs the
-legacy 0.1.x release.
-
 Requires Python 3.12+. Depends only on matplotlib, numpy, pandas and SecretColors.
+
+Version 3 is a ground-up rewrite and is not compatible with the 0.1.x
+releases; pin `SecretPlots<1` if you depend on the old API.
 
 ## Gallery
 
@@ -148,6 +209,20 @@ sp.histogram(serum, x="level", hue="cohort", stat="density").kde().show_n()
 sp.violin(behaviour, x="genotype", y="score", hue="sex", split=True, inner="quartiles")
 ```
 
+### Clinical results
+
+<table>
+<tr>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-forest.png" alt="Subgroup forest plot with an events table and interaction p-values"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-survival.png" alt="Kaplan-Meier curves with a number-at-risk table and log-rank p-value"></td>
+</tr>
+</table>
+
+```python
+sp.forest(trial, label="subgroup", estimate="hr", lower="lower", upper="upper", group="variable").summary("All patients").table(left={"Drug": "drug"})
+sp.survival(patients, time="months", event="died", hue="arm").risk_table().median().pvalue().hazard_ratio()
+```
+
 ## One figure, any journal
 
 Presets describe where a figure is going; themes describe how it looks. Switch
@@ -184,16 +259,22 @@ in a few lines of TOML.
 | `sp.histogram` | Counts, percent or density; KDE, rug, cumulative, layered, stacked or dodged |
 | `sp.heatmap` | Colormaps, z-scoring, clustering, groups, annotation tracks, masks |
 | `sp.forest` | Subgroup and meta-analysis forest plots with tables, sections, summary diamonds, weights and side-by-side panels |
+| `sp.survival` | Kaplan-Meier, cumulative incidence and cumulative hazard; risk tables, censor ticks, medians, log-rank tests and hazard ratios |
 | `sp.box` | Points, means, sample sizes, significance brackets |
 | `sp.violin`, `sp.raincloud` | Split violins, inner box/quartiles, half-violin rainclouds |
 
 ## Find any option without leaving Python
 
+No need to open the docs or call `help()`. Every plot type describes itself as a
+table you can read or search:
+
 ```python
+sp.BarPlot.arguments()          # what sp.bar(...) accepts: allowed values, defaults
+sp.BarPlot.arguments("error")   # one argument
 plot.options()                  # every chainable step for this plot
 plot.options("legend")          # one step's parameters, allowed values and defaults
-sp.BarPlot.options("values")    # explore without data
 sp.theme_options()              # every style field accepted by .theme(...)
+plot.explain("font_size")       # where a style value came from
 ```
 
 ## Development

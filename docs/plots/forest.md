@@ -65,6 +65,7 @@ figure should read. Nothing is drawn until the plot is displayed, saved or
 shown, or until you access `.fig` / `.ax`.
 
 !!! tip "Explore the options from Python"
+    `sp.ForestPlot.arguments()` lists what `sp.forest(...)` accepts,
     `sp.ForestPlot.options()` lists every chainable step and
     `sp.ForestPlot.options("table")` shows one step's parameters, allowed
     values and defaults. See the [option discovery guide](../options.md).

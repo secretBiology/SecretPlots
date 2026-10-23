@@ -348,6 +348,7 @@ class HeatmapPlot(Plot):
     """Created by :func:`heatmap`."""
 
     kind = "heatmap"
+    _constructor = "heatmap"
     _refline_zorder = 4  # above the cells
     _reflines_in_draw = True  # redrawn with the cells after layout
 

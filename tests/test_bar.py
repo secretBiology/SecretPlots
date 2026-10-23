@@ -380,6 +380,46 @@ def test_options_unknown_verb_suggests() -> None:
         sp.BarPlot.options("legnd")
 
 
+@pytest.mark.parametrize(
+    "cls",
+    [
+        sp.BarPlot,
+        sp.ScatterPlot,
+        sp.LinePlot,
+        sp.FillBetweenPlot,
+        sp.HistogramPlot,
+        sp.HeatmapPlot,
+        sp.ForestPlot,
+        sp.SurvivalPlot,
+        sp.BoxPlot,
+        sp.ViolinPlot,
+        sp.RaincloudPlot,
+    ],
+)
+def test_arguments_document_every_constructor_argument(cls: type[sp.Plot]) -> None:
+    table = cls.arguments()
+    assert table.index[0] == "data"
+    undocumented = table.index[table.description == ""].tolist()
+    assert not undocumented, (
+        f"{cls.__name__}: add {undocumented} to the Args: docstring"
+    )
+
+
+def test_arguments_for_one_argument() -> None:
+    table = sp.bar({"a": 1}).arguments("error")
+    assert list(table.index) == ["error"]
+    assert table.loc["error", "allowed"] == "'sd' | 'sem'"
+    assert table.loc["error", "default"] is None
+    assert sp.BarPlot.arguments().loc["data", "default"] == "required"
+
+
+def test_arguments_unknown_name_suggests() -> None:
+    with pytest.raises(ValueError, match="Did you mean 'error'"):
+        sp.BarPlot.arguments("erorr")
+    with pytest.raises(TypeError, match="not created directly"):
+        sp.Plot.arguments()
+
+
 def _legend_title(plot: sp.BarPlot) -> str:
     return plot.ax.get_legend().get_title().get_text()
 

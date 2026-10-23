@@ -81,6 +81,7 @@ class BarPlot(Plot):
     """Created by :func:`bar`."""
 
     kind = "bar"
+    _constructor = "bar"
     _refline_zorder = 4  # above the bars, e.g. a target value
 
     def __init__(

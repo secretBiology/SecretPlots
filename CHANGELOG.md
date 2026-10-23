@@ -6,7 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-23
+
+First stable release of the 3.x rewrite. Install with `pip install SecretPlots`
+(no `--pre` needed).
+
 ### Added
+- `Plot.arguments()`: the constructor's arguments as a table (allowed values,
+  defaults, descriptions), next to `.options()` for chainable steps and
+  `sp.theme_options()` for style fields. `sp.BarPlot.arguments("error")` or
+  `plot.arguments("error")` shows one argument; misspellings get a suggestion.
 - `sp.survival`: Kaplan-Meier curves (`kind="survival"`), cumulative
   incidence (`"failure"`) and the Nelson-Aalen cumulative hazard (`"cumhaz"`)
   from one row per subject, computed with numpy only (R `survival`

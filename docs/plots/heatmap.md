@@ -759,6 +759,10 @@ groups on top:
 ## Discovering options
 
 ```python
+sp.HeatmapPlot.arguments()            # what sp.heatmap(...) accepts
+```
+
+```python
 sp.HeatmapPlot.options()              # every chainable step
 ```
 

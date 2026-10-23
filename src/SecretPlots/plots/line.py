@@ -156,6 +156,7 @@ class LinePlot(SeriesPlot):
     """Created by :func:`line`."""
 
     kind = "line"
+    _constructor = "line"
 
     def __init__(
         self,
@@ -825,7 +826,6 @@ def line(
         order: Explicit order of category x values.
         hue_order: Explicit group order.
         style_order: Explicit order of the ``style`` values.
-
         missing: "raise" (default) rejects missing/non-finite data; "drop"
             removes affected rows and connects the remaining points; "gap"
             breaks lines/bands at missing values (x and groups must be present).

@@ -62,6 +62,7 @@ Nothing is drawn until the plot is displayed in a notebook, saved, shown, or you
 access `.fig` / `.ax`, so you can chain as many steps as you like.
 
 !!! tip "Explore the options from Python"
+    `sp.BarPlot.arguments()` lists what `sp.bar(...)` accepts,
     `sp.BarPlot.options()` lists every chainable step, and
     `sp.BarPlot.options("values")` shows one step's parameters and defaults.
     See [Discovering options](#discovering-options).
@@ -772,6 +773,10 @@ plot.save("fig2b.pdf")
 ## Discovering options
 
 Every chainable step documents itself:
+
+```python
+sp.BarPlot.arguments()          # what sp.bar(...) accepts
+```
 
 ```python
 sp.BarPlot.options()            # all steps you can chain, with a summary

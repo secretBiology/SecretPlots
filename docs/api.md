@@ -2,8 +2,9 @@
 
 Use the [plot guides](gallery.md) for illustrated examples and the
 [option discovery guide](options.md) to explore the API interactively.
-Constructor arguments are shown below; chainable options are also available
-through `plot.options("step")` or a class such as `sp.BarPlot.options("legend")`.
+Constructor arguments are shown below and, as a table, by
+`sp.BarPlot.arguments()`; chainable options are available through
+`plot.options("step")` or a class such as `sp.BarPlot.options("legend")`.
 
 ## Shared plot methods
 
@@ -47,6 +48,11 @@ rendering, copying, axis formatting, reference lines, and export from `Plot`.
 
 ::: SecretPlots.forest
 ::: SecretPlots.ForestPlot
+
+## Survival
+
+::: SecretPlots.survival
+::: SecretPlots.SurvivalPlot
 
 ## Box
 

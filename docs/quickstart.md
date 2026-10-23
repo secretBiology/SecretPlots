@@ -167,7 +167,8 @@ vectors; raster formats use the preset's dpi unless you pass `dpi=`.
 
     ---
 
-    `plot.options()` lists every step; `plot.options("legend")` explains one.
+    `plot.arguments()` lists what the constructor takes, `plot.options()`
+    every step you can chain; `plot.options("legend")` explains one.
     No need to leave your notebook.
 
 </div>

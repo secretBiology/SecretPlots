@@ -51,6 +51,7 @@ class ViolinPlot(DistributionPlot):
     """Created by :func:`violin` and :func:`raincloud`."""
 
     kind = "violin"
+    _constructor = "violin"
     #: Density estimates from fewer values mostly show the kernel's shape.
     small_sample = 10
 
@@ -335,6 +336,7 @@ class RaincloudPlot(ViolinPlot):
     """Created by :func:`raincloud`."""
 
     kind = "raincloud"
+    _constructor = "raincloud"
 
 
 def violin(
@@ -434,6 +436,27 @@ def raincloud(
     ``linewidth`` set the cloud's outline); horizontal by default. Change
     the dots with ``.points(kind=...)`` or remove them with
     ``.points(False)``.
+
+    Args:
+        data: Same inputs as :func:`box`: a long DataFrame with ``y=`` (and
+            ``x=``/``hue=``), a wide DataFrame, a dict, a Series, list or
+            array.
+        x: Column name for categories.
+        y: Column name for numeric values.
+        hue: Column name for groups.
+        bw_adjust: Multiplies the automatic bandwidth. Smaller follows the
+            data more closely.
+        cut: How far past the smallest and largest value to draw the cloud,
+            in bandwidths (default 0: trimmed at the data).
+        scale: ``"area"`` (default), ``"count"`` or ``"width"``, as in
+            :func:`violin`.
+        edgecolor: Color of the cloud's outline.
+        linewidth: Width of the cloud's outline in pt; 0 removes it.
+        orient: ``"h"`` (values to the right; default) or ``"v"``.
+        order: Explicit category order.
+        hue_order: Explicit group order.
+        missing: "raise" (default) rejects missing/non-finite data; "drop"
+            ignores affected observations.
 
     Example:
         >>> sp.raincloud(df, x="group", y="reaction_time")  # doctest: +SKIP

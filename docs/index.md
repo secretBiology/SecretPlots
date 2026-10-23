@@ -28,6 +28,74 @@ for.
 
 </div>
 
+## Same calls, better figure
+
+If you know matplotlib, you already know most of SecretPlots: `sp.plot` takes
+your table and column names, and `.labels()` names the axes. Same data, same
+size, no styling code on either side:
+
+```python
+import numpy as np
+import pandas as pd
+
+days = np.arange(0, 29, 4)
+tumours = pd.DataFrame({
+    "day": np.tile(days, 3),
+    "arm": np.repeat(["Vehicle", "Drug A", "Drug B"], len(days)),
+    "volume": np.concatenate(
+        [100 * np.exp(rate * days) for rate in (0.08, 0.045, 0.015)]
+    ).round(),
+})
+```
+
+<div class="grid" markdown>
+
+<div markdown>
+
+**matplotlib**
+
+```python
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(6, 3.7), layout="constrained")
+for arm, group in tumours.groupby("arm", sort=False):
+    ax.plot(group["day"], group["volume"], marker="o", label=arm)
+ax.set(xlabel="Day", ylabel="Tumour volume (mm³)", title="Tumour growth")
+ax.legend()
+fig
+```
+<!-- figure: compare-matplotlib.png -->
+
+![The tumour growth curves with matplotlib defaults.](assets/figures/compare-matplotlib.png)
+
+</div>
+
+<div markdown>
+
+**SecretPlots**
+
+```python
+import SecretPlots as sp
+
+(
+    sp.plot(tumours, x="day", y="volume", hue="arm")
+    .markers()
+    .labels(x="Day", y="Tumour volume (mm³)", title="Tumour growth")
+)
+```
+<!-- figure: compare-secretplots.png -->
+
+![The same curves with SecretPlots defaults: colour-blind-safe palette, light grid, legend outside the data.](assets/figures/compare-secretplots.png)
+
+</div>
+
+</div>
+
+A colour-blind-safe palette, a quiet grid, a titled legend outside the data
+and readable type, with no `rcParams`. From here, `.endlabels()` labels the
+lines directly, `error="ci"` summarises replicate animals, and
+`sp.use(preset="nature")` resizes everything for the journal.
+
 ## From table to Nature figure
 
 <div class="grid" markdown>
@@ -54,9 +122,9 @@ cells = pd.DataFrame({
     .labels(x="", y="Cell area (µm²)")
 )
 ```
-<!-- figure: home-example -->
+<!-- figure: home-example.png -->
 
-![Box plots of cell area with individual cells and Holm-corrected P values.](assets/figures/home-example.svg)
+![Box plots of cell area with individual cells and Holm-corrected P values.](assets/figures/home-example.png)
 
 </div>
 
@@ -108,8 +176,9 @@ embedded, the format Nature's production team asks for.
 
     ---
 
-    `plot.options()` lists every step you can chain;
-    `plot.options("legend")` explains one. No need to search the web.
+    `plot.arguments()` lists what the constructor takes, `plot.options()`
+    every step you can chain, and `sp.theme_options()` every style field.
+    No need to search the web.
 
     [:octicons-arrow-right-24: Find any option](options.md)
 
@@ -136,10 +205,12 @@ embedded, the format Nature's production team asks for.
 [![](assets/figures/gallery-correlation.png)<span>Correlation matrix<small>masked · annotated</small></span>](gallery.md#correlation-matrix)
 [![](assets/figures/gallery-pharmacokinetics.png)<span>Pharmacokinetics<small>log axis · error bars</small></span>](gallery.md#pharmacokinetics)
 [![](assets/figures/gallery-split-violin.png)<span>Split violins<small>two factors · quartiles</small></span>](gallery.md#split-violins)
+[![](assets/figures/gallery-forest.png)<span>Subgroup analysis<small>forest · table · interaction</small></span>](gallery.md#subgroup-analysis)
+[![](assets/figures/gallery-survival.png)<span>Overall survival<small>Kaplan-Meier · risk table · log-rank</small></span>](gallery.md#overall-survival)
 
 </div>
 
-[See all 15 examples with code :octicons-arrow-right-24:](gallery.md){ .md-button }
+[See all 16 examples with code :octicons-arrow-right-24:](gallery.md){ .md-button }
 
 ## Choose a plot
 
@@ -153,3 +224,4 @@ embedded, the format Nature's production team asks for.
 | What does a distribution look like? | [Histogram](plots/histogram.md) | `stat="density"`, `.kde()`, `.rug()`, `cumulative=` |
 | Where are the patterns in a matrix? | [Heatmap](plots/heatmap.md) | `.scale("row")`, `.cluster()`, `.groups()`, `.tracks()` |
 | How large is an effect, and how certain? | [Forest](plots/forest.md) | `group=`, `.table()`, `.summary()`, `panel=` |
+| How long until an event happens? | [Survival](plots/survival.md) | `.risk_table()`, `.pvalue()`, `.hazard_ratio()`, `.median()` |

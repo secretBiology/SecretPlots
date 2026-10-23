@@ -273,6 +273,7 @@ class ScatterPlot(Plot):
     """Created by :func:`scatter`."""
 
     kind = "scatter"
+    _constructor = "scatter"
 
     def __init__(self, points: _Points) -> None:
         super().__init__()
@@ -556,7 +557,6 @@ def scatter(
             8). Can be the same column as ``hue``.
         hue_order: Explicit group order.
         style_order: Explicit order of the ``style`` values (and their shapes).
-
         missing: "raise" (default) rejects missing/non-finite data; "drop"
             ignores affected observations.
 

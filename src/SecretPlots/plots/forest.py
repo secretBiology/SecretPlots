@@ -336,6 +336,7 @@ class ForestPlot(Plot):
     """Forest plot; create with :func:`forest`."""
 
     kind = "forest"
+    _constructor = "forest"
     _refline_zorder = 1.2
     _reflines_in_draw = True
 

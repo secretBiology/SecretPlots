@@ -4,9 +4,14 @@
 to memorize the API or leave your notebook to discover what is available.
 
 !!! tip "The spelling to remember"
-    With `import SecretPlots as sp`, use **`plot.options("step")`** or
-    **`sp.BarPlot.options("step")`**. There is no module-level `sp.options()`.
-    Use `sp.theme_options()` to discover the settings accepted by `.theme(...)`.
+    With `import SecretPlots as sp`, there are three tables to remember:
+
+    - **`sp.BarPlot.arguments()`**: what you pass to `sp.bar(...)`
+    - **`sp.BarPlot.options()`**: the steps you chain afterwards
+    - **`sp.theme_options()`**: the style fields accepted by `.theme(...)`
+
+    `arguments()` and `options()` also work on a plot (`plot.options("legend")`).
+    There is no module-level `sp.options()`.
 
 ## 1. List the steps you can chain
 
@@ -102,16 +107,27 @@ suggestion when one is found.
 
 ## 4. Find constructor arguments
 
-`options()` describes **chainable methods**. Initial arguments such as `hue=`,
-`error=`, `bins=`, `stack=`, and `missing=` belong to the constructor. Inspect
-its signature or open its help:
+`options()` describes the **chainable steps**. The arguments you pass when you
+create the plot, such as `hue=`, `error=`, `bins=`, `stack=` and `missing=`,
+are listed by **`arguments()`**, in the same table format:
 
 ```python
-import inspect
-
-print(inspect.signature(sp.histogram))
-help(sp.histogram)
+sp.BarPlot.arguments()
 ```
+
+The table is indexed by `option` and has the same `allowed`, `default` and
+`description` columns as a step's table. Pass a name to see one argument, on
+the class or on a plot you have already made:
+
+```python
+sp.HistogramPlot.arguments("bins")
+plot.arguments("error")
+```
+
+A misspelled argument raises a `ValueError` with a suggestion. `sp.area()` and
+`sp.fill_between()` both make a `FillBetweenPlot`;
+`sp.FillBetweenPlot.arguments()` describes `sp.fill_between()`, the more
+general of the two.
 
 The [plot guides](gallery.md) place constructor signatures, allowed choices,
 and rendered examples together.
@@ -172,7 +188,8 @@ explicit plot override changes the theme's defaults. See [presets and themes](pr
 | Discover methods on my plot | `plot.options()` |
 | Inspect one method | `plot.options("legend")` |
 | Explore a plot type without data | `sp.ScatterPlot.options("fit")` |
-| Find constructor parameters | `help(sp.scatter)` |
+| Find constructor arguments | `sp.ScatterPlot.arguments()` |
+| Inspect one constructor argument | `sp.ScatterPlot.arguments("hue")` |
 | Find style keywords | `sp.theme_options()` |
 | Browse named themes | `sp.list_themes()` |
 | Browse colormaps | `sp.colormaps()` |

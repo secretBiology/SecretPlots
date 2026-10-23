@@ -655,6 +655,10 @@ Set them for line plots only in a preset's `[plots.line]` section (see
 ## Discovering options
 
 ```python
+sp.LinePlot.arguments()             # what sp.line(...) accepts
+```
+
+```python
 sp.LinePlot.options()               # every chainable step
 ```
 

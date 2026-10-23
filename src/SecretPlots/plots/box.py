@@ -29,6 +29,7 @@ class BoxPlot(DistributionPlot):
     """Created by :func:`box`."""
 
     kind = "box"
+    _constructor = "box"
 
     def __init__(
         self,

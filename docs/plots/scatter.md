@@ -80,6 +80,7 @@ Like every SecretPlots plot, nothing is drawn until the plot is displayed,
 saved, shown, or you access `.fig` / `.ax`.
 
 !!! tip "Explore the options from Python"
+    `sp.ScatterPlot.arguments()` lists what `sp.scatter(...)` accepts,
     `sp.ScatterPlot.options()` lists every chainable step, and
     `sp.ScatterPlot.options("fit")` shows one step's parameters and defaults.
     See [Discovering options](#discovering-options).
@@ -601,6 +602,10 @@ See [Presets](../presets.md) and [Journal-ready figures](../publication.md)
 for sizing, fonts and file formats.
 
 ## Discovering options
+
+```python
+sp.ScatterPlot.arguments()          # what sp.scatter(...) accepts
+```
 
 ```python
 sp.ScatterPlot.options()            # all steps you can chain, with a summary

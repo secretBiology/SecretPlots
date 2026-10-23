@@ -29,6 +29,7 @@ class FillBetweenPlot(SeriesPlot):
     """Created by :func:`fill_between` (alias :func:`area`)."""
 
     kind = "area"
+    _constructor = "fill_between"
 
     def __init__(self, data: _Series, *, band: bool, stack: Stack = False) -> None:
         super().__init__(data)
@@ -456,7 +457,6 @@ def fill_between(
         sort: Connect points in x order (``False`` keeps the data order).
         order: Explicit order of category x values.
         hue_order: Explicit group order.
-
         missing: "raise" (default), "drop" affected rows, or "gap" to
             break areas at missing values. For stacks, drop removes incomplete
             x positions from all layers; gap breaks all layers at those positions.
@@ -495,6 +495,19 @@ def area(
 ) -> FillBetweenPlot:
     """Area chart: the area between ``y`` and a ``baseline``. Same as
     :func:`fill_between` with ``y1=y, y2=baseline``.
+
+    Args:
+        data: Same inputs as :func:`fill_between`.
+        x: Column name (or sequence) of numbers, dates or categories.
+        y: Column name (or sequence) of the values.
+        hue: Column with groups: one area per group.
+        baseline: The value the areas are filled to.
+        stack: Stack the groups' areas; ``"percent"`` scales each x to 100 %.
+        sort: Connect points in x order (``False`` keeps the data order).
+        order: Explicit order of category x values.
+        hue_order: Explicit group order.
+        missing: "raise" (default), "drop" affected rows, or "gap" to
+            break areas at missing values.
 
     Example:
         >>> sp.area(df, x="year", y="sales", hue="region", stack=True)  # doctest: +SKIP

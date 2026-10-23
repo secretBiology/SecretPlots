@@ -6,6 +6,7 @@ import inspect
 import io
 import math
 import re
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -217,6 +218,33 @@ def _param_names(fn: Callable[..., Any]) -> list[str]:
     return [_display_name(p) for p in params]
 
 
+def _parameter_table(
+    fn: Callable[..., Any], params: list[inspect.Parameter]
+) -> pd.DataFrame:
+    """One row per parameter: allowed values, default and docstring text."""
+    hints = get_type_hints(fn)
+    docs = _arg_docs(fn)
+    rows = []
+    for p in params:
+        if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
+            default = ""
+        elif p.default is p.empty:
+            default = "required"
+        else:
+            default = p.default
+        rows.append(
+            {
+                "option": _display_name(p),
+                "allowed": _describe_type(hints.get(p.name, Any)),
+                "default": default,
+                "description": docs.get(p.name, ""),
+            }
+        )
+    return pd.DataFrame(
+        rows, columns=["option", "allowed", "default", "description"]
+    ).set_index("option")
+
+
 class Plot(ABC):
     """A lazily drawn figure. Verbs return the plot so calls can be chained;
     nothing is drawn until :meth:`show`, :meth:`save`, ``.fig``/``.ax`` or
@@ -233,6 +261,9 @@ class Plot(ABC):
     _refline_words: ClassVar[tuple[str, ...]] = ()
     #: Legend handle length in font sizes; plots of lines need room for dashes.
     _handle_length: ClassVar[float] = 1.0
+    #: Name of the function in the plot's module that builds it (``"bar"``
+    #: for ``sp.bar``); :meth:`arguments` describes its parameters.
+    _constructor: ClassVar[str | None] = None
 
     def __init__(self) -> None:
         selection = state.current()
@@ -714,27 +745,35 @@ class Plot(ABC):
                 f"Available: {', '.join(verbs)}"
             )
         fn = verbs[verb]
-        hints = get_type_hints(fn)
-        docs = _arg_docs(fn)
-        rows = []
-        for p in list(inspect.signature(fn).parameters.values())[1:]:
-            if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
-                default = ""
-            elif p.default is p.empty:
-                default = "required"
-            else:
-                default = p.default
-            rows.append(
-                {
-                    "option": _display_name(p),
-                    "allowed": _describe_type(hints.get(p.name, Any)),
-                    "default": default,
-                    "description": docs.get(p.name, ""),
-                }
+        return _parameter_table(fn, list(inspect.signature(fn).parameters.values())[1:])
+
+    @classmethod
+    def arguments(cls, argument: str | None = None) -> pd.DataFrame:
+        """What you pass when creating this plot (``data``, ``x``, ``hue``,
+        ``error``...), with allowed values, defaults and descriptions.
+
+        :meth:`options` lists the steps you chain afterwards.
+
+        >>> sp.BarPlot.arguments()             # doctest: +SKIP
+        >>> sp.bar(df).arguments("error")      # doctest: +SKIP
+        """
+        if cls._constructor is None:
+            raise TypeError(
+                f"{cls.__name__} is not created directly; ask a plot type, "
+                "such as sp.BarPlot.arguments()."
             )
-        return pd.DataFrame(
-            rows, columns=["option", "allowed", "default", "description"]
-        ).set_index("option")
+        fn = getattr(sys.modules[cls.__module__], cls._constructor)
+        table = _parameter_table(fn, list(inspect.signature(fn).parameters.values()))
+        if argument is None:
+            return table
+        if argument not in table.index:
+            close = difflib.get_close_matches(argument, table.index, n=1)
+            hint = f" Did you mean {close[0]!r}?" if close else ""
+            raise ValueError(
+                f"sp.{cls._constructor}() has no argument {argument!r}.{hint} "
+                f"Available: {', '.join(table.index)}"
+            )
+        return table.loc[[argument]]
 
     # ------------------------------------------------------------ resolution
     def style(self) -> Style:

@@ -468,6 +468,10 @@ sp.area(energy, x="year").theme(fill_alpha=0.35)
 ## Discovering options
 
 ```python
+sp.FillBetweenPlot.arguments()          # what sp.fill_between(...) accepts
+```
+
+```python
 sp.FillBetweenPlot.options()            # every chainable step
 ```
 

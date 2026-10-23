@@ -11,6 +11,7 @@ exported with embedded fonts. Click a thumbnail to jump to the code.</p>
 [![](assets/figures/gallery-volcano.png)<span>Volcano plot<small>scatter · thresholds · highlight</small></span>](#volcano-plot)
 [![](assets/figures/gallery-expression-heatmap.png)<span>Expression heatmap<small>z-score · groups · tracks · clustering</small></span>](#expression-heatmap)
 [![](assets/figures/gallery-forest.png)<span>Subgroup analysis<small>forest · table · interaction p-values</small></span>](#subgroup-analysis)
+[![](assets/figures/gallery-survival.png)<span>Overall survival<small>Kaplan-Meier · risk table · log-rank</small></span>](#overall-survival)
 [![](assets/figures/gallery-correlation.png)<span>Correlation matrix<small>masked triangle · values · diverging map</small></span>](#correlation-matrix)
 [![](assets/figures/gallery-raincloud.png)<span>Raincloud<small>density · box · raw data · stars</small></span>](#raincloud)
 [![](assets/figures/gallery-split-violin.png)<span>Split violins<small>genotype × sex · quartiles</small></span>](#split-violins)
@@ -239,6 +240,50 @@ is a diamond. Shaded rows guide the eye across the double-column width.
     <!-- figure: gallery-forest.png -->
 
     Options used: [`group=`, `.table()`, `.summary()`, `.favours()`](plots/forest.md).
+
+## Overall survival
+
+Overall survival in a two-arm trial, followed for up to four years. A tick
+marks each censored patient, the table below counts who is still at risk, and
+the log-rank p-value and Cox hazard ratio are computed from the data and
+written on the plot. Dotted guides mark the median survival of each arm.
+
+![Kaplan-Meier curves for two arms with a number-at-risk table, median guides and a log-rank p-value.](assets/figures/gallery-survival.png){ .narrow }
+
+??? example "Show code"
+
+    ```python
+    import numpy as np
+    import pandas as pd
+    import SecretPlots as sp
+
+    sp.use(preset="nature")
+    rng = np.random.default_rng(1)
+
+    n = 300
+    arm = rng.choice(["Placebo", "Drug"], n)
+    event_time = rng.exponential(np.where(arm == "Drug", 30, 18))
+    censor_time = rng.uniform(6, 48, n)
+    trial = pd.DataFrame({
+        "months": np.minimum(event_time, censor_time).round(1),
+        "died": event_time <= censor_time,
+        "arm": arm,
+    })
+
+    (
+        sp.survival(trial, time="months", event="died", hue="arm",
+                    hue_order=["Placebo", "Drug"])
+        .risk_table()
+        .median()
+        .pvalue()
+        .hazard_ratio()
+        .colors({"Placebo": "#BBBBBB", "Drug": "#0072B2"})
+        .labels(x="Months since randomisation", y="Overall survival")
+    )
+    ```
+    <!-- figure: gallery-survival.png -->
+
+    Options used: [`.risk_table()`, `.median()`, `.pvalue()`, `.hazard_ratio()`](plots/survival.md).
 
 ## Correlation matrix
 
@@ -592,6 +637,7 @@ hospital admissions. Darker bands are more likely.
 Each plot type has a guide with every option illustrated:
 [bar](plots/bar.md) · [scatter](plots/scatter.md) · [line](plots/line.md) ·
 [area](plots/area.md) · [histogram](plots/histogram.md) ·
-[heatmap](plots/heatmap.md) · [forest](plots/forest.md) · [box](plots/box.md) ·
+[heatmap](plots/heatmap.md) · [forest](plots/forest.md) ·
+[survival](plots/survival.md) · [box](plots/box.md) ·
 [violin & raincloud](plots/violin.md). To prepare a figure for a specific
 journal, read [journal-ready figures](publication.md).

@@ -568,6 +568,10 @@ for sizes, fonts and export.
 ## Discovering options
 
 ```python
+sp.HistogramPlot.arguments()          # what sp.histogram(...) accepts
+```
+
+```python
 sp.HistogramPlot.options()            # every chainable step
 ```
 

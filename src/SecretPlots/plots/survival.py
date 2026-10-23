@@ -134,6 +134,7 @@ class SurvivalPlot(Plot):
     """Survival curves per group, built by :func:`survival`."""
 
     kind = "survival"
+    _constructor = "survival"
     _handle_length = 1.8
 
     def __init__(
