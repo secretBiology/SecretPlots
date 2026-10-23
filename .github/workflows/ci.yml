@@ -58,6 +58,7 @@ jobs:
           uv pip install --python .venv-min/bin/python -e .
           "numpy==2.0.0" "pandas==2.2.2" "matplotlib==3.9.0"
           "SecretColors==2.0.0" "pytest>=8.3" "pytest-mpl>=0.17" "scipy>=1.14"
+          "lifelines>=0.30.0"
       # Pixel baselines use the locked renderer; minimum versions check behavior
       # and the PNG/PDF/SVG export smoke tests without comparing raster pixels.
       - run: .venv-min/bin/python -m pytest
