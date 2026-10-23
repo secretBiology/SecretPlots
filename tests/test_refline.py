@@ -112,6 +112,54 @@ def test_style_options_and_text_label(df: pd.DataFrame) -> None:
     assert [t.get_text() for t in numbered.ax.texts] == ["5", "6"]
 
 
+def test_label_position_and_rotation(df: pd.DataFrame) -> None:
+    vertical = sp.scatter(df, x="v", y="w").refline(
+        10, axis="x", label="cut", label_position="start", label_rotation=90
+    )
+    (text,) = vertical.ax.texts
+    assert text.xy[1] == 0
+    assert text.get_va() == "bottom"
+    assert text.get_rotation() == 90
+    horizontal = sp.scatter(df, x="v", y="w").refline(
+        5, label="cut", label_position="center"
+    )
+    (text,) = horizontal.ax.texts
+    assert text.xy[0] == 0.5
+    assert text.get_ha() == "center"
+    default = sp.scatter(df, x="v", y="w").refline(5, label="cut")
+    assert default.ax.texts[0].xy[0] == 1
+    assert default.ax.texts[0].get_ha() == "right"
+
+
+def test_label_side(df: pd.DataFrame) -> None:
+    vertical = sp.scatter(df, x="v", y="w").refline(
+        10, axis="x", label="cut", label_side="left"
+    )
+    (text,) = vertical.ax.texts
+    assert text.get_ha() == "right"
+    assert text.xyann[0] < 0
+    horizontal = sp.scatter(df, x="v", y="w").refline(
+        5, label="cut", label_side="below"
+    )
+    (text,) = horizontal.ax.texts
+    assert text.get_va() == "top"
+    assert text.xyann[1] < 0
+    with pytest.raises(ValueError, match="'above' or 'below'"):
+        sp.scatter(df, x="v", y="w").refline(5, label=True, label_side="left")
+    with pytest.raises(ValueError, match="'left' or 'right'"):
+        sp.scatter(df, x="v", y="w").refline(
+            5, axis="x", label=True, label_side="below"
+        )
+
+
+def test_label_position_and_rotation_are_checked(df: pd.DataFrame) -> None:
+    plot = sp.scatter(df, x="v", y="w")
+    with pytest.raises(ValueError, match="label_position"):
+        plot.refline(5, label=True, label_position="top")  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="label_rotation"):
+        plot.refline(5, label=True, label_rotation="90")  # type: ignore[arg-type]
+
+
 def test_calls_add_lines_and_empty_call_removes_them(df: pd.DataFrame) -> None:
     plot = sp.scatter(df, x="v", y="w").refline(5).refline(10, axis="x")
     assert len(_reflines(plot.ax)) == 2
@@ -181,4 +229,14 @@ def test_validation(df: pd.DataFrame) -> None:
 @pytest.mark.parametrize("cls", [sp.BarPlot, sp.HeatmapPlot, sp.ViolinPlot])
 def test_options_list_refline(cls: type[sp.Plot]) -> None:
     options = cls.options("refline").index.tolist()
-    assert options == ["*values", "axis", "label", "color", "linestyle", "linewidth"]
+    assert options == [
+        "*values",
+        "axis",
+        "label",
+        "color",
+        "linestyle",
+        "linewidth",
+        "label_position",
+        "label_rotation",
+        "label_side",
+    ]

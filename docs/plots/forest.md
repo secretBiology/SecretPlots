@@ -88,7 +88,7 @@ sp.forest(data, label=None, estimate="estimate", lower="lower", upper="upper", *
 | `panel` | `None` | Side-by-side forests that share the row labels (e.g. outcomes). |
 | `weight` | `None` | Study weights; marker area is proportional. |
 | `scale` | `"ratio"` | `"ratio"` (odds, hazard, risk and rate ratios): a log axis, no effect at 1. `"difference"` (mean or risk differences, coefficients): a linear axis, no effect at 0. |
-| `null` | `None` | Position of the line of no effect (default 1 or 0 by `scale`); `False` hides it. |
+| `null` | `None` | Position of the line of no effect (default 1 or 0 by `scale`); `False` hides it. `.null()` also styles and labels it. |
 | `hue_order`, `panel_order` | `None` | Explicit order of the `hue` values and panels. |
 | `missing` | `"raise"` | `"raise"` rejects missing or infinite estimates and limits; `"drop"` leaves those rows out. See [data handling](../usage.md). |
 
@@ -103,11 +103,13 @@ Every plot also has the shared steps (`.labels()`, `.legend()`, `.chrome()`,
 | `.table(left, right, *, formats, align)` | Extra columns before the forest and after the estimates; see [Table columns](#table-columns). |
 | `.estimates(show=True, *, decimals=2, header, side="right")` | The "estimate (95% CI)" column; `False` hides it. |
 | `.summary(*labels)` | Draw rows as diamonds with bold labels (overall or pooled estimates). |
+| `.null(value=True, *, label, color, linestyle="-", linewidth)` | Position, style and label of the line of no effect; see [The line of no effect](#the-line-of-no-effect). |
 | `.favours(left, right)` | Direction labels with arrows under the axis. |
 | `.groups(*, gap=0.5, headers=True, indent)` | Spacing, headers and indent of `group=` sections. |
-| `.stripes(show=True, *, color)` | Shade every other row across table and forest. |
+| `.stripes(show=True, *, by="row", color)` | Shade every other row, or every other `group=` section (`by="group"`), across table and forest. |
+| `.dividers(show=True, *, by="group", color, linewidth, linestyle="-")` | Rules between `group=` sections, or between rows (`by="row"`); see [Shading and dividers](#shading-and-dividers). |
 | `.markers(marker="s", *, size)` | Shape and size of the point estimates. |
-| `.refline(*values, ...)` | Extra vertical lines, e.g. at the overall estimate. |
+| `.refline(*values, ...)` | Extra vertical lines, e.g. at the overall estimate; `label_position="start"`/`"center"`/`"end"`, `label_rotation=90` and `label_side="left"`/`"right"` move and turn the label. |
 | `.source_data()` | The plotted rows and estimate text as a DataFrame. |
 
 ## Input data
@@ -156,6 +158,32 @@ written "a (b to c)", so negative limits read clearly.*
 Limits that go past `.xlim()` are cut with an arrowhead, as journals require.
 Use `.xlim()` to keep one extreme interval from squeezing the others.
 
+## The line of no effect
+
+The solid vertical line marks no effect: a ratio of 1 or a difference of 0.
+Intervals that cross it are compatible with no effect. `.null()` moves, styles
+or labels it. A non-inferiority trial, for example, compares the upper limits
+with a margin rather than with 1. `.null(False)` (or `null=False` in
+`sp.forest()`) hides the line, and `.null()` restores the default. For a second
+line, such as the pooled estimate, add `.refline()`.
+
+```python
+(
+    sp.forest(trial, label="subgroup", estimate="hr", lower="lower",
+              upper="upper", group="variable")
+    .summary("All patients")
+    .null(1.25, label="Non-inferiority margin", linestyle="--", color="#C0392B")
+    .refline(1, linestyle=":")
+    .labels(x="Hazard ratio")
+)
+```
+<!-- figure: forest-null -->
+
+![A subgroup forest plot with a dashed red non-inferiority margin at a hazard ratio of 1.25, labelled above the plot, and a dotted line at 1.](../assets/figures/forest-null.svg)
+
+*Every upper limit stays left of the 1.25 margin, so non-inferiority holds in
+each subgroup. The label sits above the line in the header row.*
+
 ## Sections and headers
 
 `group=` splits the rows into sections with a bold header each and indents the
@@ -166,6 +194,33 @@ That suits rows that are self-explanatory, such as a list of drugs by class.
 Values that belong to a whole section, typically the P for interaction, go in a
 table column given as a `{group: value}` mapping instead of a column name.
 They are printed on the header row, as in the `interaction` column above.
+
+## Shading and dividers
+
+Long tables are easier to read with a visual break between sections or rows.
+`.stripes()` shades every other row across the table and forest. With
+`hue=`, a row holds all of a label's estimates, so they share one band.
+`.stripes(by="group")` shades every other section instead, header included.
+`.dividers()` draws thin rules between sections, or between rows with
+`by="row"`. Both take a `color`. Dividers also take `linewidth` and
+`linestyle`. Without `group=`, every row counts as its own section.
+
+```python
+(
+    sp.forest(trial, label="subgroup", estimate="hr", lower="lower",
+              upper="upper", group="variable")
+    .summary("All patients")
+    .stripes(by="group")
+    .dividers()
+    .labels(x="Hazard ratio")
+)
+```
+<!-- figure: forest-sections -->
+
+![A subgroup forest plot where the overall row and the Sex and Region sections sit on light gray bands and thin rules separate every section.](../assets/figures/forest-sections.svg)
+
+*Alternate sections are shaded and each one is closed off by a rule, so the
+eye can follow a section across the table and the forest.*
 
 ## Table columns
 

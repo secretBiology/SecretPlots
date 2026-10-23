@@ -14,9 +14,17 @@ All notable changes to this project are documented here. The format follows
   `{group: value}` header-row values such as P for interaction; `group=`
   sections with bold headers and indents (`.groups()`); `.summary()` diamonds;
   `weight=` marker areas; `hue=` dodged estimates with a legend; `panel=`
-  side-by-side forests sharing row labels; `.favours()` direction arrows,
-  `.stripes()`, `.markers()`, arrowheads for intervals beyond `.xlim()`;
+  side-by-side forests sharing row labels; `.null()` to move, style or
+  label the line of no effect (e.g. a non-inferiority margin);
+  `.favours()` direction arrows,
+  `.stripes()` (every other row or, with `by="group"`, every other section),
+  `.dividers()` (styled rules between sections or rows), `.markers()`,
+  arrowheads for intervals beyond `.xlim()`;
   height that grows with the rows; `.source_data()`.
+- `.refline()`: `label_position` (`"start"`, `"center"`, `"end"`) places
+  the label along the line, `label_side` puts it on either side (`"left"`/
+  `"right"` of a vertical line, `"above"`/`"below"` a horizontal one), and
+  `label_rotation` turns it (e.g. `90` to run it up a vertical line).
 
 ## [3.0.0a1] - 2026-10-22
 

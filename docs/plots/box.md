@@ -105,7 +105,7 @@ Steps shared by box plots, [violins and rainclouds](violin.md):
 | `.mean(show=True)` | Mark each mean with a white diamond. |
 | `.show_n(show=True, *, label="n = {n}", sep=", ")` | Print the sample size under each category label. |
 | `.compare(*pairs, ref, test="mann-whitney", correction, p, format="p", hide_ns=False)` | Significance brackets; see [Significance brackets](#significance-brackets). |
-| `.refline(*values, axis, label, color, linestyle="--", linewidth)` | Reference lines, e.g. a control mean or a threshold. |
+| `.refline(*values, axis, label, color, linestyle="--", linewidth, label_position="end", label_rotation=0, label_side=None)` | Reference lines, e.g. a control mean or a threshold. |
 | `.ticklabels(labels, *, rotation, italic=False)` | Rename categories (list or `{old: new}`) and style their labels. |
 | `.grouplabels(labels)` | Rename `hue` groups in the legend. |
 | `.orient("v" \| "h")` | Direction of the value axis. |

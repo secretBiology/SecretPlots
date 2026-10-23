@@ -139,7 +139,7 @@ Shared by every plot type:
 | `.xlim(low, high)`, `.ylim(low, high)` | Axis limits. |
 | `.log(axis="y")` | Log scale on `"x"`, `"y"` or `"xy"`. |
 | `.format_axis(axis="y", kind="number", *, decimals, prefix, suffix, scale, date_format)` | Tick label format. |
-| `.refline(*values, axis, label, color, linestyle, linewidth)` | Reference lines; see [bar plots](bar.md#reference-lines). |
+| `.refline(*values, axis, label, color, linestyle, linewidth, label_position, label_rotation, label_side)` | Reference lines; see [bar plots](bar.md#reference-lines). |
 | `.chrome(title, subtitle, source, note)` | Headline and source text around the figure. |
 | `.preset(name, width, height)`, `.size(width, height, scale_text)` | Journal preset and figure size. |
 | `.theme(theme, **overrides)` | Switch theme or override style fields. |

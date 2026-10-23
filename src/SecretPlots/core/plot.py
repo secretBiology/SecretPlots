@@ -59,6 +59,9 @@ class _RefLine:
     color: str | None
     linestyle: str
     linewidth: float | None
+    label_position: Literal["start", "center", "end"] = "end"
+    label_rotation: float = 0
+    label_side: Literal["left", "right", "above", "below"] | None = None
 
 
 def _is_number(value: Any) -> bool:
@@ -567,6 +570,9 @@ class Plot(ABC):
         color: str | None = None,
         linestyle: str = "--",
         linewidth: float | None = None,
+        label_position: Literal["start", "center", "end"] = "end",
+        label_rotation: float = 0,
+        label_side: Literal["left", "right", "above", "below"] | None = None,
     ) -> Self:
         """Reference lines across the plot, like matplotlib's ``axhline``
         (``axis="y"``) and ``axvline`` (``axis="x"``). Each call adds lines, so
@@ -586,9 +592,34 @@ class Plot(ABC):
             linestyle: ``"--"`` (default), ``":"``, ``"-."`` or ``"-"``.
             linewidth: Line width in pt (default: the theme's
                 ``axis_line_width``).
+            label_position: Where along the line the label sits: ``"end"``
+                (default; the top of a vertical line, the right end of a
+                horizontal one), ``"start"`` (bottom / left) or ``"center"``.
+            label_rotation: Label angle in degrees, counter-clockwise (``90``
+                runs the label up along a vertical line).
+            label_side: Which side of the line the label sits on: ``"right"``
+                (default) or ``"left"`` of a vertical line, ``"above"``
+                (default) or ``"below"`` a horizontal one.
         """
         if axis not in (None, "x", "y"):
             raise ValueError("refline axis must be 'x', 'y' or None (the value axis)")
+        if label_position not in ("start", "center", "end"):
+            raise ValueError(
+                f"Unknown refline label_position {label_position!r}; use "
+                "'start', 'center' or 'end'"
+            )
+        if not _is_number(label_rotation):
+            raise TypeError("refline label_rotation must be a number (degrees)")
+        if label_side is not None:
+            sides = {"x": ("left", "right"), "y": ("above", "below")}[
+                axis or self._refline_axis()
+            ]
+            if label_side not in sides:
+                kind = "vertical" if sides[0] == "left" else "horizontal"
+                raise ValueError(
+                    f"refline label_side {label_side!r} doesn't fit a {kind} "
+                    f"line; use {sides[0]!r} or {sides[1]!r}"
+                )
         if not values:
             self._reflines = [
                 r
@@ -632,7 +663,18 @@ class Plot(ABC):
         if linewidth is not None and linewidth < 0:
             raise ValueError("refline linewidth must be 0 or more")
         self._reflines += [
-            _RefLine(v, axis, label, color, linestyle, linewidth) for v in values
+            _RefLine(
+                v,
+                axis,
+                label,
+                color,
+                linestyle,
+                linewidth,
+                label_position,
+                float(label_rotation),
+                label_side,
+            )
+            for v in values
         ]
         return self._changed()
 
@@ -900,18 +942,38 @@ class Plot(ABC):
                     continue
                 vertical = axis == "x"
                 step = style.sizes.tick * 1.3
+                # One value can draw several lines (a median per group):
+                # stack their labels so close lines stay readable.
+                stack = step * i
+                along, align, offset = {
+                    "start": (0.0, "bottom" if vertical else "left", 2),
+                    "center": (0.5, "center", 0),
+                    "end": (1.0, "top" if vertical else "right", -2),
+                }[ref.label_position]
+                if vertical:
+                    left = ref.label_side == "left"
+                    xy = (position, along)
+                    xytext = (
+                        -2 if left else 2,
+                        offset - stack if offset <= 0 else offset + stack,
+                    )
+                    ha, va = "right" if left else "left", align
+                else:
+                    below = ref.label_side == "below"
+                    xy = (along, position)
+                    xytext = (offset, -2 - stack if below else 2 + stack)
+                    ha, va = align, "top" if below else "bottom"
                 ax.annotate(
                     ref.label if isinstance(ref.label, str) else text,
-                    xy=(position, 1) if vertical else (1, position),
+                    xy=xy,
                     xycoords=ax.get_xaxis_transform()
                     if vertical
                     else ax.get_yaxis_transform(),
-                    # One value can draw several lines (a median per group):
-                    # stack their labels so close lines stay readable.
-                    xytext=(2, -2 - step * i) if vertical else (-2, 2 + step * i),
+                    xytext=xytext,
                     textcoords="offset points",
-                    ha="left" if vertical else "right",
-                    va="top" if vertical else "bottom",
+                    ha=ha,
+                    va=va,
+                    rotation=ref.label_rotation,
                     fontsize=style.sizes.tick,
                     color=color,
                 )

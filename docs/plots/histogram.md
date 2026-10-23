@@ -115,7 +115,7 @@ Histogram-specific steps, on top of the shared ones (`.labels()`,
 |---|---|---|
 | `.kde()` | `show=True`, `bw_adjust=1.0`, `cut=0.0`, `color=None` | Smooth density curve (Gaussian kernel), scaled to the bars' `stat`. `color` is one colour or `{group: colour}`. |
 | `.fit()` | `dist="normal"` | Normal distribution with the sample mean and SD, dashed. `None` removes it. |
-| `.refline()` | `*values`, `axis=None`, `label=False`, `color=None`, `linestyle="--"`, `linewidth=None` | Reference lines; also takes `"mean"` and `"median"` (one line per group). |
+| `.refline()` | `*values`, `axis=None`, `label=False`, `color=None`, `linestyle="--"`, `linewidth=None`, `label_position="end"`, `label_rotation=0`, `label_side=None` | Reference lines; also takes `"mean"` and `"median"` (one line per group). |
 | `.rug()` | `show=True` | A tick for every value along the value axis. |
 | `.show_n()` | `show=True` | n per group in the legend (or in a note without groups). |
 | `.bin_edges` | property | The bin edges actually used. |

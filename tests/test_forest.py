@@ -4,11 +4,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.colors import to_hex
 from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon
 
 import SecretPlots as sp
-from SecretPlots.plots.forest import _difference_ticks, _format_cell, _ratio_ticks
+from SecretPlots.plots.forest import (
+    _difference_ticks,
+    _format_cell,
+    _ratio_ticks,
+    _Rule,
+    _Span,
+)
 
 
 @pytest.fixture
@@ -404,3 +411,91 @@ def test_options_lists_forest_steps(subgroups: pd.DataFrame) -> None:
     assert {"table", "estimates", "summary", "favours", "stripes", "groups"} <= set(
         verbs
     )
+
+
+def test_stripes_by_row_or_group(subgroups: pd.DataFrame) -> None:
+    def bands(plot: sp.ForestPlot) -> list[tuple[float, float]]:
+        spans = [a for a in plot.ax.get_children() if isinstance(a, _Span)]
+        return [s._y for s in spans if s._height_pt is None]
+
+    grouped = _forest(subgroups, group="variable")
+    # Rows: Overall 0 | Age 1.5, 2.5, 3.5 | Sex 5, 6, 7 (0.5-row gaps).
+    assert bands(grouped.copy().stripes()) == [
+        (-0.5, 0.5),
+        (2.0, 3.0),
+        (4.5, 5.5),
+        (6.5, 7.5),
+    ]
+    assert bands(grouped.copy().stripes(by="group", color="#eeeeff")) == [
+        (-0.5, 0.75),
+        (4.25, 7.5),
+    ]
+    assert bands(grouped.copy().stripes().stripes(False)) == []
+    with pytest.raises(ValueError, match="'row' or 'group'"):
+        grouped.stripes(by="section")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="stripes color"):
+        grouped.stripes(color="notacolor")
+
+
+def test_dividers_between_groups_or_rows(subgroups: pd.DataFrame) -> None:
+    def rules(plot: sp.ForestPlot) -> list[_Rule]:
+        return [a for a in plot.ax.get_children() if isinstance(a, _Rule)]
+
+    grouped = _forest(subgroups, group="variable")
+    by_group = rules(grouped.copy().dividers(color="#ff0000", linestyle="--"))
+    assert [r._rule_y for r in by_group] == [0.75, 4.25]
+    assert to_hex(by_group[0].get_color()) == "#ff0000"
+    assert by_group[0].get_linestyle() == "--"
+    by_row = rules(grouped.copy().dividers(by="row", linewidth=2))
+    assert len(by_row) == 6
+    assert by_row[0].get_linewidth() == 2
+    # Without group= every row is its own section.
+    assert len(rules(_forest(subgroups).dividers())) == 4
+    assert rules(grouped.copy().dividers().dividers(False)) == []
+    with pytest.raises(ValueError, match="linestyle"):
+        grouped.dividers(linestyle="wavy")
+    with pytest.raises(ValueError, match="linewidth"):
+        grouped.dividers(linewidth=-1)
+
+
+def test_null_step_positions_styles_and_labels(subgroups: pd.DataFrame) -> None:
+    plot = _forest(subgroups).null(
+        0.8, label="Non-inferiority margin", color="#C0392B", linestyle="--"
+    )
+    line = next(line for line in plot.ax.lines if list(line.get_xdata()) == [0.8, 0.8])
+    assert line.get_color() == "#C0392B"
+    assert line.get_linestyle() == "--"
+    label = next(t for t in plot.ax.texts if t.get_text() == "Non-inferiority margin")
+    renderer = plot.fig.canvas.get_renderer()
+    assert label.get_window_extent(renderer).y0 >= plot.ax.bbox.y1
+
+
+def test_null_step_resets_and_hides(subgroups: pd.DataFrame) -> None:
+    plot = _forest(subgroups).null(0.8, label="Margin").null()
+    assert plot._null == 1.0
+    assert "Margin" not in _texts(plot)
+    hidden = _forest(subgroups).null(False)
+    assert not [line for line in hidden.ax.lines if list(line.get_xdata()) == [1, 1]]
+    diff = pd.DataFrame({"t": ["a"], "e": [0.2], "lo": [-0.1], "hi": [0.5]})
+    assert (
+        sp.forest(
+            diff, label="t", estimate="e", lower="lo", upper="hi", scale="difference"
+        )
+        .null()
+        ._null
+        == 0.0
+    )
+
+
+def test_null_step_validation(subgroups: pd.DataFrame) -> None:
+    plot = _forest(subgroups)
+    with pytest.raises(ValueError, match="positive"):
+        plot.null(0)
+    with pytest.raises(ValueError, match="color"):
+        plot.null(color="not-a-color")
+    with pytest.raises(ValueError, match="linestyle"):
+        plot.null(linestyle="wavy")
+    with pytest.raises(TypeError, match="number"):
+        plot.null("1")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="favours"):
+        _forest(subgroups).favours("A", "B").null(False)

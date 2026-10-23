@@ -122,7 +122,7 @@ sp.raincloud(data, x=None, y=None, hue=None, *,
 | `.mean(show=True)` | Mark each mean with a white diamond. |
 | `.show_n(show=True, *, label="n = {n}", sep=", ")` | Print the sample size under each category label. |
 | `.compare(*pairs, ref, test="mann-whitney", correction, p, format="p", hide_ns=False)` | Significance brackets; tests and corrections as for [box plots](box.md#significance-brackets). |
-| `.refline(*values, axis, label, color, linestyle="--", linewidth)` | Reference lines across the plot. |
+| `.refline(*values, axis, label, color, linestyle="--", linewidth, label_position="end", label_rotation=0, label_side=None)` | Reference lines across the plot. |
 | `.ticklabels(labels, *, rotation, italic=False)` | Rename categories and style their labels. |
 | `.grouplabels(labels)` | Rename `hue` groups in the legend. |
 | `.orient("v" \| "h")` | Direction of the value axis. |

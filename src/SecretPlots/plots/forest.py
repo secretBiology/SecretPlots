@@ -17,13 +17,16 @@ import difflib
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from itertools import pairwise
 from typing import Any, Literal, Self
 
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 from matplotlib.patches import Polygon, Rectangle
 from matplotlib.text import Text
@@ -237,12 +240,65 @@ class _Span(Rectangle):
         super().draw(renderer)
 
 
+class _Rule(Line2D):
+    """A horizontal line across the whole table, like :class:`_Span` but a
+    line, so it can be dashed."""
+
+    def __init__(
+        self,
+        frame: Transform,
+        fig: Figure,
+        left: float,
+        right: float,
+        y: float,
+        y_transform: Transform,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__([0, 0], [0, 0], transform=IdentityTransform(), **kwargs)
+        # Line2D keeps its data in ``_x``/``_y``: avoid those names.
+        self._frame, self._fig = frame, fig
+        self._left, self._right = left, right
+        self._rule_y, self._rule_transform = y, y_transform
+        self.set_clip_on(False)
+        self.set_in_layout(False)
+
+    def draw(self, renderer: RendererBase) -> None:
+        dpi = self._fig.dpi
+        x0 = self._frame.transform((0, 0))[0] - self._left * dpi
+        x1 = self._frame.transform((1, 0))[0] + self._right * dpi
+        y = self._rule_transform.transform((0, self._rule_y))[1]
+        self.set_data([x0, x1], [y, y])
+        super().draw(renderer)
+
+
 @dataclass
 class _Row:
     kind: Literal["header", "item", "summary"]
     group: Any
     label: str
     y: float
+
+
+def _bands(rows: list[_Row], by: Literal["row", "group"]) -> list[tuple[float, float]]:
+    """``(top, bottom)`` y of each row, or each ``group=`` section (a header
+    and its rows; an ungrouped row on its own), meeting halfway across the
+    gaps between them so they tile the table."""
+    blocks: list[list[_Row]] = []
+    for row in rows:
+        if (
+            by == "group"
+            and blocks
+            and row.group is not None
+            and row.group == blocks[-1][-1].group
+        ):
+            blocks[-1].append(row)
+        else:
+            blocks.append([row])
+    edges = [blocks[0][0].y - 0.5]
+    for above, below in pairwise(blocks):
+        edges.append((above[-1].y + below[0].y) / 2)
+    edges.append(blocks[-1][-1].y + 0.5)
+    return list(pairwise(edges))
 
 
 @dataclass(frozen=True)
@@ -289,7 +345,6 @@ class ForestPlot(Plot):
         *,
         names: dict[str, str | None],
         scale: Scale,
-        null: float | None,
         hues: list[Any],
         panels: list[Any],
     ) -> None:
@@ -297,7 +352,8 @@ class ForestPlot(Plot):
         self._frame = frame
         self._names = names
         self._scale: Scale = scale
-        self._null = null
+        self._null: float | None = None
+        self._null_options: dict[str, Any] = {}
         self._hues = hues
         self._panel_names = panels
         self._summary: tuple[Any, ...] = ()
@@ -308,7 +364,8 @@ class ForestPlot(Plot):
         self._estimate_header: str | None = None
         self._decimals = 2
         self._favours: tuple[str | None, str | None] = (None, None)
-        self._stripes: str | bool = False
+        self._stripes: dict[str, Any] | None = None
+        self._dividers: dict[str, Any] | None = None
         self._group_gap = 0.5
         self._group_headers = True
         self._indent: float | None = None
@@ -415,19 +472,140 @@ class ForestPlot(Plot):
             right: Text right of the null line, with an arrow pointing right.
         """
         if self._null is None and (left or right):
-            raise ValueError("favours() needs the line of no effect; set null=")
+            raise ValueError(
+                "favours() needs the line of no effect; turn it on with .null()"
+            )
         self._favours = (left or None, right or None)
         return self._changed()
 
-    def stripes(self, show: bool = True, *, color: str | None = None) -> Self:
-        """Shade every other row across the table and forest, which helps
-        follow a row in wide tables.
+    def null(
+        self,
+        value: float | bool = True,
+        *,
+        label: str | None = None,
+        color: str | None = None,
+        linestyle: str = "-",
+        linewidth: float | None = None,
+    ) -> Self:
+        """The line of no effect (the baseline): where it sits and how it
+        looks. Each call resets the options it doesn't pass.
+
+        Args:
+            value: Position, e.g. ``0.8`` for a non-inferiority margin.
+                ``True`` (default) uses 1 on a ratio scale and 0 on a
+                difference scale; ``False`` hides the line.
+            label: Text above the line, e.g. ``"No effect"``; ``""`` or
+                ``None`` writes nothing.
+            color: Line color (default: the theme's text color).
+            linestyle: ``"-"`` (default), ``"--"``, ``":"`` or ``"-."``.
+            linewidth: Line width in pt (default: the theme's
+                ``axis_line_width``).
+        """
+        if value is False:
+            if any(self._favours):
+                raise ValueError(
+                    "favours() labels point away from the null line; remove "
+                    "them with .favours() before hiding it"
+                )
+            position = None
+        elif value is True:
+            position = 1.0 if self._scale == "ratio" else 0.0
+        elif isinstance(value, int | float) and math.isfinite(value):
+            position = float(value)
+            if self._scale == "ratio" and position <= 0:
+                raise ValueError("null must be positive on a ratio scale")
+        else:
+            raise TypeError("null value must be a number, True or False")
+        if color is not None:
+            try:
+                to_rgba(color)
+            except ValueError:
+                raise ValueError(f"Unknown null line color {color!r}") from None
+        try:
+            Line2D([], [], linestyle=linestyle)  # type: ignore[arg-type]
+        except ValueError:
+            raise ValueError(
+                f"Unknown linestyle {linestyle!r}; use '-', '--', ':' or '-.'"
+            ) from None
+        if linewidth is not None and linewidth < 0:
+            raise ValueError("null linewidth must be 0 or more")
+        self._null = position
+        self._null_options = {
+            "label": label or None,
+            "color": color,
+            "linestyle": linestyle,
+            "linewidth": linewidth,
+        }
+        return self._changed()
+
+    def stripes(
+        self,
+        show: bool = True,
+        *,
+        by: Literal["row", "group"] = "row",
+        color: str | None = None,
+    ) -> Self:
+        """Shade every other row, or every other ``group=`` section, across
+        the table and forest, which helps follow a row in wide tables.
 
         Args:
             show: ``False`` removes the shading.
+            by: ``"row"`` (default) bands each row (with ``hue=``, all of a
+                label's estimates together); ``"group"`` bands each section,
+                header included. Without ``group=`` both band rows.
             color: Band color (default: a light tint of the text color).
         """
-        self._stripes = (color or True) if show else False
+        if by not in ("row", "group"):
+            raise ValueError("stripes by must be 'row' or 'group'")
+        if color is not None:
+            try:
+                to_rgba(color)
+            except ValueError:
+                raise ValueError(f"Unknown stripes color {color!r}") from None
+        self._stripes = {"by": by, "color": color} if show else None
+        return self._changed()
+
+    def dividers(
+        self,
+        show: bool = True,
+        *,
+        by: Literal["row", "group"] = "group",
+        color: str | None = None,
+        linewidth: float | None = None,
+        linestyle: str = "-",
+    ) -> Self:
+        """Rules across the table and forest between ``group=`` sections, or
+        between rows.
+
+        Args:
+            show: ``False`` removes them.
+            by: ``"group"`` (default) rules between sections; ``"row"``
+                between every row. Without ``group=`` both rule rows.
+            color: Rule color (default: the theme's ``grid_color``).
+            linewidth: Rule width in pt (default: the theme's
+                ``axis_line_width``).
+            linestyle: ``"-"`` (default), ``"--"``, ``":"`` or ``"-."``.
+        """
+        if by not in ("row", "group"):
+            raise ValueError("dividers by must be 'row' or 'group'")
+        if color is not None:
+            try:
+                to_rgba(color)
+            except ValueError:
+                raise ValueError(f"Unknown dividers color {color!r}") from None
+        if linewidth is not None and linewidth < 0:
+            raise ValueError("dividers linewidth must be 0 or more")
+        try:
+            Line2D([], [], linestyle=linestyle)  # type: ignore[arg-type]
+        except ValueError:
+            raise ValueError(
+                f"Unknown linestyle {linestyle!r}; use '-', '--', ':' or '-.'"
+            ) from None
+        self._dividers = (
+            {"by": by, "color": color, "linewidth": linewidth, "linestyle": linestyle}
+            if show
+            else None
+        )
         return self._changed()
 
     def groups(
@@ -722,6 +900,8 @@ class ForestPlot(Plot):
             ]
         )
         pt = span * self._row_pt(style)
+        if self._null is not None and self._null_options.get("label"):
+            header_lines += 1 if len(self._panel_names) > 1 else 0
         pt += header_lines * tick * 1.25 + 6
         pt += (style.theme.tick_length or 3.5) + 3.5 + tick * 1.3
         if any(self._favours):
@@ -805,6 +985,7 @@ class ForestPlot(Plot):
             body.header = max(body.header, header_h)
             return _Placed(column, cells, width, bold_rows=bold_rows)
 
+        count = count_panels = len(self._panel_names)
         left = [place(c, ...) for c in left_cols]
         cursor = -edge
         for placed in reversed(left):
@@ -823,10 +1004,12 @@ class ForestPlot(Plot):
             right_extent = max(right_extent, cursor - gap if placed_cols else 0.0)
             panel_tables.append(placed_cols)
         body.right = right_extent
+        null_label = self._null_options.get("label") if self._null is not None else None
+        label_height = measure(null_label)[1] + 2 / _PT if null_label else 0.0
         for name in self._panel_names:
-            body.header = max(body.header, measure(str(name), True)[1])
+            name_height = measure(str(name), True)[1] if count_panels > 1 else 0.0
+            body.header = max(body.header, label_height + name_height)
 
-        count = len(self._panel_names)
         panel_gap = right_extent + edge * 2
         available = (
             style.width - body.left - right_extent - panel_gap * (count - 1) - 0.15
@@ -858,12 +1041,15 @@ class ForestPlot(Plot):
 
         # Shading and rules span the table, behind everything.
         if self._stripes:
-            color = (
-                self._stripes
-                if isinstance(self._stripes, str)
-                else with_alpha(theme.text_color or "#262626", 0.06)
+            color = self._stripes["color"] or with_alpha(
+                theme.text_color or "#262626", 0.06
             )
-            for i, row in enumerate(rows):
+            bands = (
+                _bands(rows, "group")
+                if self._stripes["by"] == "group"
+                else [(r.y - 0.5, r.y + 0.5) for r in rows]
+            )
+            for i, band in enumerate(bands):
                 if i % 2 == 0:
                     ax.add_artist(
                         _Span(
@@ -871,13 +1057,34 @@ class ForestPlot(Plot):
                             fig,
                             body.left,
                             right_extent,
-                            (row.y - 0.5, row.y + 0.5),
+                            band,
                             ax.transData,
                             facecolor=color,
                             edgecolor="none",
                             zorder=0.1,
                         )
                     )
+        if self._dividers:
+            divider = self._dividers
+            for _, bottom_edge in _bands(rows, divider["by"])[:-1]:
+                ax.add_artist(
+                    _Rule(
+                        frame,
+                        fig,
+                        body.left,
+                        right_extent,
+                        bottom_edge,
+                        ax.transData,
+                        color=divider["color"]
+                        or theme.grid_color
+                        or with_alpha(theme.text_color or "#262626", 0.2),
+                        linewidth=theme.axis_line_width or 0.8
+                        if divider["linewidth"] is None
+                        else divider["linewidth"],
+                        linestyle=divider["linestyle"],
+                        zorder=0.2,
+                    )
+                )
         rule = theme.axis_line_width or 0.8
         ax.add_artist(
             _Span(
@@ -915,13 +1122,26 @@ class ForestPlot(Plot):
                 style,
                 indent,
             )
+            if null_label:
+                ax.text(
+                    self._null,  # type: ignore[arg-type]
+                    1,
+                    null_label,
+                    transform=blended_transform_factory(panel_ax.transData, frame)
+                    + ScaledTranslation(0, 3 / _PT, fig.dpi_scale_trans),
+                    ha="center",
+                    va="bottom",
+                    fontsize=size,
+                    color=theme.muted_text_color or text_color,
+                    clip_on=False,
+                )
             if count > 1:
                 ax.text(
                     0.5,
                     1,
                     str(name),
                     transform=blended_transform_factory(panel_ax.transAxes, frame)
-                    + ScaledTranslation(0, 3 / _PT, fig.dpi_scale_trans),
+                    + ScaledTranslation(0, 3 / _PT + label_height, fig.dpi_scale_trans),
                     ha="center",
                     va="bottom",
                     fontsize=size,
@@ -1056,10 +1276,14 @@ class ForestPlot(Plot):
             ax.xaxis.grid(True)
 
         if self._null is not None:
+            options = self._null_options
             ax.axvline(
                 self._null,
-                color=theme.text_color,
-                lw=theme.axis_line_width,
+                color=options.get("color") or theme.text_color,
+                lw=theme.axis_line_width
+                if options.get("linewidth") is None
+                else options["linewidth"],
+                ls=options.get("linestyle", "-"),
                 zorder=1.3,
             )
         offsets = self._hue_offsets(style)
@@ -1313,7 +1537,7 @@ def forest(
     panel: str | None = None,
     weight: str | None = None,
     scale: Scale = "ratio",
-    null: float | Literal[False] | None = None,
+    null: float | bool | None = None,
     hue_order: Sequence[Any] | None = None,
     panel_order: Sequence[Any] | None = None,
     missing: DropPolicy = "raise",
@@ -1339,7 +1563,9 @@ def forest(
         scale: ``"ratio"`` (default; odds, hazard, risk, rate ratios) draws a
             log axis with no effect at 1; ``"difference"`` (mean or risk
             differences, coefficients) a linear axis with no effect at 0.
-        null: Position of the line of no effect; ``False`` hides it.
+        null: Position of the line of no effect (default 1 for ratios, 0
+            for differences); ``False`` hides it. ``.null()`` also styles
+            and labels it.
         hue_order: Explicit order of the ``hue`` values.
         panel_order: Explicit order of the panels.
         missing: "raise" (default) rejects missing/non-finite estimates or
@@ -1421,15 +1647,7 @@ def forest(
         frame = frame[frame[panel].isin(panels)]
     frame = frame.reset_index(drop=True)
 
-    if null is False:
-        null_at = None
-    elif null is None or null is True:
-        null_at = 1.0 if scale == "ratio" else 0.0
-    else:
-        null_at = float(null)
-        if scale == "ratio" and null_at <= 0:
-            raise ValueError("null must be positive on a ratio scale")
-    return ForestPlot(
+    plot = ForestPlot(
         frame,
         names={
             "measure": _measure_name(estimate),
@@ -1442,7 +1660,7 @@ def forest(
             "weight": weight,
         },
         scale=scale,
-        null=null_at,
         hues=hues,
         panels=panels,
     )
+    return plot.null(True if null is None else null)

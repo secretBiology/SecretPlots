@@ -135,7 +135,7 @@ Shared by every plot type:
 | `.xlim(low, high)`, `.ylim(low, high)` | Axis limits (axes as drawn). |
 | `.log(axis="y")` | Log scale on `"x"`, `"y"` or `"xy"` (axes as drawn). |
 | `.format_axis(axis="y", kind="number", *, decimals, prefix, suffix, scale, date_format)` | Tick label format: `"number"`, `"percent"`, `"currency"`, `"date"`. |
-| `.refline(*values, axis, label, color, linestyle, linewidth)` | Reference lines across the plot. |
+| `.refline(*values, axis, label, color, linestyle, linewidth, label_position, label_rotation, label_side)` | Reference lines across the plot. |
 | `.chrome(title, subtitle, source, note)` | Headline and source text around the figure. |
 | `.preset(name, width, height)`, `.size(width, height, scale_text)` | Journal preset and figure size. |
 | `.theme(theme, **overrides)` | Switch theme or override style fields. |

@@ -123,7 +123,7 @@ sp.area(data=None, x=None, y=None, hue=None, *,
 | `.endlabels(show=True, *, values=None, label=None, pad=4.0)` | Name each area at its right end (stacked layers at their middle) instead of a legend. |
 | `.grouplabels(labels)` | Rename hue groups (list in group order or `{old: new}`). |
 | `.ticklabels(*, rotation=None)` | Rotate x tick labels. |
-| `.refline(*values, axis=None, label=False, color=None, linestyle="--", linewidth=None)` | Dashed reference lines; each call adds lines. |
+| `.refline(*values, axis=None, label=False, color=None, linestyle="--", linewidth=None, label_position="end", label_rotation=0, label_side=None)` | Dashed reference lines; each call adds lines. |
 | `.source_data()` | The plotted numbers; for stacks each layer's lower and upper edge. |
 
 Shared with every plot: `.labels()`, `.legend()`, `.colors()`, `.highlight()`,
