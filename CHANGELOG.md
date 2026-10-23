@@ -73,6 +73,8 @@ First stable release of the 3.x rewrite. Install with `pip install SecretPlots`
 - `whis=math.inf` is accepted as `"range"`.
 
 ### Fixed
+- Heatmap cell values and labels inside stacked bars stay readable on pale
+  colors with the `dark` theme (they were light text on light cells).
 - Percentile error bars no longer crash when the estimate lies outside the
   interval, and they draw the actual interval.
 - LOWESS no longer returns NaN when the nearest neighbours sit exactly at the

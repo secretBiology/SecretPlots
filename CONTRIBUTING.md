@@ -70,7 +70,10 @@ uv run python scripts/render_docs.py docs/plots/box.md --preview /tmp/box-previe
 Commit the rendered images so GitHub previews and offline builds also display
 them. SVGs embed glyph paths and omit timestamps. A `.png` suffix in the marker
 and link writes a 300 dpi PNG instead; the gallery uses PNGs because the README
-(and PyPI) embed them. After changing gallery figures, run
+(and PyPI) embed them. For GitHub's dark mode, wrap a README image in
+`<picture>` with a `<name>-dark.png` source; the script then also renders that
+figure with the `dark` theme. The matplotlib comparison stays light-only so
+both sides are shown exactly as rendered. After changing gallery figures, run
 `python scripts/render_banner.py` to rebuild `docs/assets/banner.png`.
 
 Keep the caption accurate and add meaningful alt text. Do not change a preview's

@@ -6,7 +6,7 @@ from typing import Any
 
 import matplotlib as mpl
 import pandas as pd
-from matplotlib.colors import Colormap, LinearSegmentedColormap, to_hex, to_rgba
+from matplotlib.colors import Colormap, LinearSegmentedColormap, to_hex, to_rgb, to_rgba
 from SecretColors import cmaps as sc_cmaps
 from SecretColors.cmaps.maps import _SPECIAL as _SC_SPECIAL
 from SecretColors.utils import mix, text_color
@@ -216,3 +216,26 @@ def resolve_cmap(spec: Any, *, reverse: bool = False) -> Colormap:
 def readable_on(background: str, *, dark: str, light: str) -> str:
     """``dark`` or ``light`` text, whichever reads better on ``background``."""
     return light if str(text_color(to_hex(background))).lower() == "#ffffff" else dark
+
+
+def _luminance(color: str) -> float:
+    r, g, b = (
+        c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+        for c in to_rgb(color)
+    )
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def text_pair(text: str | None, background: str | None) -> tuple[str, str]:
+    """``(dark, light)`` text colors for labels on colored marks.
+
+    Light themes pair their text color with white. Dark themes have light
+    text, so their background color supplies the dark choice.
+    """
+    text = to_hex(text or "#000000")
+    background = to_hex(background or "#ffffff")
+    if _luminance(text) <= _luminance(background):
+        return text, "#ffffff"
+    if _luminance(text) - _luminance(background) < 0.3:
+        return "#000000", text
+    return background, text

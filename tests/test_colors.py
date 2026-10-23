@@ -1,7 +1,7 @@
 import pytest
 
 import SecretPlots as sp
-from SecretPlots.core.colors import extend_palette, readable_on
+from SecretPlots.core.colors import extend_palette, readable_on, text_pair
 
 SIX = ["#0f5499", "#eb5e8d", "#70dbed", "#9e2f50", "#4e96eb", "#96cc28"]
 
@@ -31,3 +31,17 @@ def test_strict_raises() -> None:
 def test_readable_text() -> None:
     assert readable_on("#000000", dark="#111111", light="#ffffff") == "#ffffff"
     assert readable_on("#ffffff", dark="#111111", light="#ffffff") == "#111111"
+
+
+def test_text_pair_suits_light_and_dark_themes() -> None:
+    assert text_pair("#262626", "#ffffff") == ("#262626", "#ffffff")
+    assert text_pair("#f4f4f4", "#161616") == ("#161616", "#f4f4f4")
+
+
+def test_dark_heatmap_values_stay_readable_on_pale_cells() -> None:
+    plot = sp.heatmap([[0.0, 1.0], [-1.0, 0.0]]).cmap("tol_bu_rd", center=0)
+    plot = plot.values(".1f").theme("dark")
+    plot.render()
+    pale = [t for t in plot.ax.texts if t.get_text() == "0.0"]
+    assert pale
+    assert all(t.get_color() == "#161616" for t in pale)

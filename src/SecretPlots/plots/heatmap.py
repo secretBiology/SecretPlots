@@ -34,7 +34,12 @@ from matplotlib.transforms import (
 )
 
 from SecretPlots.core import cluster
-from SecretPlots.core.colors import extend_palette, readable_on, resolve_cmap
+from SecretPlots.core.colors import (
+    extend_palette,
+    readable_on,
+    resolve_cmap,
+    text_pair,
+)
 from SecretPlots.core.missing import (
     MissingPolicy,
     check_missing,
@@ -1210,7 +1215,7 @@ class HeatmapPlot(Plot):
     ) -> None:
         assert self._value_fmt is not None
         theme = style.theme
-        dark = theme.text_color or "#000000"
+        dark, light = text_pair(theme.text_color, theme.axes_background)
         custom = self._value_labels
         texts = []
         grid = shown.to_numpy(dtype=float)
@@ -1239,7 +1244,7 @@ class HeatmapPlot(Plot):
                         ha="center",
                         va="center",
                         fontsize=style.sizes.tick,
-                        color=readable_on(background, dark=dark, light="#ffffff"),
+                        color=readable_on(background, dark=dark, light=light),
                     )
                 )
         self._body.value_texts = texts

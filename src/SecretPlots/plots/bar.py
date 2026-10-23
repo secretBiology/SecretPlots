@@ -13,7 +13,7 @@ from matplotlib.container import BarContainer
 from matplotlib.figure import Figure
 from matplotlib.text import Text
 
-from SecretPlots.core.colors import readable_on
+from SecretPlots.core.colors import readable_on, text_pair
 from SecretPlots.core.data import Tidy, tidy
 from SecretPlots.core.missing import DropPolicy
 from SecretPlots.core.plot import Plot, RefAxis
@@ -361,12 +361,11 @@ class BarPlot(Plot):
                 color=theme.text_color,
             )
             if inside:
+                dark, light = text_pair(theme.text_color, theme.axes_background)
                 for text, patch in zip(texts, bars.patches, strict=True):
                     text.set_color(
                         readable_on(
-                            to_hex(patch.get_facecolor()),
-                            dark=theme.text_color or "#000000",
-                            light="#ffffff",
+                            to_hex(patch.get_facecolor()), dark=dark, light=light
                         )
                     )
             elif errors is not None:
