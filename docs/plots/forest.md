@@ -74,7 +74,7 @@ shown, or until you access `.fig` / `.ax`.
 ```text
 sp.forest(data, label=None, estimate="estimate", lower="lower", upper="upper", *,
           group=None, hue=None, panel=None, weight=None, scale="ratio",
-          null=None, hue_order=None, panel_order=None, missing="raise")
+          log=None, null=None, hue_order=None, panel_order=None, missing="raise")
           -> ForestPlot
 ```
 
@@ -87,7 +87,8 @@ sp.forest(data, label=None, estimate="estimate", lower="lower", upper="upper", *
 | `hue` | `None` | Several estimates per row (models, arms), dodged and colored, with a legend. |
 | `panel` | `None` | Side-by-side forests that share the row labels (e.g. outcomes). |
 | `weight` | `None` | Study weights; marker area is proportional. |
-| `scale` | `"ratio"` | `"ratio"` (odds, hazard, risk and rate ratios): a log axis, no effect at 1. `"difference"` (mean or risk differences, coefficients): a linear axis, no effect at 0. |
+| `scale` | `"ratio"` | `"ratio"` (odds, hazard, risk and rate ratios): no effect at 1, values must be positive. `"difference"` (mean or risk differences, coefficients): no effect at 0. |
+| `log` | `None` | Log axis for the estimates: default `True` for ratios, `False` for differences. `log=False` draws ratios on a linear axis. |
 | `null` | `None` | Position of the line of no effect (default 1 or 0 by `scale`); `False` hides it. `.null()` also styles and labels it. |
 | `hue_order`, `panel_order` | `None` | Explicit order of the `hue` values and panels. |
 | `missing` | `"raise"` | `"raise"` rejects missing or infinite estimates and limits; `"drop"` leaves those rows out. See [data handling](../usage.md). |
@@ -109,6 +110,8 @@ Every plot also has the shared steps (`.labels()`, `.legend()`, `.chrome()`,
 | `.stripes(show=True, *, by="row", color)` | Shade every other row, or every other `group=` section (`by="group"`), across table and forest. |
 | `.dividers(show=True, *, by="group", color, linewidth, linestyle="-")` | Rules between `group=` sections, or between rows (`by="row"`); see [Shading and dividers](#shading-and-dividers). |
 | `.markers(marker="s", *, size)` | Shape and size of the point estimates. |
+| `.xlim(low, high)` | Axis limits; ticks are chosen for the new range. Limits must be positive on a log axis. |
+| `.xticks(ticks)` | Exact tick positions, e.g. `[0.5, 1, 2, 4]`; the axis widens to show them all unless `.xlim()` is set. |
 | `.refline(*values, ...)` | Extra vertical lines, e.g. at the overall estimate; `label_position="start"`/`"center"`/`"end"`, `label_rotation=90` and `label_side="left"`/`"right"` move and turn the label. |
 | `.source_data()` | The plotted rows and estimate text as a DataFrame. |
 
@@ -156,7 +159,10 @@ risk = pd.DataFrame({
 written "a (b to c)", so negative limits read clearly.*
 
 Limits that go past `.xlim()` are cut with an arrowhead, as journals require.
-Use `.xlim()` to keep one extreme interval from squeezing the others.
+Use `.xlim()` to keep one extreme interval from squeezing the others; the ticks
+follow the new range. On a log axis the limits must be positive (`.xlim(0.1, 10)`,
+not `.xlim(0, 10)`). Set exact ticks with `.xticks([0.5, 1, 2, 4])`, and draw
+ratios on a linear axis with `sp.forest(..., log=False)`.
 
 ## The line of no effect
 

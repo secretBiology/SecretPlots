@@ -226,6 +226,41 @@ def test_xlim_clips_intervals_with_arrowheads(subgroups: pd.DataFrame) -> None:
     assert plot.ax.get_xlim() == (0.7, 1.5)
 
 
+def test_xlim_recomputes_ticks_for_the_new_range(subgroups: pd.DataFrame) -> None:
+    plot = _forest(subgroups).xlim(0.1, 10)
+    assert plot.ax.get_xlim() == (0.1, 10.0)
+    assert list(plot.ax.get_xticks()) == [0.1, 0.2, 0.5, 1, 2, 5, 10]
+
+
+def test_xlim_rejects_non_positive_limits_on_log_axis(subgroups: pd.DataFrame) -> None:
+    with pytest.raises(ValueError, match="positive on the log axis"):
+        _forest(subgroups).xlim(0, 2)
+    with pytest.raises(ValueError, match="below high"):
+        _forest(subgroups).xlim(2, 1)
+
+
+def test_xticks_sets_exact_ticks_and_widens_axis(subgroups: pd.DataFrame) -> None:
+    plot = _forest(subgroups).xticks([0.25, 0.5, 1, 2, 4])
+    assert list(plot.ax.get_xticks()) == [0.25, 0.5, 1, 2, 4]
+    assert plot.ax.get_xlim() == (0.25, 4.0)
+    with pytest.raises(ValueError, match="positive"):
+        _forest(subgroups).xticks([0, 1])
+
+
+def test_log_false_draws_ratios_on_a_linear_axis(subgroups: pd.DataFrame) -> None:
+    plot = _forest(subgroups, log=False).xlim(0, 1.5)
+    assert plot.ax.get_xscale() == "linear"
+    assert plot.ax.get_xlim() == (0.0, 1.5)
+    assert _forest(subgroups).ax.get_xscale() == "log"
+
+
+def test_log_option_validation(subgroups: pd.DataFrame) -> None:
+    with pytest.raises(ValueError, match="scale='ratio'"):
+        _forest(subgroups, scale="difference", log=True)
+    with pytest.raises(TypeError, match="log=True"):
+        _forest(subgroups).log("x")
+
+
 def test_favours_labels_and_arrows(subgroups: pd.DataFrame) -> None:
     plot = _forest(subgroups).favours("Favours drug", "Favours placebo")
     texts = _texts(plot)

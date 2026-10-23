@@ -345,6 +345,7 @@ class ForestPlot(Plot):
         *,
         names: dict[str, str | None],
         scale: Scale,
+        log: bool,
         hues: list[Any],
         panels: list[Any],
     ) -> None:
@@ -352,6 +353,8 @@ class ForestPlot(Plot):
         self._frame = frame
         self._names = names
         self._scale: Scale = scale
+        self._log = log
+        self._xticks: list[float] | None = None
         self._null: float | None = None
         self._null_options: dict[str, Any] = {}
         self._hues = hues
@@ -651,6 +654,56 @@ class ForestPlot(Plot):
             raise ValueError("marker size must be positive")
         self._marker, self._marker_size = marker, size
         return self._changed()
+
+    def xlim(self, low: float | None = None, high: float | None = None) -> Self:
+        """Limits of the estimate axis. Ticks are chosen for the new range;
+        intervals reaching past it end in arrowheads.
+
+        Args:
+            low: Lower limit; ``None`` leaves it automatic. Must be positive
+                on a log axis.
+            high: Upper limit; ``None`` leaves it automatic.
+        """
+        for value in (low, high):
+            if value is None:
+                continue
+            if not isinstance(value, int | float) or not math.isfinite(value):
+                raise TypeError("xlim values must be finite numbers or None")
+            if self._log and value <= 0:
+                raise ValueError(
+                    f"xlim({low}, {high}): limits must be positive on the log "
+                    "axis of a ratio forest, e.g. .xlim(0.1, 10). Use "
+                    "forest(..., log=False) for a linear axis."
+                )
+        if low is not None and high is not None and low >= high:
+            raise ValueError("xlim low must be below high")
+        return super().xlim(low, high)
+
+    def xticks(self, ticks: Sequence[float] | None = None) -> Self:
+        """Exact tick positions on the estimate axis (e.g. ``[0.5, 1, 2, 4]``).
+        Without ``.xlim()``, the axis widens to show every tick.
+
+        Args:
+            ticks: Tick values; ``None`` restores automatic ticks.
+        """
+        if ticks is None:
+            self._xticks = None
+            return self._changed()
+        values = sorted({float(t) for t in ticks})
+        if not values or not all(math.isfinite(v) for v in values):
+            raise ValueError("xticks must be a non-empty sequence of finite numbers")
+        if self._log and values[0] <= 0:
+            raise ValueError("xticks must be positive on a log axis")
+        self._xticks = values
+        return self._changed()
+
+    def log(self, axis: str = "y") -> Self:
+        """Not used by forest plots: choose the axis with
+        ``forest(..., log=True/False)``."""
+        raise TypeError(
+            "Forest plots set their axis scale with forest(..., log=True) or "
+            "log=False; ratio scales default to a log axis."
+        )
 
     def source_data(self) -> pd.DataFrame:
         """The plotted rows in display order, with the estimate text (for a
@@ -1228,27 +1281,45 @@ class ForestPlot(Plot):
                     )
 
     def _limits_for(self, panel: Any) -> tuple[float, float, list[float]]:
-        """x limits and ticks of one panel: the user's limits, or ticks that
-        bracket the intervals and the null line."""
+        """x limits and ticks of one panel: the user's limits and ticks, or
+        ticks that bracket the intervals and the null line."""
         frame = self._frame
         data = frame if self._names["panel"] is None else frame[frame["_p"] == panel]
         low, high = float(data["_lo"].min()), float(data["_hi"].max())
         if self._null is not None:
             low, high = min(low, self._null), max(high, self._null)
+        if self._xticks is not None:
+            low, high = min(low, self._xticks[0]), max(high, self._xticks[-1])
         user_low, user_high = self._limits.get("x", (None, None))
-        if self._scale == "ratio":
+        if self._log:
             if high / low < 1.05:
                 low, high = low / 1.1, high * 1.1
-            ticks = _ratio_ticks(low, high)
+            ticks_for = _ratio_ticks
         else:
             if math.isclose(low, high):
                 low, high = low - 1, high + 1
-            ticks = _difference_ticks(low, high)
+            ticks_for = _difference_ticks
+        ticks = ticks_for(low, high)
         lo = ticks[0] if user_low is None else float(user_low)
         hi = ticks[-1] if user_high is None else float(user_high)
-        if user_low is not None or user_high is not None:
-            ticks = [t for t in ticks if lo - 1e-12 <= t <= hi + 1e-12]
-        return lo, hi, ticks
+        if self._xticks is not None and user_low is None:
+            lo = min(lo, self._xticks[0])
+        if self._xticks is not None and user_high is None:
+            hi = max(hi, self._xticks[-1])
+        if lo >= hi:
+            raise ValueError(
+                f"xlim gives an empty axis ({lo:g} to {hi:g}); set both limits"
+            )
+        if self._xticks is not None:
+            ticks = self._xticks
+        elif user_low is not None or user_high is not None:
+            ticks = ticks_for(lo, hi)
+        tol = 1e-9 * max(abs(lo), abs(hi))
+        inside = [t for t in ticks if lo - tol <= t <= hi + tol]
+        if self._xticks is None and len(inside) < 2:
+            # A narrow user range can fall between two "nice" ticks.
+            inside = sorted({lo, *inside, hi})
+        return lo, hi, inside
 
     def _draw_panel(
         self,
@@ -1261,8 +1332,7 @@ class ForestPlot(Plot):
     ) -> None:
         theme = style.theme
         ax.set_ylim(ylim[1], ylim[0])
-        if self._scale == "ratio":
-            ax.set_xscale("log")
+        ax.set_xscale("log" if self._log else "linear")
         low, high, ticks = self._limits_for(panel)
         ax.set_xlim(low, high)
         ax.xaxis.set_major_locator(FixedLocator(ticks))
@@ -1395,9 +1465,11 @@ class ForestPlot(Plot):
             )
 
     def _finish_axes(self, ax: Axes, style: Style) -> None:
-        labels = self._labels
+        labels, limits = self._labels, self._limits
         title = labels.get("title")
         self._labels = {k: v for k, v in labels.items() if k != "title"}
+        # x limits were already applied per panel, with matching ticks.
+        self._limits = {k: v for k, v in limits.items() if k != "x"}
         try:
             for panel in self._body.panels or [ax]:
                 super()._finish_axes(panel, style)
@@ -1405,7 +1477,7 @@ class ForestPlot(Plot):
                 if any(self._favours):
                     self._draw_favours(panel, style)
         finally:
-            self._labels = labels
+            self._labels, self._limits = labels, limits
         if title:
             self._draw_title(ax, style, title)
         if self._names["hue"] is not None:
@@ -1537,6 +1609,7 @@ def forest(
     panel: str | None = None,
     weight: str | None = None,
     scale: Scale = "ratio",
+    log: bool | None = None,
     null: float | bool | None = None,
     hue_order: Sequence[Any] | None = None,
     panel_order: Sequence[Any] | None = None,
@@ -1560,9 +1633,13 @@ def forest(
         panel: Column that splits the intervals into side-by-side forests
             sharing the row labels (e.g. outcomes).
         weight: Column of study weights; marker area is proportional.
-        scale: ``"ratio"`` (default; odds, hazard, risk, rate ratios) draws a
-            log axis with no effect at 1; ``"difference"`` (mean or risk
-            differences, coefficients) a linear axis with no effect at 0.
+        scale: ``"ratio"`` (default; odds, hazard, risk, rate ratios) has no
+            effect at 1 and needs positive values; ``"difference"`` (mean or
+            risk differences, coefficients) has no effect at 0.
+        log: Log axis for the estimates. Default: ``True`` for ratios (so
+            0.5 and 2 sit equally far from 1), ``False`` for differences.
+            ``log=False`` draws ratios on a linear axis. Set limits and ticks
+            with ``.xlim()`` and ``.xticks()``.
         null: Position of the line of no effect (default 1 for ratios, 0
             for differences); ``False`` hides it. ``.null()`` also styles
             and labels it.
@@ -1577,6 +1654,14 @@ def forest(
     """
     if scale not in ("ratio", "difference"):
         raise ValueError("scale must be 'ratio' or 'difference'")
+    if log is None:
+        log = scale == "ratio"
+    elif not isinstance(log, bool):
+        raise TypeError("log must be True, False or None")
+    elif log and scale == "difference":
+        raise ValueError(
+            "log=True needs scale='ratio': differences can be zero or negative"
+        )
     frame = data.copy() if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
     if label is None:
         index_name = frame.index.name
@@ -1660,6 +1745,7 @@ def forest(
             "weight": weight,
         },
         scale=scale,
+        log=log,
         hues=hues,
         panels=panels,
     )

@@ -33,7 +33,9 @@ All notable changes to this project are documented here. The format follows
   `.favours()` direction arrows,
   `.stripes()` (every other row or, with `by="group"`, every other section),
   `.dividers()` (styled rules between sections or rows), `.markers()`,
-  arrowheads for intervals beyond `.xlim()`;
+  arrowheads for intervals beyond `.xlim()` (ticks follow the new range;
+  non-positive limits on a log axis raise), `.xticks()` for exact ticks,
+  `log=False` for ratios on a linear axis;
   height that grows with the rows; `.source_data()`.
 - `.refline()`: `label_position` (`"start"`, `"center"`, `"end"`) places
   the label along the line, `label_side` puts it on either side (`"left"`/
