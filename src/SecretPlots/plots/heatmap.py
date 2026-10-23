@@ -1083,7 +1083,16 @@ class HeatmapPlot(Plot):
         for spine in ax.spines.values():
             spine.set_visible(False)
         ax.tick_params(length=0)
-        ax.yaxis.tick_right()
+        if (
+            isinstance(self._mask, str)
+            and self._mask == "upper"
+            and not self._left_side_used()
+        ):
+            # Only the lower triangle is drawn: on the right, the top rows'
+            # labels would hang past empty cells.
+            ax.yaxis.tick_left()
+        else:
+            ax.yaxis.tick_right()
         ax.yaxis.set_label_position("left")
 
         self._set_ticks(ax, style, rows.order, row_starts + 0.5, "row")

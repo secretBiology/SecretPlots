@@ -219,6 +219,13 @@ def test_mask_triangle_and_nan_cells() -> None:
     assert len([c for c in missing.ax.collections if isinstance(c, QuadMesh)]) == 2
 
 
+def test_lower_triangle_puts_row_labels_left() -> None:
+    corr = pd.DataFrame(np.eye(3), index=list("abc"), columns=list("abc"))
+    assert sp.heatmap(corr).mask("upper").ax.yaxis.get_ticks_position() == "left"
+    assert sp.heatmap(corr).mask("lower").ax.yaxis.get_ticks_position() == "right"
+    assert sp.heatmap(corr).ax.yaxis.get_ticks_position() == "right"
+
+
 def test_mask_errors() -> None:
     with pytest.raises(sp.DataShapeError, match="square"):
         sp.heatmap([[1, 2, 3]]).mask("upper")

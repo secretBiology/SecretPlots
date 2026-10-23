@@ -196,9 +196,9 @@ track. Gene names are italic, as journals require.
 Hazard ratios for the primary end point of a cardiovascular trial, overall and
 in prespecified subgroups. Events per arm and the "HR (95% CI)" column sit in the
 table, the P for interaction on each section header, and the overall estimate
-is a diamond. Shaded rows guide the eye across the double-column width.
+is a diamond. Shaded rows guide the eye from each label to its estimate.
 
-![Subgroup forest plot with events per arm, hazard ratios and interaction p-values.](assets/figures/gallery-forest.png)
+![Subgroup forest plot with events per arm, hazard ratios and interaction p-values.](assets/figures/gallery-forest.png){ .narrow }
 
 ??? example "Show code"
 
@@ -234,7 +234,7 @@ is a diamond. Shaded rows guide the eye across the double-column width.
         .stripes()
         .colors("#0072B2")
         .labels(x="Hazard ratio")
-        .preset("nature", width="double")
+        .size(height="72mm")
     )
     ```
     <!-- figure: gallery-forest.png -->
