@@ -246,3 +246,4 @@ embedded, the format Nature's production team asks for.
 | Where are the patterns in a matrix? | [Heatmap](plots/heatmap.md) | `.scale("row")`, `.cluster()`, `.groups()`, `.tracks()` |
 | How large is an effect, and how certain? | [Forest](plots/forest.md) | `group=`, `.table()`, `.summary()`, `panel=` |
 | How long until an event happens? | [Survival](plots/survival.md) | `.risk_table()`, `.pvalue()`, `.hazard_ratio()`, `.median()` |
+| Would acting on a risk model help patients? | [Decision curves](plots/decision.md) | `.ci()`, `measure="interventions_avoided"`, `thresholds=` |

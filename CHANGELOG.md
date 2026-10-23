@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `sp.decision_curve` (alias `sp.dca`): decision curve analysis (Vickers &
+  Elkin) of one or more risk models from one row per patient, with "treat
+  all" and "treat none" references (`.references()`). Net benefit or net
+  interventions avoided per 100 patients (`measure=`), percentile bootstrap
+  bands (`.ci()`), and `.source_data()` with every plotted value.
+- `.refline(label_position="outside")`: the label sits just past the axes
+  edge (right of a horizontal line, above a vertical one), clear of the data.
+- `BarPlot.ticklabels(show=False)` hides the category labels, e.g. one bar
+  per patient in a waterfall plot. The bar guide has a waterfall example.
+
+### Changed
+- `sp.bar(..., hue=...)` draws full-width bars when every category has a
+  single group (a waterfall colored by response, or `hue=` the same as `x`)
+  instead of thin bars offset into empty slots.
+- Reference-line value labels write negative numbers with a minus sign
+  (`−30`) like the tick labels, instead of a hyphen (`-30`). Your own label
+  text is left as written.
+
 ## [3.0.0] - 2026-10-23
 
 First stable release of the 3.x rewrite. Install with `pip install SecretPlots`

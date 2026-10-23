@@ -78,6 +78,7 @@ access `.fig` / `.ax`, so you can chain as many steps as you like.
 - [Value labels](#value-labels)
 - [Colors](#colors)
 - [Reference lines](#reference-lines)
+- [Waterfall plots](#waterfall-plots)
 - [Category and group names](#category-and-group-names)
 - [Axes: titles, limits, log scale, tick format](#axes-titles-limits-log-scale-tick-format)
 - [Legend](#legend)
@@ -122,7 +123,7 @@ Specific to bar plots:
 | `.values(fmt=".3g", *, inside=None)` | Print each bar's value; see [Value labels](#value-labels). |
 | `.sort(order="desc")` | Order categories by value: `"desc"`, `"asc"` or `None` (data order). |
 | `.orient(orient)` | Switch to `"v"` or `"h"` bars. |
-| `.ticklabels(labels=None, *, rotation=None, italic=False)` | Rename categories and style their labels. |
+| `.ticklabels(labels=None, *, rotation=None, italic=False, show=True)` | Rename categories and style their labels; `show=False` hides them. |
 | `.grouplabels(labels)` | Rename the `hue` groups shown in the legend. |
 
 Shared by every plot type:
@@ -588,6 +589,7 @@ the cut-off easy to read.*
 | `color` | Line color; default: the theme's text color. |
 | `linestyle` | `"--"` (default), `":"`, `"-."` or `"-"`. |
 | `linewidth` | Width in pt; default: the theme's `axis_line_width`. |
+| `label_position` | Where the label sits: `"end"` (default), `"start"`, `"center"`, or `"outside"`, just past the axes edge so bars never cover it. |
 
 Each call adds lines, so lines can differ in style. `.refline()` with no values
 removes them all; `.refline(axis="x")` removes only the vertical ones. On the
@@ -599,6 +601,41 @@ sp.bar(screen, x="compound", y="viability", sort="desc").refline("DMSO", axis="x
 ```
 
 On bars the lines are drawn above the bars so they stay visible.
+
+## Waterfall plots
+
+A waterfall plot is one bar per patient, sorted by the best change in tumour
+size from baseline and colored by response. Each patient has exactly one
+response group, so `hue=` colors the bars without splitting them. The patient
+IDs are noise at this density, so `.ticklabels(show=False)` hides them, and
+`label_position="outside"` puts the RECIST cut-offs (+20% progression, −30%
+partial response) where the bars can't cover them.
+
+```python
+patients = 40
+best_change = np.clip(rng.normal(-15, 35, patients), -100, 120)
+tumours = pd.DataFrame({
+    "patient": [f"P{i:02d}" for i in range(patients)],
+    "change": best_change,
+    "response": np.select([best_change <= -30, best_change >= 20],
+                          ["Partial response", "Progressive disease"],
+                          "Stable disease"),
+})
+(
+    sp.bar(tumours, x="patient", y="change", hue="response", sort="desc",
+           hue_order=["Progressive disease", "Stable disease", "Partial response"])
+    .colors(["#CC6677", "#DDCC77", "#44AA99"])
+    .ticklabels(show=False)
+    .refline(20, -30, label=True, label_position="outside")
+    .labels(x="Patients", y="Best change from baseline (%)")
+)
+```
+<!-- figure: bar-waterfall -->
+
+![Forty bars sorted from the largest tumour growth on the left to the largest shrinkage on the right, colored by progressive disease, stable disease and partial response, with dashed lines at +20 and −30 labelled outside the right edge.](../assets/figures/bar-waterfall.svg)
+
+*Best change in tumour size per patient. The dashed lines mark the RECIST
+cut-offs for progression (+20%) and partial response (−30%).*
 
 ## Category and group names
 

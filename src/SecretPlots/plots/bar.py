@@ -112,6 +112,7 @@ class BarPlot(Plot):
         self._values_inside: bool | None = None
         self._tick_rotation: float | None = None
         self._tick_italic = False
+        self._tick_show = True
         self._table = self._aggregate()
         self._value_texts: list[tuple[list[Text], BarContainer]] = []
         self._cat_positions: dict[Any, float] = {}
@@ -158,6 +159,7 @@ class BarPlot(Plot):
         *,
         rotation: float | None = None,
         italic: bool = False,
+        show: bool = True,
     ) -> Self:
         """Name the categories and style their labels.
 
@@ -168,12 +170,15 @@ class BarPlot(Plot):
                 ``.highlight("a")`` or ``.colors({"a": ...})`` use new names.
             rotation: Label angle in degrees; turns off automatic rotation.
             italic: Italic labels, e.g. for gene names.
+            show: ``False`` hides the category labels, e.g. one bar per
+                patient in a waterfall plot.
         """
         if labels is not None:
             self._data = self._data.rename("x", labels)
             self._data_changed()
         self._tick_rotation = rotation
         self._tick_italic = italic
+        self._tick_show = bool(show)
         return self._changed()
 
     def grouplabels(self, labels: Sequence[Any] | Mapping[Any, Any]) -> Self:
@@ -240,7 +245,14 @@ class BarPlot(Plot):
         self._cat_positions = dict(zip(cats, positions.tolist(), strict=True))
 
         span = 1 - (theme.bar_gap or 0)
-        grouped = self._data.has_hue and not self._stack
+        # With one group per category (a waterfall coloured by response, or
+        # hue=x) there is nothing to dodge: draw full-width bars.
+        one_each = bool(
+            (self._table.groupby("x", observed=True)["hue"].nunique() <= 1).all()
+            if self._data.has_hue
+            else True
+        )
+        grouped = self._data.has_hue and not self._stack and not one_each
         width = span / len(groups) if grouped else span
         up = np.zeros(len(cats))
         down = np.zeros(len(cats))
@@ -311,6 +323,11 @@ class BarPlot(Plot):
             ax.set_yticks(positions, labels=labels)
             ax.set_ylim(len(cats) - 0.5, -0.5)  # first category on top
         ax.tick_params(axis="x" if vertical else "y", length=0)
+        if not self._tick_show:
+            if vertical:
+                ax.tick_params(axis="x", labelbottom=False, labeltop=False)
+            else:
+                ax.tick_params(axis="y", labelleft=False, labelright=False)
         for text in ax.get_xticklabels() if vertical else ax.get_yticklabels():
             if self._tick_italic:
                 text.set_fontstyle("italic")
@@ -381,7 +398,7 @@ class BarPlot(Plot):
     def _adapt(
         self, fig: Figure, ax: Axes, style: Style, renderer: RendererBase
     ) -> None:
-        if self._orient == "v":
+        if self._orient == "v" and self._tick_show:
             self._fit_category_labels(fig, ax, renderer, self._tick_rotation)
         self._fit_values(fig, renderer)
 

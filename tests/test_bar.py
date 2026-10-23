@@ -391,6 +391,7 @@ def test_options_unknown_verb_suggests() -> None:
         sp.HeatmapPlot,
         sp.ForestPlot,
         sp.SurvivalPlot,
+        sp.DecisionCurvePlot,
         sp.BoxPlot,
         sp.ViolinPlot,
         sp.RaincloudPlot,
@@ -463,3 +464,45 @@ def test_outside_legend_clears_axis_decorations(
     for axis in (plot.ax.xaxis, plot.ax.yaxis):
         assert not legend.overlaps(axis.get_tightbbox(renderer))
     assert legend.x1 <= fig.bbox.x1 + 1
+
+
+def _waterfall() -> pd.DataFrame:
+    change = [55.0, 21.0, 8.0, -4.0, -18.0, -35.0, -62.0]
+    response = ["PD", "PD", "SD", "SD", "SD", "PR", "PR"]
+    return pd.DataFrame(
+        {"patient": [f"P{i}" for i in range(7)], "change": change, "response": response}
+    )
+
+
+def test_one_group_per_category_draws_full_width_bars() -> None:
+    plot = sp.bar(_waterfall(), x="patient", y="change", hue="response", sort="desc")
+    bars = [p for p in plot.ax.patches if np.isfinite(p.get_height())]
+    assert len(bars) == 7
+    assert {round(b.get_width(), 6) for b in bars} == {round(bars[0].get_width(), 6)}
+    centers = sorted(b.get_x() + b.get_width() / 2 for b in bars)
+    assert centers == pytest.approx(range(7))
+    assert bars[0].get_width() == pytest.approx(
+        sp.bar(_waterfall(), x="patient", y="change").ax.patches[0].get_width()
+    )
+    assert plot.ax.get_legend() is not None
+
+
+def test_groups_sharing_a_category_still_dodge() -> None:
+    frame = pd.DataFrame(
+        {"x": ["a", "a", "b", "b"], "y": [1.0, 2, 3, 4], "h": ["u", "v", "u", "v"]}
+    )
+    widths = {round(p.get_width(), 6) for p in sp.bar(frame, "x", "y", "h").ax.patches}
+    full = sp.bar(frame, "x", "y").ax.patches[0].get_width()
+    assert widths == {round(full / 2, 6)}
+
+
+@pytest.mark.parametrize("orient", ["v", "h"])
+def test_ticklabels_can_be_hidden(orient: str) -> None:
+    plot = sp.bar(_waterfall(), x="patient", y="change", orient=orient)  # type: ignore[arg-type]
+    plot.ticklabels(show=False)
+    axis = plot.ax.xaxis if orient == "v" else plot.ax.yaxis
+    assert not any(t.get_visible() and t.get_text() for t in axis.get_ticklabels())
+    assert plot.ax.get_xlabel() if orient == "v" else plot.ax.get_ylabel()
+    shown = plot.copy().ticklabels()
+    axis = shown.ax.xaxis if orient == "v" else shown.ax.yaxis
+    assert any(t.get_visible() for t in axis.get_ticklabels())

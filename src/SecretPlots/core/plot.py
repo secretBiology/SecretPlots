@@ -17,6 +17,7 @@ from typing import Any, ClassVar, Literal, Self, get_type_hints
 
 import numpy as np
 import pandas as pd
+from matplotlib import rcParams
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
@@ -61,7 +62,7 @@ class _RefLine:
     color: str | None
     linestyle: str
     linewidth: float | None
-    label_position: Literal["start", "center", "end"] = "end"
+    label_position: Literal["start", "center", "end", "outside"] = "end"
     label_rotation: float = 0
     label_side: Literal["left", "right", "above", "below"] | None = None
 
@@ -75,6 +76,35 @@ def _ref_text(value: Any) -> str:
     if isinstance(value, pd.Timestamp | np.datetime64 | date):
         return str(pd.Timestamp(value).date())
     return f"{value:.3g}" if _is_number(value) else str(value)
+
+
+def _ref_label_place(
+    ref: _RefLine, vertical: bool, position: float, stack: float
+) -> tuple[tuple[float, float], tuple[float, float], str, str]:
+    """``(xy, offset in points, ha, va)`` of a reference line's label; ``xy``
+    is in data units along the line's axis and axes units across it."""
+    if ref.label_position == "outside":
+        # Past the axes edge, so bars and data never cover it.
+        if vertical:
+            return (position, 1.0), (0, 2 + stack), "center", "bottom"
+        return (1.0, position), (3, -stack), "left", "center"
+    along, align, offset = {
+        "start": (0.0, "bottom" if vertical else "left", 2),
+        "center": (0.5, "center", 0),
+        "end": (1.0, "top" if vertical else "right", -2),
+    }[ref.label_position]
+    if vertical:
+        left = ref.label_side == "left"
+        dy = offset - stack if offset <= 0 else offset + stack
+        return (
+            (position, along),
+            (-2 if left else 2, dy),
+            ("right" if left else "left"),
+            align,
+        )
+    below = ref.label_side == "below"
+    dy = -2 - stack if below else 2 + stack
+    return (along, position), (offset, dy), align, "top" if below else "bottom"
 
 
 def _is_date_axis(axis: Any) -> bool:
@@ -604,7 +634,7 @@ class Plot(ABC):
         color: str | None = None,
         linestyle: str = "--",
         linewidth: float | None = None,
-        label_position: Literal["start", "center", "end"] = "end",
+        label_position: Literal["start", "center", "end", "outside"] = "end",
         label_rotation: float = 0,
         label_side: Literal["left", "right", "above", "below"] | None = None,
     ) -> Self:
@@ -628,7 +658,9 @@ class Plot(ABC):
                 ``axis_line_width``).
             label_position: Where along the line the label sits: ``"end"``
                 (default; the top of a vertical line, the right end of a
-                horizontal one), ``"start"`` (bottom / left) or ``"center"``.
+                horizontal one), ``"start"`` (bottom / left), ``"center"`` or
+                ``"outside"`` (just past the axes: right of a horizontal line,
+                above a vertical one; clear of bars and data).
             label_rotation: Label angle in degrees, counter-clockwise (``90``
                 runs the label up along a vertical line).
             label_side: Which side of the line the label sits on: ``"right"``
@@ -637,10 +669,10 @@ class Plot(ABC):
         """
         if axis not in (None, "x", "y"):
             raise ValueError("refline axis must be 'x', 'y' or None (the value axis)")
-        if label_position not in ("start", "center", "end"):
+        if label_position not in ("start", "center", "end", "outside"):
             raise ValueError(
                 f"Unknown refline label_position {label_position!r}; use "
-                "'start', 'center' or 'end'"
+                "'start', 'center', 'end' or 'outside'"
             )
         if not _is_number(label_rotation):
             raise TypeError("refline label_rotation must be a number (degrees)")
@@ -995,24 +1027,10 @@ class Plot(ABC):
                 # One value can draw several lines (a median per group):
                 # stack their labels so close lines stay readable.
                 stack = step * i
-                along, align, offset = {
-                    "start": (0.0, "bottom" if vertical else "left", 2),
-                    "center": (0.5, "center", 0),
-                    "end": (1.0, "top" if vertical else "right", -2),
-                }[ref.label_position]
-                if vertical:
-                    left = ref.label_side == "left"
-                    xy = (position, along)
-                    xytext = (
-                        -2 if left else 2,
-                        offset - stack if offset <= 0 else offset + stack,
-                    )
-                    ha, va = "right" if left else "left", align
-                else:
-                    below = ref.label_side == "below"
-                    xy = (along, position)
-                    xytext = (offset, -2 - stack if below else 2 + stack)
-                    ha, va = align, "top" if below else "bottom"
+                xy, xytext, ha, va = _ref_label_place(ref, vertical, position, stack)
+                if not isinstance(ref.label, str) and rcParams["axes.unicode_minus"]:
+                    # Match the tick labels' minus sign, not a hyphen.
+                    text = re.sub(r"(?<![\w.])-(?=[\d.])", "\N{MINUS SIGN}", text)
                 ax.annotate(
                     ref.label if isinstance(ref.label, str) else text,
                     xy=xy,

@@ -54,6 +54,11 @@ rendering, copying, axis formatting, reference lines, and export from `Plot`.
 ::: SecretPlots.survival
 ::: SecretPlots.SurvivalPlot
 
+## Decision curves
+
+::: SecretPlots.decision_curve
+::: SecretPlots.DecisionCurvePlot
+
 ## Box
 
 ::: SecretPlots.box
