@@ -77,6 +77,7 @@ nav:
       - Histogram: plots/histogram.md
       - Heatmap: plots/heatmap.md
       - Forest: plots/forest.md
+      - Survival: plots/survival.md
       - Box: plots/box.md
       - Violin and raincloud: plots/violin.md
   - Publishing:

@@ -7,6 +7,20 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `sp.survival`: Kaplan-Meier curves (`kind="survival"`), cumulative
+  incidence (`"failure"`) and the Nelson-Aalen cumulative hazard (`"cumhaz"`)
+  from one row per subject, computed with numpy only (R `survival`
+  conventions). Confidence bands (`.ci()`: log-log, log or plain Greenwood
+  intervals), censoring ticks (`.censors()`), median guides (`.median()`),
+  and a number-at-risk table aligned with the time ticks (`.risk_table()`,
+  with optional cumulative events and censorings). `.pvalue()` runs log-rank,
+  Gehan-Breslow-Wilcoxon, Tarone-Ware, Peto-Peto and Fleming-Harrington tests,
+  stratified (`strata=`), for trend or pairwise with Holm/Bonferroni
+  correction, or writes your own p-value; `.hazard_ratio()` fits a Cox model
+  with the group as the only covariate (Efron ties, stratified) or writes
+  your own (e.g. adjusted) ratios; `.annotate()` adds free text.
+  `.statistics()` (medians with CIs), `.test_results()` and `.source_data()`
+  return the numbers.
 - `sp.forest`: forest plots for subgroup analyses, meta-analyses and
   regression models. Ratio (log axis, no effect at 1) or difference scales
   with journal-style ticks; an "estimate (95% CI)" column; `.table()` columns

@@ -339,3 +339,29 @@ def test_forest_groups_table_nature() -> Figure:
         .preset("nature")
         .fig
     )
+
+
+@pytest.mark.mpl_image_compare(
+    tolerance=TOLERANCE, savefig_kwargs={"facecolor": "auto"}
+)
+def test_survival_risk_table_nature() -> Figure:
+    rng = np.random.default_rng(1)
+    arm = np.repeat(["Placebo", "Drug"], 60)
+    event_time = rng.exponential(np.where(arm == "Drug", 30, 18))
+    censor_time = rng.uniform(6, 48, len(arm))
+    trial = pd.DataFrame(
+        {
+            "months": np.minimum(event_time, censor_time).round(1),
+            "died": event_time <= censor_time,
+            "arm": arm,
+        }
+    )
+    return (
+        sp.survival(trial, time="months", event="died", hue="arm")
+        .risk_table("at_risk", "events", times=[0, 12, 24, 36, 48])
+        .median()
+        .pvalue()
+        .hazard_ratio()
+        .preset("nature")
+        .fig
+    )

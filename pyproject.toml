@@ -45,6 +45,7 @@ dev = [
     "pandas-stubs>=2.2",
     "pre-commit>=4.0",
     "scipy>=1.14",
+    "lifelines>=0.30.0",
 ]
 docs = [
     "mkdocs-material>=9.5",

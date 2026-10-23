@@ -35,6 +35,7 @@ from SecretPlots.plots.heatmap import HeatmapPlot, heatmap
 from SecretPlots.plots.histogram import HistogramPlot, hist, histogram
 from SecretPlots.plots.line import LinePlot, line, plot
 from SecretPlots.plots.scatter import ScatterPlot, scatter
+from SecretPlots.plots.survival import SurvivalPlot, survival
 from SecretPlots.plots.violin import RaincloudPlot, ViolinPlot, raincloud, violin
 from SecretPlots.theme import (
     Theme,
@@ -70,6 +71,7 @@ __all__ = [
     "SecretPlotsError",
     "SecretPlotsWarning",
     "SmallSampleWarning",
+    "SurvivalPlot",
     "Theme",
     "ViolinPlot",
     "__version__",
@@ -94,6 +96,7 @@ __all__ = [
     "register_theme",
     "reset",
     "scatter",
+    "survival",
     "theme_options",
     "use",
     "violin",
