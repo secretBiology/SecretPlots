@@ -199,7 +199,7 @@ as separate points.
 === "notch=True"
 
     ```python
-    sp.box(hela, x="dose", y="viability", notch=True).labels(
+    sp.box(viability, x="cell_line", y="viability", notch=True).labels(
         x="", y="Cell viability (% of vehicle)"
     )
     ```
@@ -210,6 +210,11 @@ as separate points.
     *Notches show median ± 1.58 × IQR / √n (McGill et al. 1978). When two
     notches don't overlap, the medians differ, roughly at the 5 % level. This
     figure keeps the default theme colours.*
+
+    Notches are drawn at their full width. With small groups (below about
+    n = 10) or a median close to a quartile, a notch reaches past the box and
+    the outline folds back on itself, as in R. A `SmallSampleWarning` says so:
+    the notch is then a poor guide, so show the points instead.
 
 === "fill=False, caps=True"
 
@@ -470,8 +475,9 @@ Brackets marked `ns` stay visible here; that is honest reporting.*
     | `"t-test"` | Two-sided Student's t-test (equal variances). |
 
     All three are for **independent** samples and are implemented in numpy
-    (no scipy needed). Spellings such as `"wilcoxon"`, `"mwu"`, `"ttest"` or
-    `"student"` are accepted as aliases.
+    (no scipy needed). Spellings such as `"wilcoxon-rank-sum"`, `"mwu"`,
+    `"ttest"` or `"student"` are accepted as aliases. A bare `"wilcoxon"` is
+    rejected because it also names the paired signed-rank test.
 
     `correction="holm"` (step-down, recommended) or `"bonferroni"` adjusts
     the p-values over the comparisons of this one plot. The default is no

@@ -1,6 +1,7 @@
 """Violin plots: a mirrored density curve per category, with a small box inside;
 split and half violins, and raincloud plots (half violin + box + dots)."""
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -69,10 +70,10 @@ class ViolinPlot(DistributionPlot):
         edgecolor: str | None = None,
         linewidth: float | None = None,
     ) -> None:
-        if bw_adjust <= 0:
-            raise ValueError("bw_adjust must be positive")
-        if cut < 0:
-            raise ValueError("cut must be 0 or more")
+        if not (bw_adjust > 0 and math.isfinite(bw_adjust)):
+            raise ValueError(f"bw_adjust must be a positive number, got {bw_adjust!r}")
+        if not (cut >= 0 and math.isfinite(cut)):
+            raise ValueError(f"cut must be 0 or more, got {cut!r}")
         _choice(scale, _SCALES, "scale")
         if inner is not None:
             _choice(inner, _INNERS, "inner")

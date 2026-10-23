@@ -254,7 +254,7 @@ def test_compare_with_own_p_values_and_stars(mice: pd.DataFrame) -> None:
         sp.box(mice, x="dose", y="weight").compare(("0", "10"), ("0", "50"), p=[0.1])
 
 
-@pytest.mark.parametrize("test", ["wilcox", "t", "Welch", "mann_whitney"])
+@pytest.mark.parametrize("test", ["rank-sum", "t", "Welch", "mann_whitney"])
 def test_test_aliases(mice: pd.DataFrame, test: str) -> None:
     sp.box(mice, x="dose", y="weight").compare(ref="0", test=test).test_results()
 

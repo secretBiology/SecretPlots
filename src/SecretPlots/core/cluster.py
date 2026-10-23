@@ -38,6 +38,9 @@ def distances(values: np.ndarray, metric: Metric = "euclidean") -> np.ndarray:
         raise ValueError(f"Unknown metric {metric!r}. Use one of {METRICS}.")
     x = np.asarray(values, dtype=float)
     if metric == "euclidean":
+        # Centring leaves distances unchanged but stops ||x||^2 + ||y||^2 - 2x.y
+        # from cancelling catastrophically when values share a large offset.
+        x = x - x.mean(axis=0)
         sq = np.sum(x**2, axis=1)
         d2 = sq[:, None] + sq[None, :] - 2 * x @ x.T
         return np.asarray(np.sqrt(np.clip(d2, 0, None)), dtype=float)

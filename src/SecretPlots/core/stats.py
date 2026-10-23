@@ -38,7 +38,10 @@ def t_quantile(p: float, df: float) -> float:
     if p == 0.5:
         return 0.0
     if df == 1:
-        return math.tan(math.pi * (p - 0.5))
+        # cot of the smaller tail: tan(pi * (p - 0.5)) loses digits near its
+        # pole at extreme p, while 1 - p (and so the tail) is exact here.
+        t = 1 / math.tan(math.pi * min(p, 1 - p))
+        return t if p > 0.5 else -t
     if df == 2:
         return (2 * p - 1) / math.sqrt(2 * p * (1 - p))
     tail = 2 * min(p, 1 - p)
@@ -127,12 +130,16 @@ def check_whiskers(whis: object) -> None:
     if whis == "range":
         return
     if isinstance(whis, int | float) and not isinstance(whis, bool):
-        if whis < 0:
-            raise ValueError("whis must be 0 or more (a multiple of the IQR)")
+        # math.inf is allowed: no value is beyond infinite IQRs, so it is
+        # the same as "range" (BoxPlot stores it as "range").
+        if math.isnan(whis) or whis < 0:
+            raise ValueError(
+                f"whis must be 0 or more (a multiple of the IQR), got {whis!r}"
+            )
         return
     if isinstance(whis, tuple | list) and len(whis) == 2:
         low, high = whis
-        if 0 <= low < 25 and 75 < high <= 100:
+        if 0 <= low < 25 and 75 < high <= 100:  # False for NaN
             return
         raise ValueError(
             "whis as percentiles must be (low, high) with 0 <= low < 25 and "

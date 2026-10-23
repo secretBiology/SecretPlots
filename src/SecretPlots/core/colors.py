@@ -49,7 +49,9 @@ def extend_palette(
 ) -> list[str]:
     """Return ``n`` colors. Never cycles: when the palette is too short, tints
     and shades of the palette's own colors are added so the look is kept."""
-    base = [to_hex(c) for c in palette]
+    # Alpha written into a color ("#ff000080") is kept, so it can combine
+    # with the theme's opacity instead of being silently dropped.
+    base = [to_hex(c, keep_alpha=to_rgba(c)[3] < 1) for c in palette]
     if n <= len(base):
         return base[:n]
 

@@ -45,8 +45,8 @@ from SecretPlots.core.colors import with_alpha
 from SecretPlots.core.data import _order
 from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, _legend_title, _renderer, _root_figure
-from SecretPlots.core.resolve import Style
-from SecretPlots.errors import DataShapeError
+from SecretPlots.core.resolve import Style, checked_size
+from SecretPlots.errors import DataShapeError, PolicyWarning, emit
 
 Scale = Literal["ratio", "difference"]
 Side = Literal["left", "right"]
@@ -374,6 +374,7 @@ class ForestPlot(Plot):
         self._indent: float | None = None
         self._marker = "s"
         self._marker_size: float | None = None
+        self._marker_min: float | None = None
         self._body = _Body()
         keys = zip(frame["_g"], frame["_l"], frame["_p"], frame["_h"], strict=True)
         self._records = {key: i for i, key in enumerate(keys)}
@@ -634,7 +635,13 @@ class ForestPlot(Plot):
         self._group_gap, self._group_headers, self._indent = gap, headers, indent
         return self._changed()
 
-    def markers(self, marker: str = "s", *, size: float | None = None) -> Self:
+    def markers(
+        self,
+        marker: str = "s",
+        *,
+        size: float | None = None,
+        min_size: float | None = None,
+    ) -> Self:
         """Shape and size of the point estimates.
 
         Args:
@@ -642,7 +649,14 @@ class ForestPlot(Plot):
                 ``"D"``...
             size: Marker diameter in pt (default: the theme's marker_size).
                 With ``weight=`` this is the size of the heaviest row.
+            min_size: With ``weight=``, the smallest marker diameter in pt.
+                Default: none, so marker area stays exactly proportional to
+                weight and very light rows get tiny markers. Setting it keeps
+                light rows visible but enlarges them beyond their weight; a
+                :class:`PolicyWarning` names the affected rows.
         """
+        if min_size is not None and min_size <= 0:
+            raise ValueError("min_size must be positive")
         try:
             MarkerStyle(marker)
         except ValueError:
@@ -652,7 +666,7 @@ class ForestPlot(Plot):
             ) from None
         if size is not None and size <= 0:
             raise ValueError("marker size must be positive")
-        self._marker, self._marker_size = marker, size
+        self._marker, self._marker_size, self._marker_min = marker, size, min_size
         return self._changed()
 
     def xlim(self, low: float | None = None, high: float | None = None) -> Self:
@@ -1133,7 +1147,9 @@ class ForestPlot(Plot):
                         or with_alpha(theme.text_color or "#262626", 0.2),
                         linewidth=theme.axis_line_width or 0.8
                         if divider["linewidth"] is None
-                        else divider["linewidth"],
+                        else checked_size(
+                            style, "divider linewidth", divider["linewidth"], "line"
+                        ),
                         linestyle=divider["linestyle"],
                         zorder=0.2,
                     )
@@ -1206,6 +1222,8 @@ class ForestPlot(Plot):
         # Marks.
         weights = self._frame["_w"].to_numpy(dtype=float)
         max_weight = float(np.nanmax(weights)) if self._names["weight"] else 1.0
+        if self._names["weight"]:
+            self._warn_weights(style, weights, max_weight)
         for k, (panel_ax, panel) in enumerate(
             zip(panels, self._panel_names, strict=True)
         ):
@@ -1352,7 +1370,9 @@ class ForestPlot(Plot):
                 color=options.get("color") or theme.text_color,
                 lw=theme.axis_line_width
                 if options.get("linewidth") is None
-                else options["linewidth"],
+                else checked_size(
+                    style, "null linewidth", options["linewidth"], "line"
+                ),
                 ls=options.get("linestyle", "-"),
                 zorder=1.3,
             )
@@ -1399,7 +1419,11 @@ class ForestPlot(Plot):
                             f"Row {row.label!r} has no weight. Give it one, or "
                             "draw it as a diamond with .summary()."
                         )
-                    ms = max(base * 0.4, base * 1.5 * math.sqrt(w / max_weight))
+                    if w == 0:
+                        continue  # zero area; the interval alone remains
+                    ms = base * 1.5 * math.sqrt(w / max_weight)
+                    if self._marker_min is not None:
+                        ms = max(ms, self._marker_min)
                 if low <= e <= high:
                     ax.plot(
                         [e],
@@ -1411,6 +1435,44 @@ class ForestPlot(Plot):
                         mec="none",
                         zorder=3,
                     )
+
+    def _warn_weights(
+        self, style: Style, weights: np.ndarray, max_weight: float
+    ) -> None:
+        labels = self._frame["_l"].astype(str).to_numpy()
+        if not max_weight > 0:
+            raise DataShapeError(
+                f"Every weight in {self._names['weight']!r} is zero, so no marker "
+                "could have any area. Give at least one row a positive weight."
+            )
+        zero = list(dict.fromkeys(labels[weights == 0]))
+        if zero:
+            emit(
+                PolicyWarning,
+                f"Row(s) {', '.join(map(repr, zero[:4]))}"
+                f"{', ...' if len(zero) > 4 else ''} "
+                "have zero weight, so no marker is drawn for them: marker area "
+                "encodes weight, and a visible marker would claim a weight they "
+                "do not have. Their intervals are still shown.",
+                stacklevel=5,
+            )
+        if self._marker_min is not None:
+            base = self._marker_size or style.theme.marker_size or 5.0
+            sizes = base * 1.5 * np.sqrt(weights / max_weight)
+            floored = list(
+                dict.fromkeys(labels[(weights > 0) & (sizes < self._marker_min)])
+            )
+            if floored:
+                emit(
+                    PolicyWarning,
+                    f"Row(s) {', '.join(map(repr, floored[:4]))}"
+                    f"{', ...' if len(floored) > 4 else ''} are drawn at "
+                    f"min_size={self._marker_min:g} pt, larger than their weight "
+                    "implies, so marker area is no longer proportional to weight "
+                    "for them. Report the weights in a column, or drop min_size "
+                    "to keep areas exact.",
+                    stacklevel=5,
+                )
 
     def _draw_interval(
         self,
@@ -1632,7 +1694,8 @@ def forest(
             colored, with a legend.
         panel: Column that splits the intervals into side-by-side forests
             sharing the row labels (e.g. outcomes).
-        weight: Column of study weights; marker area is proportional.
+        weight: Column of study weights; marker area is proportional (zero
+            weight draws no marker; see ``.markers(min_size=...)``).
         scale: ``"ratio"`` (default; odds, hazard, risk, rate ratios) has no
             effect at 1 and needs positive values; ``"difference"`` (mean or
             risk differences, coefficients) has no effect at 0.

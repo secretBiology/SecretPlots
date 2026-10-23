@@ -4,6 +4,7 @@ import copy
 import difflib
 import inspect
 import io
+import math
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Mapping, Sequence
@@ -30,7 +31,7 @@ from SecretPlots import presets
 from SecretPlots.core import state
 from SecretPlots.core.chrome import ChromeText, apply_chrome
 from SecretPlots.core.colors import extend_palette, with_alpha
-from SecretPlots.core.resolve import Style, resolve
+from SecretPlots.core.resolve import Style, checked_size, resolve
 from SecretPlots.core.units import Length
 from SecretPlots.errors import DataShapeError, FormatWarning, emit
 from SecretPlots.presets._schema import coerce_theme_field
@@ -559,6 +560,8 @@ class Plot(ABC):
         Args:
             axis: ``"x"``, ``"y"`` or ``"xy"`` (axes as drawn).
         """
+        if not isinstance(axis, str) or not axis or set(axis) - {"x", "y"}:
+            raise ValueError(f"log axis must be 'x', 'y' or 'xy', got {axis!r}")
         self._log_axes.update(axis)
         return self._changed()
 
@@ -637,6 +640,12 @@ class Plot(ABC):
                     f"refline value {value!r} must be a number, a date or a "
                     "category name"
                 )
+            if _is_number(value) and not math.isfinite(value):
+                raise ValueError(f"refline value must be finite, got {value!r}")
+            if value is pd.NaT or (
+                isinstance(value, np.datetime64) and np.isnat(value)
+            ):
+                raise ValueError("refline value must be a date, got NaT")
         for value in values:
             words = self._refline_words
             if isinstance(value, str) and words and value not in words:
@@ -660,8 +669,8 @@ class Plot(ABC):
             raise ValueError(
                 f"Unknown linestyle {linestyle!r}; use '--', ':', '-.' or '-'"
             ) from None
-        if linewidth is not None and linewidth < 0:
-            raise ValueError("refline linewidth must be 0 or more")
+        if linewidth is not None and not (linewidth >= 0 and math.isfinite(linewidth)):
+            raise ValueError(f"refline linewidth must be 0 or more, got {linewidth!r}")
         self._reflines += [
             _RefLine(
                 v,
@@ -934,7 +943,9 @@ class Plot(ABC):
                     color=color,
                     lw=theme.axis_line_width
                     if ref.linewidth is None
-                    else ref.linewidth,
+                    else checked_size(
+                        style, "refline linewidth", ref.linewidth, "line"
+                    ),
                     ls=ref.linestyle,
                     zorder=self._refline_zorder,
                 )
@@ -1173,7 +1184,8 @@ class Plot(ABC):
         if options.get("ncols") is not None:
             kwargs["ncols"] = options["ncols"]
         if options.get("fontsize") is not None:
-            kwargs["fontsize"] = kwargs["title_fontsize"] = options["fontsize"]
+            size = checked_size(style, "legend fontsize", options["fontsize"], "font")
+            kwargs["fontsize"] = kwargs["title_fontsize"] = size
         if options.get("anchor") is not None:
             kwargs["bbox_to_anchor"] = options["anchor"]
             kwargs["bbox_transform"] = ax.transAxes

@@ -222,6 +222,11 @@ def _lowess(x: np.ndarray, y: np.ndarray, frac: float, what: str) -> _Fit:
             else (dist == 0).astype(float)
         )
         sw = w.sum()
+        if sw == 0:
+            # Every neighbour sits exactly at the cutoff distance h, where the
+            # tricube weight is 0. Equal weights are the limit as h grows.
+            w = (dist <= h).astype(float)
+            sw = w.sum()
         mx, my = (w * x).sum() / sw, (w * y).sum() / sw
         sxx = (w * (x - mx) ** 2).sum()
         slope = (w * (x - mx) * (y - my)).sum() / sxx if sxx > 1e-12 else 0.0
@@ -416,7 +421,11 @@ class ScatterPlot(Plot):
         frame = self._points.frame
         per_group = self._fit_per_group and self._points.hue_order is not None
         targets: list[tuple[Any, pd.DataFrame, str]] = (
-            [(g, frame[frame["hue"] == g], colors[g]) for g in groups]
+            [
+                (g, rows, colors[g])
+                for g in groups
+                if len(rows := frame[frame["hue"] == g])  # unused order levels
+            ]
             if per_group
             else [(None, frame, theme.text_color or "#333333")]
         )

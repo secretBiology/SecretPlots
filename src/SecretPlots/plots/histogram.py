@@ -14,7 +14,7 @@ from matplotlib.axes import Axes
 from matplotlib.colors import is_color_like
 
 from SecretPlots.core.colors import combined_alpha
-from SecretPlots.core.data import _order
+from SecretPlots.core.data import _order, source_columns
 from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, RefAxis, _RefLine
 from SecretPlots.core.resolve import Style
@@ -266,10 +266,10 @@ class HistogramPlot(Plot):
                 ``{group: color}`` (groups left out keep their default).
                 Default: the text color, or each group's color with ``hue``.
         """
-        if bw_adjust <= 0:
-            raise ValueError("bw_adjust must be positive")
-        if cut < 0:
-            raise ValueError("cut must be 0 or more")
+        if not (bw_adjust > 0 and math.isfinite(bw_adjust)):
+            raise ValueError(f"bw_adjust must be a positive number, got {bw_adjust!r}")
+        if not (cut >= 0 and math.isfinite(cut)):
+            raise ValueError(f"cut must be 0 or more, got {cut!r}")
         colors = color.values() if isinstance(color, Mapping) else [color]
         bad = [c for c in colors if c is not None and not is_color_like(c)]
         if bad:
@@ -384,7 +384,7 @@ class HistogramPlot(Plot):
         for group in self._groups:
             values = self._values(group)
             counts = np.histogram(values, edges)[0].astype(float)
-            norm = total if self._common_norm else len(values)
+            norm = (total if self._common_norm else len(values)) or 1  # empty group
             if self._cumulative:
                 counts = np.cumsum(counts)
             heights = {
@@ -401,26 +401,39 @@ class HistogramPlot(Plot):
 
     def source_data(self) -> pd.DataFrame:
         """The plotted numbers, one row per bin and group (for a journal's
-        source-data file)."""
+        source-data file). Generated columns that clash with your column
+        names get a ``_computed`` suffix."""
         edges = self.bin_edges
+        stat = f"cumulative_{self._stat}" if self._cumulative else self._stat
+        # A count histogram's heights are the counts: one column, not two.
+        count_col = "count"
+        spec: list[tuple[Hashable, bool]] = [
+            ("bin_start", False),
+            ("bin_end", False),
+            (count_col, False),
+            *([] if stat == count_col else [(stat, False)]),
+            ("n", False),
+        ]
+        hue = self._samples.hue_name
+        grouped = False
         rows = []
         for group, (heights, n) in self._heights(edges).items():
             counts = np.histogram(self._values(group), edges)[0]
-            table = pd.DataFrame(
-                {
-                    "bin_start": edges[:-1],
-                    "bin_end": edges[1:],
-                    "count": np.cumsum(counts) if self._cumulative else counts,
-                    f"cumulative_{self._stat}"
-                    if self._cumulative
-                    else self._stat: heights,
-                    "n": n,
-                }
-            )
+            columns: list[Any] = [
+                edges[:-1],
+                edges[1:],
+                np.cumsum(counts) if self._cumulative else counts,
+                *([] if stat == count_col else [heights]),
+                np.full(len(heights), n),
+            ]
             if group is not None:
-                table.insert(0, self._samples.hue_name or "group", group)
-            rows.append(table)
-        return pd.concat(rows, ignore_index=True)
+                grouped = True
+                columns.insert(0, np.full(len(heights), group, dtype=object))
+            rows.append(pd.DataFrame(dict(enumerate(columns))))
+        if grouped:
+            spec.insert(0, (hue or "group", hue is not None))
+        table = pd.concat(rows, ignore_index=True)
+        return table.set_axis(source_columns(spec), axis=1)
 
     def _stat_label(self) -> str:
         label = _STAT_LABELS[self._stat]
@@ -456,7 +469,7 @@ class HistogramPlot(Plot):
         if self._kde is not None and multiple == "stack":
             raise ValueError("Density curves are not stacked; use multiple='layer'")
 
-        small = [g for g in groups if heights[g][1] < SMALL_SAMPLE]
+        small = [g for g in groups if 0 < heights[g][1] < SMALL_SAMPLE]
         if small and not self._rug:
             which = "" if not grouped else f" (groups: {', '.join(map(str, small))})"
             emit(
@@ -551,7 +564,20 @@ class HistogramPlot(Plot):
         """
         total = len(self._samples.frame)
         share = n / total if self._common_norm else 1.0
-        width = float(np.mean(np.diff(np.log10(edges) if log else edges)))
+        widths = np.diff(np.log10(edges) if log else edges)
+        width = float(np.mean(widths))
+        if (
+            not self._cumulative
+            and self._stat in ("count", "probability", "percent")
+            and not np.allclose(widths, width, rtol=1e-9, atol=0)
+        ):
+            raise DataShapeError(
+                f"A curve can't be drawn on stat='{self._stat}' with unequal bin "
+                f"widths: a bar's {self._stat} grows with its width, so each bin "
+                "would need a different conversion and no single curve matches "
+                "them all. Use stat='density' or stat='frequency' (per unit "
+                "width), or equal-width bins."
+            )
         if self._cumulative:
             return {"count": n, "probability": share, "percent": 100 * share}.get(
                 self._stat, share
@@ -577,6 +603,8 @@ class HistogramPlot(Plot):
         for group in self._groups:
             values = self._values(group)
             n = heights[group][1]
+            if n == 0:
+                continue  # a level of hue_order without data
             color = colors[group] if grouped else (theme.text_color or "#333333")
             curves: list[tuple[np.ndarray, np.ndarray, str, str]] = []
             if self._kde is not None:

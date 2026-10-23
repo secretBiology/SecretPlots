@@ -42,6 +42,45 @@ All notable changes to this project are documented here. The format follows
   `"right"` of a vertical line, `"above"`/`"below"` a horizontal one), and
   `label_rotation` turns it (e.g. `90` to run it up a vertical line).
 
+### Changed
+- `PolicyWarning`: new warning for deliberate rules that change what you asked
+  for; each message says what was done, why, and how to opt out.
+- Box notches are drawn at their full width (median +/- 1.58 x IQR / sqrt(n)),
+  even past the box, as in R and matplotlib; a `SmallSampleWarning` explains
+  folded notches. They were clipped to the quartiles, which narrowed them.
+- Forest `weight=` markers have area exactly proportional to weight; zero
+  weights draw no marker. The old minimum size is now opt-in with
+  `.markers(min_size=...)`.
+- Stacked areas stack positive values up and negative values down from the
+  baseline, like stacked bars; series that change sign get a warning.
+- `.source_data()` keeps your column names; generated columns that clash get
+  a `_computed` suffix instead of overwriting them.
+- `test="wilcoxon"` / `"wilcox"` are rejected as ambiguous (rank-sum or
+  signed-rank); use `"mann-whitney"` or `"wilcoxon-rank-sum"`.
+- Size overrides passed to methods (`.legend(fontsize=)`, `linewidth=`...)
+  are checked against preset limits like theme fields.
+- Explicit hue order levels without data keep their colour and position but
+  are skipped by fits, curves and tests, with a warning.
+- `whis=math.inf` is accepted as `"range"`.
+
+### Fixed
+- Percentile error bars no longer crash when the estimate lies outside the
+  interval, and they draw the actual interval.
+- LOWESS no longer returns NaN when the nearest neighbours sit exactly at the
+  cutoff distance.
+- Euclidean clustering is stable for data with a large common offset.
+- A count/probability/percent curve over unequal bins is rejected instead of
+  drawn at the wrong scale.
+- Significance brackets are spaced by text height, so labels no longer
+  collide with the bracket above; a warning says when they cannot fit.
+- Strict mode raises even for warnings already shown in the session.
+- `fill_alpha=0` is kept instead of becoming 0.22; alpha in palette colours
+  is kept.
+- Percent stacks with a nonzero baseline are rejected instead of clipped.
+- Theme fields, `bw_adjust`, `cut`, `whis`, `.refline()` and `.log()` reject
+  NaN, negative or out-of-range values.
+- Student t quantile at df = 1 is accurate in the far tails.
+
 ## [3.0.0a1] - 2026-10-22
 
 ### Changed

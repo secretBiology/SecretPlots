@@ -15,7 +15,7 @@ spacing when the figure is resized.
 """
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from itertools import combinations, pairwise
 from typing import Any, Literal, Self
@@ -36,7 +36,7 @@ from matplotlib.transforms import (
 
 from SecretPlots.core import survival as sv
 from SecretPlots.core.colors import combined_alpha
-from SecretPlots.core.data import _order
+from SecretPlots.core.data import _order, source_columns
 from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, _legend_title, _root_figure
 from SecretPlots.core.resolve import Style
@@ -148,7 +148,11 @@ class SurvivalPlot(Plot):
         self._frame = frame
         self._names = names
         self._kind: Kind = kind
-        self._hues = hues
+        # Colors follow the full order (so they match other plots sharing it);
+        # curves, tables and tests use only the groups that have data.
+        self._color_order = hues
+        present = set(frame["_h"])
+        self._hues = [h for h in hues if h in present]
         self._ci_options: dict[str, Any] = {
             "show": True,
             "level": 0.95,
@@ -575,34 +579,48 @@ class SurvivalPlot(Plot):
         return curve
 
     def _groups(self) -> list[tuple[Any, pd.DataFrame]]:
+        """Groups with data, in order; levels of hue_order without data are
+        left out."""
         frame = self._frame
         labels = frame["_h"].to_numpy(object)
-        return [(h, frame.loc[[v == h for v in labels]]) for h in self._hues]
+        groups = [(h, frame.loc[[v == h for v in labels]]) for h in self._hues]
+        return [(h, rows) for h, rows in groups if len(rows)]
 
     def source_data(self) -> pd.DataFrame:
         """The plotted numbers: one row per distinct time of each group, with
-        the counts behind the estimate (for a journal's source-data file)."""
-        parts = []
-        column = {"survival": "survival", "failure": "failure", "cumhaz": "cumhaz"}[
-            self._kind
+        the counts behind the estimate (for a journal's source-data file).
+        Generated columns that clash with your column names get a
+        ``_computed`` suffix."""
+        column = self._kind
+        hue = self._names["hue"]
+        spec: list[tuple[Hashable, bool]] = [
+            (self._names["time"] or "time", self._names["time"] is not None),
+            ("at_risk", False),
+            ("events", False),
+            ("censored", False),
+            (column, False),
+            (f"{column}_low", False),
+            (f"{column}_high", False),
         ]
+        if hue is not None:
+            spec.insert(0, (hue, True))
+        parts = []
         for group, frame in self._groups():
             curve = self._curve(frame)
-            part = pd.DataFrame(
-                {
-                    self._names["time"] or "time": curve.time,
-                    "at_risk": curve.at_risk,
-                    "events": curve.events,
-                    "censored": curve.censored,
-                    column: curve.estimate,
-                    f"{column}_low": curve.lower,
-                    f"{column}_high": curve.upper,
-                }
-            )
-            if self._names["hue"] is not None:
-                part.insert(0, self._names["hue"], group)
-            parts.append(part)
-        return pd.concat(parts, ignore_index=True)
+            columns: list[Any] = [
+                curve.time,
+                curve.at_risk,
+                curve.events,
+                curve.censored,
+                curve.estimate,
+                curve.lower,
+                curve.upper,
+            ]
+            if hue is not None:
+                columns.insert(0, np.full(len(curve.time), group, dtype=object))
+            parts.append(pd.DataFrame(dict(enumerate(columns))))
+        table = pd.concat(parts, ignore_index=True)
+        return table.set_axis(source_columns(spec), axis=1)
 
     def statistics(self) -> pd.DataFrame:
         """Per group: subjects, events, censorings and median survival with
@@ -733,13 +751,13 @@ class SurvivalPlot(Plot):
     def _draw(self, ax: Axes, style: Style) -> None:
         theme = style.theme
         grouped = self._names["hue"] is not None
-        colors = self._group_colors(style, self._hues, grouped=grouped)
+        colors = self._group_colors(style, self._color_order, grouped=grouped)
         if not grouped:
             colors = {self._hues[0]: colors[None]}
         width = theme.line_width or 1.5
         alpha = self._ci_options["alpha"]
         if alpha is None:
-            alpha = float(theme.fill_alpha or 0.22)
+            alpha = 0.22 if theme.fill_alpha is None else float(theme.fill_alpha)
         start = 1.0 if self._kind == "survival" else 0.0
         clip = "x" in self._limits
         curves: dict[Any, sv.Curve] = {}

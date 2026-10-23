@@ -13,6 +13,7 @@ from SecretPlots.core.data import Tidy
 from SecretPlots.core.missing import DropPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import Whiskers, check_whiskers
+from SecretPlots.errors import SmallSampleWarning, emit
 from SecretPlots.plots.distribution import (
     DistributionPlot,
     Orient,
@@ -45,6 +46,8 @@ class BoxPlot(DistributionPlot):
     ) -> None:
         check_whiskers(whis)
         super().__init__(data, orient=orient, edgecolor=edgecolor, linewidth=linewidth)
+        if isinstance(whis, int | float) and math.isinf(whis):
+            whis = "range"  # same whiskers, and an honest caption
         self._whis_value: Whiskers = tuple(whis) if isinstance(whis, list) else whis
         self._notch = notch
         self._varwidth = varwidth
@@ -79,11 +82,13 @@ class BoxPlot(DistributionPlot):
 
     def _extent(self, item: _Item) -> tuple[float, float]:
         s = self._stats(item.values)
+        low, high = s.whisker_low, s.whisker_high
         if self._show_outliers and len(s.outliers):
-            return float(s.outliers.min(initial=s.whisker_low)), float(
-                s.outliers.max(initial=s.whisker_high)
-            )
-        return s.whisker_low, s.whisker_high
+            low = float(s.outliers.min(initial=low))
+            high = float(s.outliers.max(initial=high))
+        if self._notch:
+            low, high = min(low, s.notch_low), max(high, s.notch_high)
+        return low, high
 
     # --------------------------------------------------------------- drawing
     def _draw_marks(self, ax: Axes, style: Style, items: list[_Item]) -> None:
@@ -91,6 +96,7 @@ class BoxPlot(DistributionPlot):
         thin = self._line_width(style, 0.6)
         thick = self._line_width(style, 1.0)
         labelled: set[Any] = set()
+        folded: list[str] = []
         for item in items:
             s = self._stats(item.values)
             line = self._detail_color(item)
@@ -100,8 +106,13 @@ class BoxPlot(DistributionPlot):
 
             # Box outline, notched around the median if asked.
             if self._notch:
-                low = max(s.notch_low, s.q1)
-                high = min(s.notch_high, s.q3)
+                # Drawn at full width even past the quartiles: clipping would
+                # shrink the interval and change which medians look different.
+                low, high = s.notch_low, s.notch_high
+                if low < s.q1 or high > s.q3:
+                    folded.append(
+                        f"{self._describe_key(item.key)} (n={len(item.values)})"
+                    )
                 inset = half / 2
                 pos = [
                     c - half, c - half, c - inset, c - half, c - half,
@@ -165,6 +176,19 @@ class BoxPlot(DistributionPlot):
                     linewidths=0,
                     zorder=3,
                 )
+        if folded:
+            which = "" if self._single else f" for {', '.join(folded[:4])}"
+            emit(
+                SmallSampleWarning,
+                f"The notch{which} reaches beyond the box, so the outline "
+                "folds back on itself. It is drawn at its full width (median "
+                "+/- 1.58 x IQR / sqrt(n)) because clipping it to the box "
+                "would understate the uncertainty of the median. This happens "
+                "with small n (below about 10) or when the median sits close "
+                "to a quartile; the notch is then a poor guide for comparing "
+                "medians. Consider notch=False with .points().",
+                stacklevel=5,
+            )
 
     # --------------------------------------------------------------- caption
     def _caption_marks(self) -> list[str]:
@@ -230,10 +254,12 @@ def box(
         hue: Column name for groups.
         whis: Whisker reach: a multiple of the interquartile range (Tukey's
             1.5, the default in R and matplotlib), percentiles like
-            ``(5, 95)``, or ``"range"`` (minimum to maximum, no outliers).
+            ``(5, 95)``, or ``"range"`` (minimum to maximum, no outliers;
+            ``math.inf`` means the same).
         notch: Notches around the median (R's ``notch=TRUE``); boxes whose
             notches don't overlap have medians that differ, roughly at the
-            5 % level.
+            5 % level. Notches are drawn at full width, so with small n they
+            can reach past the box (a warning says so).
         varwidth: Box widths proportional to the square root of n.
         fill: Filled boxes (default) or outlines in the group color.
         outliers: Draw values beyond the whiskers. Default: yes, unless

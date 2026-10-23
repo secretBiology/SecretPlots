@@ -1,5 +1,6 @@
 """Strict conversion of TOML mappings into preset dataclasses."""
 
+import math
 import types
 from collections.abc import Mapping
 from dataclasses import fields
@@ -88,9 +89,34 @@ def _alias(key: str, value: Any) -> Any:
     return value
 
 
+_FRACTIONS = frozenset({"bar_gap", "marker_alpha", "fill_alpha"})
+_POSITIVE = frozenset(
+    {"font_size", "label_scale", "title_scale", "subtitle_scale", "note_scale"}
+)
+_NON_NEGATIVE = frozenset(
+    {
+        "line_width", "axis_line_width", "tick_length", "grid_width",
+        "bar_edge_width", "errorbar_capsize", "cell_edge_width", "marker_size",
+        "marker_edge_width",
+    }
+)  # fmt: skip
+
+
 def _check(key: str, value: Any, where: str) -> Any:
     if key == "aspect" and value != "auto" and value <= 0:
         raise PresetError(f"{where}: aspect must be more than 0, got {value!r}")
+    if not isinstance(value, float):
+        return value
+    if not math.isfinite(value):
+        raise PresetError(f"{where} must be a finite number, got {value!r}")
+    if key in _FRACTIONS and not 0 <= value <= 1:
+        raise PresetError(f"{where} is a fraction from 0 to 1, got {value!r}")
+    if key in _POSITIVE and value <= 0:
+        raise PresetError(f"{where} must be more than 0, got {value!r}")
+    if key in _NON_NEGATIVE and value < 0:
+        raise PresetError(
+            f"{where} is a size in pt and can't be negative, got {value!r}"
+        )
     return value
 
 

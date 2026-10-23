@@ -1,7 +1,7 @@
 """Filled areas: under a line, between two lines (a band), stacked (also as
 percentages), or split into above/below colors."""
 
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from typing import Any, Literal, Self
 
 import numpy as np
@@ -10,9 +10,10 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
 from SecretPlots.core.colors import combined_alpha, with_alpha
+from SecretPlots.core.data import source_columns, source_frame
 from SecretPlots.core.missing import MissingPolicy
-from SecretPlots.core.resolve import Style
-from SecretPlots.errors import DataShapeError
+from SecretPlots.core.resolve import Style, checked_size
+from SecretPlots.errors import DataShapeError, PolicyWarning, emit
 from SecretPlots.plots.series import SeriesPlot, _is_number, _Series, series
 
 Stack = bool | Literal["percent"]
@@ -37,6 +38,13 @@ class FillBetweenPlot(SeriesPlot):
             raise ValueError(
                 "Stacked areas start at a baseline; pass y2 as a number (or "
                 "leave it out), not a column"
+            )
+        if stack == "percent" and len(data.frame) and data.frame["y2"].iloc[0] != 0:
+            raise ValueError(
+                "Percent stacks must start at baseline 0: their axis is fixed "
+                "to 0-100%, so a stack lifted to "
+                f"{data.frame['y2'].iloc[0]:g}-{data.frame['y2'].iloc[0] + 100:g} "
+                "would be cut off. Leave baseline at 0."
             )
         keys = ["hue", "x"] if "hue" in data.frame else ["x"]
         if data.frame.duplicated(keys).any():
@@ -145,8 +153,31 @@ class FillBetweenPlot(SeriesPlot):
                 raise DataShapeError("Percent stacks need a positive total at every x")
             wide = wide.div(totals, axis=0) * 100
         base = float(frame["y2"].iloc[0])
-        upper = wide.cumsum(axis=1) + base
-        lower = upper - wide
+        # Like stacked bars: positive values stack up from the baseline and
+        # negative ones down from it, so no layer paints over another.
+        top = wide.clip(lower=0).cumsum(axis=1) + base
+        bottom = wide.clip(upper=0).cumsum(axis=1) + base
+        negative = wide < 0
+        upper = top.where(~negative, bottom - wide)
+        lower = bottom.where(negative, top - wide)
+        crossing = [
+            str(g)
+            for g, k in zip(self._groups, groups, strict=True)
+            if negative[k].any() and (wide[k] > 0).any()
+        ]
+        if crossing:
+            names = (
+                ", ".join(map(repr, crossing[:4])) if self._grouped else "the series"
+            )
+            emit(
+                PolicyWarning,
+                f"Values change sign along x in {names}. Positive values are stacked "
+                "above the baseline and negative values below it (as in stacked "
+                "bars), so where a series crosses zero its band jumps from one "
+                "stack to the other and the jump is drawn as a sloped edge. "
+                "Consider stack=False or a line plot for signed series.",
+                stacklevel=6,
+            )
         layers = {
             g: (lower[k].to_numpy(dtype=float), upper[k].to_numpy(dtype=float))
             for g, k in zip(self._groups, groups, strict=True)
@@ -155,34 +186,43 @@ class FillBetweenPlot(SeriesPlot):
 
     def source_data(self) -> pd.DataFrame:
         """The plotted numbers, one row per x and group (for a journal's
-        source-data file)."""
+        source-data file). Generated columns that clash with your column
+        names get a ``_computed`` suffix."""
         names = self._data.names
-        x_name = names.get("x") or "x"
+        x_col = (names.get("x") or "x", bool(names.get("x")))
+        hue_col = (names.get("hue") or "group", bool(names.get("hue")))
         if self._stack:
             x, layers = self._layers()
+            base = float(self._data.frame["y2"].iloc[0])
+            grouped = any(group is not None for group in layers)
             parts = []
             for group, (lower, upper) in layers.items():
-                part = pd.DataFrame(
-                    {
-                        x_name: self._x_values(x),
-                        "percent" if self._stack == "percent" else "value": upper
-                        - lower,
-                        "lower": lower,
-                        "upper": upper,
-                    }
-                )
-                if group is not None:
-                    part.insert(0, names.get("hue") or "group", group)
-                parts.append(part)
-            return pd.concat(parts, ignore_index=True)
+                # Bands below the baseline are negative contributions.
+                value = np.where(lower < base, lower - upper, upper - lower)
+                columns: list[Any] = [self._x_values(x), value, lower, upper]
+                if grouped:
+                    columns.insert(0, np.full(len(x), group, dtype=object))
+                parts.append(pd.DataFrame(dict(enumerate(columns))))
+            spec: list[tuple[Hashable, bool]] = [
+                x_col,
+                ("percent" if self._stack == "percent" else "value", False),
+                ("lower", False),
+                ("upper", False),
+            ]
+            if grouped:
+                spec.insert(0, hue_col)
+            table = pd.concat(parts, ignore_index=True)
+            return table.set_axis(source_columns(spec), axis=1)
         frame = self._data.frame
-        out = pd.DataFrame()
+        cols: list[tuple[Hashable, bool, Any]] = []
         if "hue" in frame:
-            out[names.get("hue") or "group"] = frame["hue"].to_numpy()
-        out[x_name] = self._x_values(frame["x"].to_numpy())
-        out[names.get("y1") or "y1"] = frame["y1"].to_numpy()
-        out[names.get("y2") or "y2"] = frame["y2"].to_numpy()
-        return out
+            cols.append((*hue_col, frame["hue"].to_numpy()))
+        cols.append((*x_col, self._x_values(frame["x"].to_numpy())))
+        for key in ("y1", "y2"):
+            cols.append(
+                (names.get(key) or key, bool(names.get(key)), frame[key].to_numpy())
+            )
+        return source_frame(cols)
 
     # --------------------------------------------------------------- drawing
     def _default_labels(self) -> dict[str, str | None]:
@@ -209,7 +249,7 @@ class FillBetweenPlot(SeriesPlot):
         width = (
             float(theme.line_width or 1.5)
             if self._line_width is None
-            else self._line_width
+            else checked_size(style, "area line width", self._line_width, "line")
         )
         lines = self._which_lines()
         ends: list[tuple[Any, Any, float, str, float]] = []
@@ -226,7 +266,7 @@ class FillBetweenPlot(SeriesPlot):
                 if lines != "none":
                     ax.plot(
                         x,
-                        upper,
+                        np.where(lower < base, lower, upper),  # edge away from base
                         color=theme.axes_background,
                         lw=width * _SEPARATOR,
                         zorder=2.5,
@@ -246,7 +286,7 @@ class FillBetweenPlot(SeriesPlot):
         elif self._split is not None:
             ends.append(self._draw_split(ax, style, lines, width))
         else:
-            alpha = float(theme.fill_alpha or 0.22)
+            alpha = 0.22 if theme.fill_alpha is None else float(theme.fill_alpha)
             for group in groups:
                 color = colors[group]
                 rows = self._rows(group)
@@ -354,7 +394,15 @@ class FillBetweenPlot(SeriesPlot):
         lines: Lines,
         width: float,
     ) -> None:
-        alpha = 1.0 if self._stack else float(style.theme.fill_alpha or 0.22)
+        alpha = (
+            1.0
+            if self._stack
+            else (
+                0.22
+                if style.theme.fill_alpha is None
+                else float(style.theme.fill_alpha)
+            )
+        )
         outlined = not self._stack and lines != "none"
         # A stack reads top-down, so its legend lists the top layer first.
         for group in reversed(groups) if self._stack else groups:

@@ -19,7 +19,49 @@ import numpy as np
 import pandas as pd
 
 from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
-from SecretPlots.errors import DataShapeError
+from SecretPlots.errors import DataShapeError, PolicyWarning, emit
+
+
+def source_columns(
+    spec: Sequence[tuple[Hashable, bool]], *, stacklevel: int = 4
+) -> list[Hashable]:
+    """Unique column names for a source-data table.
+
+    ``spec`` lists ``(name, from_input)`` in column order. Names taken from
+    the user's input are kept, since they identify the measurements; a
+    generated column (``n``, ``count``...) that clashes gets a ``_computed``
+    suffix instead of overwriting it, and a :class:`PolicyWarning` says so.
+    """
+    taken = {name for name, from_input in spec if from_input}
+    names: list[Hashable] = []
+    renamed: list[str] = []
+    for name, from_input in spec:
+        final = name
+        if final in names or (not from_input and final in taken):
+            final, i = f"{name}_computed", 2
+            while final in names or final in taken:
+                final, i = f"{name}_computed{i}", i + 1
+            renamed.append(f"{name!r} -> {final!r}")
+        names.append(final)
+    if renamed:
+        emit(
+            PolicyWarning,
+            "Source-data columns renamed to avoid overwriting your data: "
+            f"{', '.join(renamed)}. Your column names are kept because they "
+            "identify the measurements; generated columns are renamed instead. "
+            "Rename the input columns to avoid this.",
+            stacklevel=stacklevel,
+        )
+    return names
+
+
+def source_frame(columns: Sequence[tuple[Hashable, bool, Any]]) -> pd.DataFrame:
+    """A source-data table from ``(name, from_input, values)`` in column order;
+    see :func:`source_columns` for clashing names."""
+    names = source_columns(
+        [(name, from_input) for name, from_input, _ in columns], stacklevel=5
+    )
+    return pd.DataFrame(dict(zip(names, (v for *_, v in columns), strict=True)))
 
 
 @dataclass(frozen=True)
@@ -95,6 +137,18 @@ def _order(values: Any, explicit: Sequence[Any] | None, what: str) -> list[Any]:
         missing = set(values.dropna().unique()) - set(explicit)
         if missing:
             raise DataShapeError(f"{what} order is missing {sorted(map(str, missing))}")
+        present = set(values.dropna().unique())
+        unused = [v for v in explicit if v not in present]
+        if unused:
+            emit(
+                PolicyWarning,
+                f"The {what} order lists {', '.join(map(repr, unused[:4]))}"
+                f"{', ...' if len(unused) > 4 else ''}, which has no data. It "
+                "keeps its place in the order, so colors and positions stay "
+                "matched to other plots that share this order, but nothing is "
+                "drawn, fitted or tested for it.",
+                stacklevel=5,
+            )
         return list(explicit)
     if isinstance(values.dtype, pd.CategoricalDtype):
         return [c for c in values.cat.categories if c in set(values.dropna())]

@@ -19,10 +19,10 @@ from matplotlib.colors import is_color_like
 from matplotlib.figure import Figure
 
 from SecretPlots.core.colors import combined_alpha, darken
-from SecretPlots.core.data import Tidy, _order
+from SecretPlots.core.data import Tidy, _order, source_columns
 from SecretPlots.core.missing import DropPolicy, handle_missing, numeric_array
 from SecretPlots.core.plot import Plot, RefAxis
-from SecretPlots.core.resolve import Style
+from SecretPlots.core.resolve import Style, checked_size
 from SecretPlots.core.stats import (
     TEST_NAMES,
     TESTS,
@@ -34,19 +34,26 @@ from SecretPlots.core.stats import (
     box_stats,
     gaussian_kde,
 )
-from SecretPlots.errors import DataShapeError, SmallSampleWarning, emit
+from SecretPlots.errors import (
+    DataShapeError,
+    LabelsHiddenWarning,
+    SmallSampleWarning,
+    emit,
+)
 
 Orient = Literal["v", "h"]
 PointKind = Literal["auto", "swarm", "quasirandom", "jitter", "strip"]
 PFormat = Literal["p", "stars"]
 
 _POINT_KINDS = ("auto", "swarm", "quasirandom", "jitter", "strip")
+_AMBIGUOUS_TESTS = frozenset(
+    {"wilcoxon", "wilcox", "wilcoxon-signed-rank", "signed-rank", "paired"}
+)
 _TEST_ALIASES = {
     "mann_whitney": "mann-whitney",
     "mannwhitney": "mann-whitney",
     "mwu": "mann-whitney",
-    "wilcox": "mann-whitney",
-    "wilcoxon": "mann-whitney",
+    "wilcoxon-rank-sum": "mann-whitney",
     "rank-sum": "mann-whitney",
     "t": "t-test",
     "ttest": "t-test",
@@ -228,6 +235,14 @@ def _check_outline(color: str | None, width: float | None) -> None:
 
 def _check_test(test: str) -> str:
     key = test.lower().replace(" ", "-")
+    if key in _AMBIGUOUS_TESTS:
+        raise ValueError(
+            f"test={test!r} is ambiguous: 'Wilcoxon' names both the unpaired "
+            "rank-sum test (= Mann-Whitney) and the paired signed-rank test, "
+            "and running the wrong one changes the result. For independent "
+            "groups use test='mann-whitney'. Paired tests are not run here: "
+            "compute the p-values yourself and pass them with p=[...]."
+        )
     key = _TEST_ALIASES.get(key, key)
     _choice(key, tuple(TESTS), "test")
     return key
@@ -619,36 +634,44 @@ class DistributionPlot(Plot):
 
     def source_data(self) -> pd.DataFrame:
         """Summary numbers per distribution (n, mean, SD, quartiles, whisker
-        ends, outliers) for a journal's source-data file."""
+        ends, outliers) for a journal's source-data file. Generated columns
+        that clash with your column names get a ``_computed`` suffix."""
+        stats = [
+            "n", "mean", "sd", "min", "q1", "median", "q3", "max",
+            "whisker_low", "whisker_high", "n_outliers",
+        ]  # fmt: skip
         rows = []
         for cat, group in self._keys():
             values = self._values(cat, group)
             s = self._stats(values)
-            row: dict[str, Any] = {self._data.x_name or "category": cat}
-            if self._grouped:
-                row[self._data.hue_name or "group"] = group
-            row |= {
-                "n": s.n,
-                "mean": float(values.mean()),
-                "sd": float(values.std(ddof=1)) if s.n > 1 else math.nan,
-                "min": s.minimum,
-                "q1": s.q1,
-                "median": s.median,
-                "q3": s.q3,
-                "max": s.maximum,
-                "whisker_low": s.whisker_low,
-                "whisker_high": s.whisker_high,
-                "n_outliers": len(s.outliers),
-            }
-            for key in ("min", "q1", "median", "q3", "max"):
-                row[key] = float(self._inv(row[key]))
-            for key in ("whisker_low", "whisker_high"):
-                row[key] = float(self._inv(row[key]))
-            rows.append(row)
-        table = pd.DataFrame(rows)
-        if self._single:
-            table = table.drop(columns=table.columns[0])
-        return table
+            inv = self._inv
+            rows.append(
+                [
+                    cat,
+                    group,
+                    s.n,
+                    float(values.mean()),
+                    float(values.std(ddof=1)) if s.n > 1 else math.nan,
+                    float(inv(s.minimum)),
+                    float(inv(s.q1)),
+                    float(inv(s.median)),
+                    float(inv(s.q3)),
+                    float(inv(s.maximum)),
+                    float(inv(s.whisker_low)),
+                    float(inv(s.whisker_high)),
+                    len(s.outliers),
+                ]
+            )
+        x_name, hue_name = self._data.x_name, self._data.hue_name
+        spec: list[tuple[Hashable, bool]] = [
+            (x_name or "category", x_name is not None),
+            (hue_name or "group", hue_name is not None),
+            *((name, False) for name in stats),
+        ]
+        table = pd.DataFrame(rows, columns=range(len(spec)))
+        keep = [i for i in range(len(spec)) if not (i == 0 and self._single)]
+        keep = [i for i in keep if not (i == 1 and not self._grouped)]
+        return table[keep].set_axis(source_columns([spec[i] for i in keep]), axis=1)
 
     def _comparisons(self) -> list[_Comparison]:
         assert self._compare is not None
@@ -858,7 +881,7 @@ class DistributionPlot(Plot):
 
     def _outline_width(self, style: Style) -> float:
         if self._linewidth is not None:
-            return float(self._linewidth)
+            return checked_size(style, "outline linewidth", self._linewidth, "line")
         return self._line_width(style, 0.6)
 
     # --------------------------------------------------------------- drawing
@@ -938,7 +961,9 @@ class DistributionPlot(Plot):
                 s=diameter**2,
                 color=color,
                 alpha=combined_alpha(color, alpha),
-                linewidths=options["linewidth"]
+                linewidths=checked_size(
+                    style, "points linewidth", options["linewidth"], "line"
+                )
                 if options["linewidth"] is not None
                 else theme.marker_edge_width,
                 edgecolors=options["edgecolor"] or theme.axes_background,
@@ -1010,20 +1035,60 @@ class DistributionPlot(Plot):
             jobs.append((x1, x2, str(row["label"])))
         jobs.sort(key=lambda job: (job[1] - job[0], job[0]))
 
-        placed: list[tuple[float, float, float]] = []
-        highest = max(tops.values())
-        for x1, x2, label in jobs:
-            under = [
-                tops[item.key]
-                for item in items
-                if x1 - 1e-9 <= self._anchor(item) <= x2 + 1e-9
-            ]
-            level = max(under) + gap + leg
-            for px1, px2, py in placed:
-                if px1 <= x2 + 1e-9 and x1 <= px2 + 1e-9:
-                    level = max(level, py + step)
-            placed.append((x1, x2, level))
-            highest = max(highest, level)
+        def place(step: float) -> tuple[list[tuple[float, float, float]], float]:
+            placed: list[tuple[float, float, float]] = []
+            highest = max(tops.values())
+            for x1, x2, _ in jobs:
+                under = [
+                    tops[item.key]
+                    for item in items
+                    if x1 - 1e-9 <= self._anchor(item) <= x2 + 1e-9
+                ]
+                level = max(under) + gap + leg
+                for px1, px2, py in placed:
+                    if px1 <= x2 + 1e-9 and x1 <= px2 + 1e-9:
+                        level = max(level, py + step)
+                placed.append((x1, x2, level))
+                highest = max(highest, level)
+            return placed, highest
+
+        # Text has a fixed size in points while the step is in data units, so
+        # widen the step until a label clears the bracket stacked above it.
+        # The axis grows with the step: the top bracket is linear in the step
+        # (piecewise, as stacking can change), so solve for it and re-check.
+        vertical = self._orient == "v"
+        box = ax.get_window_extent()
+        length = (box.height if vertical else box.width) * 72 / ax.figure.dpi
+        need = 1.5 + 1.3 * float(style.sizes.tick)
+        low_end = min(lows)
+        fits = True
+        if length > 0 and jobs:
+            k = need * 1.1 / length  # 1.1: the axis margins
+            for _ in range(10):
+                highest = place(step)[1]
+                slope = (place(2 * step)[1] - highest) / step
+                denom = 1 - k * (slope + 0.8)
+                if denom <= 0:
+                    fits = False
+                    break
+                wanted = max(k * (highest - slope * step - low_end) / denom, step)
+                if wanted <= step * (1 + 1e-9):
+                    break
+                step = wanted
+        placed, highest = place(step)
+        if not fits:
+            emit(
+                LabelsHiddenWarning,
+                f"{len(jobs)} comparison brackets don't fit this axis: their "
+                "labels may overlap the brackets above them. Each label needs "
+                f"about {need:.0f} pt of height. Show only the planned "
+                "comparisons (.compare((a, b), ...)), use hide_ns=True, make "
+                "the figure taller, or report the tests as a table with "
+                ".test_results().",
+                stacklevel=6,
+            )
+
+        for (x1, x2, level), (_, _, label) in zip(placed, jobs, strict=True):
             xs = [x1, x1, x2, x2]
             ys = self._inv(np.array([level - leg, level, level, level - leg]))
             ax.plot(
@@ -1033,7 +1098,6 @@ class DistributionPlot(Plot):
                 solid_capstyle="butt",
                 zorder=6,
             )
-            vertical = self._orient == "v"
             ax.annotate(
                 label,
                 xy=self._xy((x1 + x2) / 2, float(self._inv(level))),

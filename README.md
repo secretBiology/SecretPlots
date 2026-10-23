@@ -53,8 +53,10 @@ sp.use(preset="nature")                       # 89 mm column, 5–7 pt text, 300
   IEEE, ACM and NeurIPS presets set column widths, font limits, dpi and file
   formats from each publisher's author guidelines.
 - **Statistics where you need them.** Significance brackets with Holm or
-  Bonferroni correction, confidence bands, prediction intervals, linear fits
-  with R², KDEs and hierarchical clustering. Every number is available as a table.
+  Bonferroni correction, confidence bands, percentile intervals of the
+  observations, linear fits with R², KDEs and hierarchical clustering. Most
+  plots return their computed numbers as tables (`.source_data()`,
+  `.test_results()`).
 - **Every observation visible.** Points over boxes, individual trajectories
   under means, rainclouds and rugs, the patterns reviewers ask for with small
   samples.

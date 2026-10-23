@@ -3,7 +3,7 @@ replicates (or your own errors), markers, dashes, per-unit lines and end labels.
 
 import difflib
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import replace
 from typing import Any, Literal, Self
 
@@ -14,10 +14,11 @@ from matplotlib.lines import Line2D
 from matplotlib.markers import MarkerStyle
 
 from SecretPlots.core.colors import combined_alpha
+from SecretPlots.core.data import source_frame
 from SecretPlots.core.missing import MissingPolicy
 from SecretPlots.core.resolve import Style
 from SecretPlots.core.stats import t_quantile
-from SecretPlots.errors import DataShapeError
+from SecretPlots.errors import DataShapeError, PolicyWarning, emit
 from SecretPlots.plots.scatter import _MARKERS
 from SecretPlots.plots.series import SeriesPlot, _Series, series
 
@@ -390,15 +391,25 @@ class LinePlot(SeriesPlot):
 
     def source_data(self) -> pd.DataFrame:
         """The plotted numbers, one row per point of each line (for a journal's
-        source-data file)."""
+        source-data file). Generated columns that clash with your column
+        names get a ``_computed`` suffix."""
         table = self._table
         names = self._data.names
-        out = pd.DataFrame()
-        for key in self._keys():
-            out[names.get(key) or key] = table[key].to_numpy()
-        out[names.get("x") or "x"] = self._x_values(table["x"].to_numpy())
-        out[names.get("y") or "y"] = table["value"].to_numpy()
-        out["n"] = table["n"].to_numpy()
+        cols: list[tuple[Hashable, bool, Any]] = [
+            (names.get(key) or key, bool(names.get(key)), table[key].to_numpy())
+            for key in self._keys()
+        ]
+        cols.append(
+            (
+                names.get("x") or "x",
+                bool(names.get("x")),
+                self._x_values(table["x"].to_numpy()),
+            )
+        )
+        cols.append(
+            (names.get("y") or "y", bool(names.get("y")), table["value"].to_numpy())
+        )
+        cols.append(("n", False, table["n"].to_numpy()))
         if self._error or "yerr_minus" in table:
             prefix = self._error or "error"
             for level in self._levels if self._error else [None]:
@@ -408,12 +419,13 @@ class LinePlot(SeriesPlot):
                     if level is None or len(self._levels) == 1
                     else (f"{prefix}{level:g}")
                 )
-                out[f"{tag}_low"] = low
-                out[f"{tag}_high"] = high
+                cols += [(f"{tag}_low", False, low), (f"{tag}_high", False, high)]
         if "xerr_minus" in table:
-            out["x_low"] = table["x"] - table["xerr_minus"]
-            out["x_high"] = table["x"] + table["xerr_plus"]
-        return out
+            cols += [
+                ("x_low", False, (table["x"] - table["xerr_minus"]).to_numpy()),
+                ("x_high", False, (table["x"] + table["xerr_plus"]).to_numpy()),
+            ]
+        return source_frame(cols)
 
     def caption(self) -> str:
         """Figure-legend text saying what the line and error bars show."""
@@ -595,7 +607,11 @@ class LinePlot(SeriesPlot):
         assert self._fill is not None
         alpha = self._fill["alpha"]
         if alpha is None:
-            alpha = float(style.theme.fill_alpha or 0.22)
+            alpha = (
+                0.22
+                if style.theme.fill_alpha is None
+                else float(style.theme.fill_alpha)
+            )
             if self._fill["gradient"]:
                 alpha = min(1.0, alpha * _GRADIENT_BOOST)
         base = self._fill["to"]
@@ -643,7 +659,25 @@ class LinePlot(SeriesPlot):
             )
         if not self._error and "yerr_minus" not in rows:
             return
-        alpha = float(theme.fill_alpha or 0.22)
+        if self._error == "pi":
+            low = np.min([lo for lo, _ in intervals], axis=0)  # widest level
+            high = np.max([hi for _, hi in intervals], axis=0)
+            outside = int(np.sum((y < low) | (y > high)))
+            if outside:
+                what = (
+                    self._estimator if isinstance(self._estimator, str) else "estimate"
+                )
+                emit(
+                    PolicyWarning,
+                    f"At {outside} x position(s) the {what} lies "
+                    "outside the percentile interval. error='pi' shows where "
+                    "the individual observations fall, not the uncertainty of "
+                    f"the {what}, so the interval is drawn as "
+                    "computed rather than stretched to reach the estimate. For "
+                    "the uncertainty of the estimate use error='ci'.",
+                    stacklevel=6,
+                )
+        alpha = 0.22 if theme.fill_alpha is None else float(theme.fill_alpha)
         if self._display == "band":
             # Nested bands overlap, so the inner (narrower) ones get darker.
             each = alpha if len(intervals) == 1 else alpha * 0.75
@@ -679,10 +713,12 @@ class LinePlot(SeriesPlot):
         )
         caps = theme.errorbar_capsize if self._capsize is None else self._capsize
         for i, ((low, high), width) in enumerate(zip(intervals, widths, strict=True)):
+            # Centred on the interval, not the estimate: a percentile interval
+            # of the observations need not contain the estimate.
             ax.errorbar(
                 x,
-                y,
-                yerr=[y - low, high - y],
+                (low + high) / 2,
+                yerr=(high - low) / 2,
                 fmt="none",
                 ecolor=color,
                 elinewidth=width,

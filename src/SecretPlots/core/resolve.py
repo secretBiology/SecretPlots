@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
-from typing import Any
+from typing import Any, Literal
 
 import matplotlib as mpl
 from cycler import cycler
@@ -292,6 +292,52 @@ def _fit_lines(
         )
     changes: dict[str, Any] = dict.fromkeys(too_thin, minimum)
     return replace(theme, **changes)
+
+
+def checked_size(
+    style: Style, what: str, value: float, kind: Literal["font", "line"]
+) -> float:
+    """A size passed to one plot method (``.legend(fontsize=)``,
+    ``linewidth=``...), held to the preset's limits like theme fields are.
+
+    Kept with a :class:`LimitExceededWarning`, or moved into range with a
+    :class:`ConstraintAdjustedWarning` when ``config.enforce_limits`` is on.
+    A line width of 0 (no line) is always allowed.
+    """
+    t = style.target
+    if kind == "font":
+        low, high = t.min_font_size, t.max_font_size
+    else:
+        low, high = t.min_line_width, None
+        if value == 0:
+            return value
+    if (low is None or value >= low - 1e-9) and (high is None or value <= high + 1e-9):
+        return value
+    if low is not None and high is not None:
+        limits = f"{low:g}-{high:g} pt"
+    elif low is not None:
+        limits = f"at least {low:g} pt"
+    else:
+        limits = f"at most {high:g} pt"
+    name = style.preset.name
+    if config.enforce_limits:
+        fixed = max(value, low) if low is not None else value
+        fixed = min(fixed, high) if high is not None else fixed
+        emit(
+            ConstraintAdjustedWarning,
+            f"{what} {value:g} pt changed to {fixed:g} pt: preset {name!r} "
+            f"requires {limits}, and config.enforce_limits is on.",
+            stacklevel=6,
+        )
+        return fixed
+    emit(
+        LimitExceededWarning,
+        f"{what} {value:g} pt breaks preset {name!r} limits ({limits}); kept "
+        "because you set it. Set SecretPlots.config.enforce_limits = True to "
+        "apply the limits instead.",
+        stacklevel=6,
+    )
+    return value
 
 
 def resolve(

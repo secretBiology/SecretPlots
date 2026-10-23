@@ -348,3 +348,261 @@ def test_one_highlighted_group_uses_highlight_color_with_or_without_hue():
     for plot in (no_hue, hue):
         faces = {bar.get_facecolor()[:3] for bar in plot.ax.patches}
         assert to_rgb(accent) in faces
+
+
+# --------------------------------------------------- independent audit findings
+
+
+def test_notch_drawn_at_full_width():
+    p = sp.box({"A": [0, 1, 2, 3], "B": [2, 3, 4, 5]}, notch=True).points()
+    with pytest.warns(sp.SmallSampleWarning, match="reaches beyond the box"):
+        p.render()
+    ys = [patch.get_xy()[:, 1] for patch in p.ax.patches[:2]]
+    for y, median in zip(ys, (1.5, 3.5), strict=True):
+        half = 1.58 * 1.5 / 2  # IQR 1.5, n 4
+        assert y.min() == pytest.approx(median - half)
+        assert y.max() == pytest.approx(median + half)
+
+
+def test_forest_marker_area_proportional_to_weight():
+    d = pd.DataFrame(
+        {
+            "label": ["zero", "1%", "100%"],
+            "w": [0, 1, 100],
+            "estimate": [0.8, 0.9, 1.1],
+            "lower": [0.5, 0.6, 0.8],
+            "upper": [1.2, 1.4, 1.5],
+        }
+    )
+    p = sp.forest(d, label="label", weight="w")
+    with pytest.warns(sp.PolicyWarning, match="zero weight"):
+        p.render()
+    sizes = [
+        line.get_markersize()
+        for ax in p.fig.axes
+        for line in ax.lines
+        if line.get_marker() == "s"
+    ]
+    assert len(sizes) == 2  # no marker for the zero weight
+    assert (sizes[0] / sizes[1]) ** 2 == pytest.approx(0.01)
+    floored = sp.forest(d[d.w > 0], label="label", weight="w").markers(min_size=3)
+    with pytest.warns(sp.PolicyWarning, match="min_size"):
+        floored.render()
+
+
+def test_forest_all_zero_weights_rejected():
+    d = pd.DataFrame(
+        {"label": ["a"], "w": [0], "estimate": [1.0], "lower": [0.5], "upper": [2.0]}
+    )
+    with pytest.raises(sp.DataShapeError, match="zero"):
+        sp.forest(d, label="label", weight="w").render()
+
+
+def test_source_data_never_overwrites_input_columns():
+    d = pd.DataFrame({"x": [0, 0, 1, 1], "n": [10.0, 20.0, 30.0, 40.0]})
+    with pytest.warns(sp.PolicyWarning, match="'n' -> 'n_computed'"):
+        out = sp.line(d, x="x", y="n").source_data()
+    assert out["n"].tolist() == [15.0, 35.0]
+    assert out["n_computed"].tolist() == [2, 2]
+
+    cats = pd.DataFrame({"n": ["A"] * 4 + ["B"] * 4, "v": np.arange(8.0)})
+    with pytest.warns(sp.PolicyWarning):
+        out = sp.box(cats, x="n", y="v").source_data()
+    assert out["n"].tolist() == ["A", "B"]
+
+    h = pd.DataFrame({"v": np.arange(40.0), "count": ["a", "b"] * 20})
+    with pytest.warns(sp.PolicyWarning):
+        out = sp.histogram(h, x="v", hue="count", bins=3).source_data()
+    assert set(out["count"]) == {"a", "b"}
+
+
+def test_mixed_sign_stack_keeps_contributions_apart():
+    d = pd.DataFrame({"Positive": [10.0] * 3, "Negative": [-8.0] * 3})
+    p = sp.area(d, stack=True)
+    out = p.source_data()
+    pos, neg = out[out.group == "Positive"], out[out.group == "Negative"]
+    assert (pos.lower == 0).all()
+    assert (pos.upper == 10).all()
+    assert (neg.lower == -8).all()
+    assert (neg.upper == 0).all()
+    assert (neg.value == -8).all()
+    crossing = pd.DataFrame({"A": [1.0, -2.0, 3.0], "B": [1.0, 1.0, 1.0]})
+    with pytest.warns(sp.PolicyWarning, match="change sign"):
+        sp.area(crossing, stack=True).render()
+
+
+def test_percent_stack_rejects_baseline():
+    d = pd.DataFrame({"A": [1.0, 2.0, 3.0], "B": [3.0, 2.0, 1.0]})
+    with pytest.raises(ValueError, match="baseline 0"):
+        sp.area(d, stack="percent", baseline=50)
+
+
+def test_percentile_bars_need_not_contain_estimate():
+    p = sp.line(x=[0, 0, 1, 1], y=[10, 20, 30, 40], estimator="sum", error="pi")
+    p = p.errorbars("bars")
+    with pytest.warns(sp.PolicyWarning, match="outside the percentile interval"):
+        p.render()
+    segments = [s[:, 1] for c in p.ax.collections for s in c.get_segments()]
+    assert [list(s) for s in segments] == [[10.25, 19.75], [30.25, 39.75]]
+
+
+def test_lowess_finite_with_equidistant_neighbours():
+    from SecretPlots.plots.scatter import _lowess
+
+    fit = _lowess(np.array([0.0, 2.0, 99.0]), np.array([1.0, 2.0, 3.0]), 0.5, "x")
+    assert np.isfinite(fit.line).all()
+
+
+@pytest.mark.parametrize("offset", [1e6, 1e9, 1e12])
+def test_euclidean_distances_translation_invariant(offset):
+    from SecretPlots.core.cluster import distances
+
+    a = np.array([[0.0, 0.0], [7.0, 8.0], [1.0, 1.0], [3.0, 5.0]])
+    np.testing.assert_allclose(distances(a + offset), distances(a), atol=1e-6)
+
+
+def test_count_curve_rejected_for_unequal_bins():
+    p = sp.histogram(np.linspace(0, 10, 501), bins=[0, 1, 10], stat="count").kde()
+    with pytest.raises(sp.DataShapeError, match="unequal bin"):
+        p.render()
+    sp.histogram(
+        np.linspace(0, 10, 501), bins=[0, 1, 10], stat="density"
+    ).kde().render()
+
+
+def test_dense_brackets_do_not_overlap_labels():
+    from matplotlib.text import Annotation
+
+    d = {
+        f"Group {i}": np.random.default_rng(i).normal(i * 0.3, 1, 12) for i in range(6)
+    }
+    p = sp.box(d).points().compare(correction="holm", format="stars")
+    p.preset("nature").render()
+    renderer = p.fig.canvas.get_renderer()
+    boxes = [
+        t.get_window_extent(renderer) for t in p.ax.texts if isinstance(t, Annotation)
+    ]
+    brackets = [line for line in p.ax.lines if len(line.get_xdata()) == 4]
+    hits = 0
+    for box in boxes:
+        for line in brackets:
+            pts = p.ax.transData.transform(np.c_[line.get_xdata(), line.get_ydata()])
+            (x1, y), (x2, _) = pts[1], pts[2]
+            if box.y0 + 0.5 < y < box.y1 - 0.5 and x1 < box.x1 and x2 > box.x0:
+                hits += 1
+    assert hits == 0
+
+
+def test_dense_brackets_warn_when_they_cannot_fit():
+    d = {f"G{i}": np.random.default_rng(i).normal(i * 0.3, 1, 12) for i in range(8)}
+    p = sp.box(d).compare(correction="holm").preset("nature")
+    with pytest.warns(sp.LabelsHiddenWarning, match="don't fit"):
+        p.render()
+
+
+def test_method_overrides_respect_preset_limits():
+    d = pd.DataFrame(
+        {"x": [0, 1, 0, 1], "y": [1, 2, 2, 3], "arm": ["A", "A", "B", "B"]}
+    )
+    p = sp.line(d, x="x", y="y", hue="arm").preset("nature").legend(fontsize=16)
+    with pytest.warns(sp.LimitExceededWarning, match="legend fontsize 16"):
+        p.render()
+    sp.config.enforce_limits = True
+    p = sp.box({"A": np.arange(10.0)}, linewidth=0.01).preset("cell")
+    with pytest.warns(sp.ConstraintAdjustedWarning, match="outline linewidth"):
+        p.render()
+    assert p.ax.patches[0].get_linewidth() == pytest.approx(0.5)
+
+
+def test_strict_raises_for_warning_seen_before():
+    from SecretPlots.errors import emit
+
+    with pytest.warns(sp.PaletteExtendedWarning):
+        emit(sp.PaletteExtendedWarning, "first", once_key="k")
+    sp.config.strict = True
+    with pytest.raises(sp.PaletteExtendedWarning):
+        emit(sp.PaletteExtendedWarning, "again", once_key="k")
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: sp.area([1, 2, 3]),
+        lambda: sp.line(x=[0, 0, 1, 1], y=[1, 2, 3, 4], error="sd"),
+    ],
+)
+def test_zero_fill_alpha_is_kept(make):
+    p = make().theme(fill_alpha=0)
+    p.render()
+    alphas = [c.get_alpha() for c in p.ax.collections if c.get_alpha() is not None]
+    assert alphas
+    assert all(a == 0 for a in alphas)
+
+
+def test_palette_alpha_is_kept():
+    p = sp.scatter(x=[1, 2], y=[2, 3], hue=["A", "B"])
+    p.colors(["#ff000080", "#0000ff80"]).render()
+    for points in p.ax.collections:
+        assert points.get_alpha() == pytest.approx(0.85 * 128 / 255)
+
+
+def test_unused_hue_levels_are_skipped_consistently():
+    d = pd.DataFrame(
+        {"x": [0, 1, 2, 0, 1, 2], "y": [1, 2, 3, 2, 3, 4], "arm": ["A"] * 3 + ["B"] * 3}
+    )
+    order = ["A", "B", "absent"]
+    with pytest.warns(sp.PolicyWarning, match="'absent', which has no data"):
+        sp.scatter(d, x="x", y="y", hue="arm", hue_order=order).fit().render()
+    h = pd.DataFrame({"v": np.arange(40.0), "g": ["a", "b"] * 20})
+    with pytest.warns(sp.PolicyWarning):
+        sp.histogram(h, x="v", hue="g", hue_order=["a", "b", "c"]).kde().rug().render()
+    rng = np.random.default_rng(1)
+    s = pd.DataFrame(
+        {"t": rng.exponential(5, 60), "e": rng.integers(0, 2, 60), "g": ["a", "b"] * 30}
+    )
+    with pytest.warns(sp.PolicyWarning):
+        extra = sp.survival(s, time="t", event="e", hue="g", hue_order=["c", "a", "b"])
+    extra = extra.pvalue()
+    extra.render()
+    plain = sp.survival(s, time="t", event="e", hue="g").pvalue()
+    pd.testing.assert_frame_equal(extra.test_results(), plain.test_results())
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: sp.bar([1, 2]).theme(bar_gap=1.5),
+        lambda: sp.bar([1, 2]).theme(line_width=-1),
+        lambda: sp.bar([1, 2]).theme(fill_alpha=float("nan")),
+        lambda: sp.box({"A": np.arange(10.0)}, whis=np.nan),
+        lambda: sp.violin({"A": np.arange(10.0)}, bw_adjust=np.nan),
+        lambda: sp.bar([1, 2]).refline(np.nan),
+        lambda: sp.bar([1, 2]).log("z"),
+    ],
+)
+def test_invalid_numeric_options_rejected(make):
+    with pytest.raises((ValueError, sp.PresetError)):
+        make()
+
+
+def test_infinite_whiskers_mean_range():
+    p = sp.box({"A": np.arange(10.0)}, whis=np.inf)
+    assert "minimum and maximum" in " ".join(p._caption_marks())
+
+
+@pytest.mark.parametrize("p", [1e-10, 0.025, 0.975, 0.9999999999])
+def test_t_quantile_df1_tail(p):
+    from SecretPlots.core.stats import t_quantile
+
+    expected = np.tan(np.pi * (p - 0.5)) if 0.01 < p < 0.99 else None
+    value = t_quantile(p, 1)
+    exact = 1 / np.tan(np.pi * min(p, 1 - p)) * (1 if p > 0.5 else -1)
+    assert value == pytest.approx(exact, rel=1e-14)
+    if expected is not None:
+        assert value == pytest.approx(expected, rel=1e-12)
+
+
+@pytest.mark.parametrize("test", ["wilcoxon", "Wilcox", "signed-rank"])
+def test_ambiguous_wilcoxon_rejected(test):
+    with pytest.raises(ValueError, match="ambiguous"):
+        sp.box({"A": [1, 2, 3, 4, 5], "B": [2, 3, 4, 5, 6]}).compare(test=test)

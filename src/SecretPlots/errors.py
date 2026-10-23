@@ -55,7 +55,7 @@ class LimitExceededWarning(SecretPlotsWarning):
 
 
 class LabelsHiddenWarning(SecretPlotsWarning):
-    """Some labels did not fit and were hidden."""
+    """Some labels did not fit: they were hidden, or may overlap."""
 
 
 class ColormapWarning(SecretPlotsWarning):
@@ -70,6 +70,13 @@ class FormatWarning(SecretPlotsWarning):
     """File format is not one the preset's publisher accepts."""
 
 
+class PolicyWarning(SecretPlotsWarning):
+    """SecretPlots applied a deliberate rule that changes what you asked for.
+
+    The message names the rule, why it exists, and how to opt out.
+    """
+
+
 _already_warned: set[tuple[type[Warning], str]] = set()
 
 
@@ -80,14 +87,18 @@ def emit(
     once_key: str | None = None,
     stacklevel: int = 3,
 ) -> None:
-    """Warn (or raise in strict mode), optionally only once per session."""
+    """Warn (or raise in strict mode), optionally only once per session.
+
+    Strict mode is checked first: a warning seen earlier in the session must
+    still fail every later strict call.
+    """
+    if config.strict:
+        raise category(message)
     if once_key is not None:
         key = (category, once_key)
         if key in _already_warned:
             return
         _already_warned.add(key)
-    if config.strict:
-        raise category(message)
     warnings.warn(message, category, stacklevel=stacklevel)
 
 
