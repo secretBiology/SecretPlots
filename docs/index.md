@@ -50,51 +50,72 @@ tumours = pd.DataFrame({
 
 <div class="grid" markdown>
 
-<div markdown>
-
-**matplotlib**
-
-```python
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(figsize=(6, 3.7), layout="constrained")
-for arm, group in tumours.groupby("arm", sort=False):
-    ax.plot(group["day"], group["volume"], marker="o", label=arm)
-ax.set(xlabel="Day", ylabel="Tumour volume (mm³)", title="Tumour growth")
-ax.legend()
-fig
-```
-<!-- figure: compare-matplotlib.png -->
-
+<figure markdown>
 ![The tumour growth curves with matplotlib defaults.](assets/figures/compare-matplotlib.png)
+<figcaption>matplotlib</figcaption>
+</figure>
 
-</div>
-
-<div markdown>
-
-**SecretPlots**
-
-```python
-import SecretPlots as sp
-
-(
-    sp.plot(tumours, x="day", y="volume", hue="arm")
-    .markers()
-    .labels(x="Day", y="Tumour volume (mm³)", title="Tumour growth")
-)
-```
-<!-- figure: compare-secretplots.png -->
-
+<figure markdown>
 ![The same curves with SecretPlots defaults: colour-blind-safe palette, light grid, legend outside the data.](assets/figures/compare-secretplots.png)
+<figcaption>SecretPlots</figcaption>
+</figure>
 
 </div>
 
-</div>
+=== "matplotlib"
+
+    ```python
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(6, 3.7), layout="constrained")
+    for arm, group in tumours.groupby("arm", sort=False):
+        ax.plot(group["day"], group["volume"], marker="o", label=arm)
+    ax.set(xlabel="Day", ylabel="Tumour volume (mm³)", title="Tumour growth")
+    ax.legend()
+    fig
+    ```
+    <!-- figure: compare-matplotlib.png -->
+
+=== "SecretPlots"
+
+    ```python
+    import SecretPlots as sp
+
+    (
+        sp.plot(tumours, x="day", y="volume", hue="arm")
+        .markers()
+        .labels(x="Day", y="Tumour volume (mm³)", title="Tumour growth")
+    )
+    ```
+    <!-- figure: compare-secretplots.png -->
 
 A colour-blind-safe palette, a quiet grid, a titled legend outside the data
 and readable type, with no `rcParams`. From here, `.endlabels()` labels the
 lines directly, `error="ci"` summarises replicate animals, and
 `sp.use(preset="nature")` resizes everything for the journal.
+
+### Light or dark
+
+The same plot on a dark background is one more step, `.theme("dark")`. The
+palette is re-balanced for contrast, so it works on dark slides and dashboards.
+
+```python
+(
+    sp.plot(tumours, x="day", y="volume", hue="arm")
+    .markers()
+    .labels(x="Day", y="Tumour volume (mm³)", title="Tumour growth")
+    .theme("dark")
+)
+```
+<!-- figure: theme-dark.png -->
+
+<div class="grid" markdown>
+
+![Tumour growth curves in the default light theme.](assets/figures/compare-secretplots.png)
+
+![The same curves with the dark theme.](assets/figures/theme-dark.png)
+
+</div>
 
 ## From table to Nature figure
 

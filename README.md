@@ -40,51 +40,56 @@ size, no styling code on either side:
 <th width="50%">SecretPlots</th>
 </tr>
 <tr>
-<td valign="top">
+<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-matplotlib.png" alt="Tumour growth curves with matplotlib defaults"></td>
+<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-secretplots.png" alt="The same curves with SecretPlots defaults"></td>
+</tr>
+</table>
+
+**matplotlib**
 
 ```python
 import matplotlib.pyplot as plt
 
-fig, ax = plt.subplots(figsize=(6, 3.7),
-                       layout="constrained")
+fig, ax = plt.subplots(figsize=(6, 3.7), layout="constrained")
 for arm, g in tumours.groupby("arm", sort=False):
-    ax.plot(g["day"], g["volume"],
-            marker="o", label=arm)
-ax.set(xlabel="Day",
-       ylabel="Tumour volume (mm³)",
-       title="Tumour growth")
+    ax.plot(g["day"], g["volume"], marker="o", label=arm)
+ax.set(xlabel="Day", ylabel="Tumour volume (mm³)", title="Tumour growth")
 ax.legend()
 ```
 
-</td>
-<td valign="top">
+**SecretPlots**
 
 ```python
 import SecretPlots as sp
 
 (
-    sp.plot(tumours, x="day", y="volume",
-            hue="arm")
+    sp.plot(tumours, x="day", y="volume", hue="arm")
     .markers()
-    .labels(x="Day",
-            y="Tumour volume (mm³)",
-            title="Tumour growth")
+    .labels(x="Day", y="Tumour volume (mm³)", title="Tumour growth")
 )
 ```
-
-</td>
-</tr>
-<tr>
-<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-matplotlib.png" alt="Tumour growth curves with matplotlib defaults"></td>
-<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-secretplots.png" alt="The same curves with SecretPlots defaults"></td>
-</tr>
-</table>
 
 You get a colour-blind-safe palette, a quiet grid, a titled legend outside the
 data and readable type without touching `rcParams`. From there, one more step
 labels the lines directly (`.endlabels()`), one argument summarises replicate
 animals with confidence bands (`error="ci"`), and one line makes it a journal
 figure.
+
+### Light or dark
+
+Add `.theme("dark")` for dark slides and dashboards; the palette is
+re-balanced for contrast against the background.
+
+<table>
+<tr>
+<th width="50%">default</th>
+<th width="50%"><code>.theme("dark")</code></th>
+</tr>
+<tr>
+<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/compare-secretplots.png" alt="Tumour growth curves in the default light theme"></td>
+<td><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/theme-dark.png" alt="The same curves with the dark theme"></td>
+</tr>
+</table>
 
 ## From table to journal figure
 
@@ -104,7 +109,7 @@ sp.use(preset="nature")                         # 89 mm column, 5–7 pt text, 3
 ```
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/home-example-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/home-example.png" alt="Box plots of cell area with every cell and Holm-corrected P values" width="48%"></picture>
+  <img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/home-example.png" alt="Box plots of cell area with every cell and Holm-corrected P values" width="48%">
 </p>
 
 ## Why SecretPlots?
@@ -151,8 +156,8 @@ has the complete, runnable code for each.
 
 <table>
 <tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-qpcr-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-qpcr.png" alt="Grouped bar chart of qPCR fold change with SD error bars"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-raincloud-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-raincloud.png" alt="Raincloud plot of reaction times"></picture></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-qpcr.png" alt="Grouped bar chart of qPCR fold change with SD error bars"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-raincloud.png" alt="Raincloud plot of reaction times"></td>
 </tr>
 </table>
 
@@ -165,8 +170,8 @@ sp.raincloud(stroop, x="condition", y="rt").compare(ref="Congruent", format="sta
 
 <table>
 <tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-tumour-growth-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-tumour-growth.png" alt="Tumour growth curves with individual animals"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-pharmacokinetics-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-pharmacokinetics.png" alt="Pharmacokinetic curves on a log axis"></picture></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-tumour-growth.png" alt="Tumour growth curves with individual animals"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-pharmacokinetics.png" alt="Pharmacokinetic curves on a log axis"></td>
 </tr>
 </table>
 
@@ -179,8 +184,8 @@ sp.line(pk, x="hours", y="conc", hue="dose", error="sd").errorbars("bars").marke
 
 <table>
 <tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-expression-heatmap-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-expression-heatmap.png" alt="Clustered expression heatmap with pathway groups"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-correlation-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-correlation.png" alt="Lower-triangle correlation matrix"></picture></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-expression-heatmap.png" alt="Clustered expression heatmap with pathway groups"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-correlation.png" alt="Lower-triangle correlation matrix"></td>
 </tr>
 </table>
 
@@ -193,12 +198,12 @@ sp.heatmap(cohort.corr(), square=True).mask("upper").cmap("tol_bu_rd", center=0)
 
 <table>
 <tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-volcano-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-volcano.png" alt="Volcano plot"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-regression-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-regression.png" alt="Scatter plot with linear fits and R²"></picture></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-volcano.png" alt="Volcano plot"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-regression.png" alt="Scatter plot with linear fits and R²"></td>
 </tr>
 <tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-biomarker-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-biomarker.png" alt="Overlaid density histograms with KDE"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-split-violin-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-split-violin.png" alt="Split violin plots"></picture></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-biomarker.png" alt="Overlaid density histograms with KDE"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-split-violin.png" alt="Split violin plots"></td>
 </tr>
 </table>
 
@@ -213,8 +218,8 @@ sp.violin(behaviour, x="genotype", y="score", hue="sex", split=True, inner="quar
 
 <table>
 <tr>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-forest-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-forest.png" alt="Subgroup forest plot with an events table and interaction p-values"></picture></td>
-<td width="50%"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-survival-dark.png"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-survival.png" alt="Kaplan-Meier curves with a number-at-risk table and log-rank p-value"></picture></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-forest.png" alt="Subgroup forest plot with an events table and interaction p-values"></td>
+<td width="50%"><img src="https://raw.githubusercontent.com/secretBiology/SecretPlots/master/docs/assets/figures/gallery-survival.png" alt="Kaplan-Meier curves with a number-at-risk table and log-rank p-value"></td>
 </tr>
 </table>
 
