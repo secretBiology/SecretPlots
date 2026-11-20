@@ -78,7 +78,7 @@ def _check_estimator(estimator: object) -> None:
 
 
 class BarPlot(Plot):
-    """Created by :func:`bar`."""
+    """Created by [`bar`][SecretPlots.bar]."""
 
     kind = "bar"
     _constructor = "bar"
@@ -453,7 +453,7 @@ def bar(
 
     Args:
         data: DataFrame (with ``x``/``y``/``hue`` column names), wide DataFrame,
-            Series, dict, list or 2-D array. See :mod:`SecretPlots.core.data`.
+            Series, dict, list or 2-D array. See ``SecretPlots.core.data``.
         x: Column name for categories.
         y: Column name for numeric values.
         hue: Column name for groups.

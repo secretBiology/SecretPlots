@@ -3,8 +3,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.axes import Axes
 from matplotlib.colors import to_hex, to_rgb
 from matplotlib.figure import Figure
+from matplotlib.text import Text
 
 import SecretPlots as sp
 
@@ -149,6 +151,59 @@ def test_chrome_reserves_space() -> None:
     titled.draw_without_rendering()
     assert titled.axes[0].get_position().height < plain.axes[0].get_position().height
     assert {"Headline", "Sub", "Source: Lab"} <= {t.get_text() for t in titled.texts}
+
+
+def _title(ax: Axes) -> Text:
+    # The title artist depends on the theme's title alignment.
+    titles = (ax.title, ax._left_title, ax._right_title)  # type: ignore[attr-defined]
+    return next(t for t in titles if t.get_text())
+
+
+def test_label_styles_override_theme() -> None:
+    plot = sp.bar({"a": 1}).labels(
+        x="Group",
+        y="Count",
+        title="Title",
+        title_style={"weight": "normal", "size": 7, "color": "#ff0000"},
+        y_style={"style": "italic"},
+    )
+    ax = plot.ax
+    title = _title(ax)
+    assert title.get_fontweight() == "normal"
+    assert title.get_fontsize() == 7
+    assert to_hex(title.get_color()) == "#ff0000"
+    assert ax.yaxis.label.get_fontstyle() == "italic"
+    assert ax.xaxis.label.get_fontstyle() == "normal"
+
+
+def test_label_style_survives_later_text_change() -> None:
+    plot = sp.bar({"a": 1}).labels(title="Old", title_style={"weight": "normal"})
+    plot.labels(title="New")
+    assert _title(plot.ax).get_fontweight() == "normal"
+
+
+def test_chrome_styles() -> None:
+    plot = sp.bar({"a": 1}).chrome(
+        title="Headline",
+        subtitle="Sub",
+        title_style={"fontweight": "normal", "fontsize": 20},
+        note_style={"style": "italic"},
+    )
+    plot.chrome(note="Note")
+    texts = {t.get_text(): t for t in plot.fig.texts}
+    assert texts["Headline"].get_fontweight() == "normal"
+    assert texts["Headline"].get_fontsize() == 20
+    assert texts["Note"].get_fontstyle() == "italic"
+    assert texts["Sub"].get_fontstyle() == "normal"
+
+
+def test_text_style_validation() -> None:
+    with pytest.raises(ValueError, match="Did you mean 'fontweight'"):
+        sp.bar({"a": 1}).labels(title_style={"fontweigth": "normal"})
+    with pytest.raises(ValueError, match="unknown text property 'horizontalalignment'"):
+        sp.bar({"a": 1}).chrome(title_style={"ha": "right"})
+    with pytest.raises(TypeError, match="mapping"):
+        sp.bar({"a": 1}).labels(title_style="normal")  # type: ignore[arg-type]
 
 
 def test_render_into_existing_axes() -> None:
@@ -348,7 +403,9 @@ def test_options_lists_every_verb() -> None:
     table = sp.bar({"a": 1}).options()
     assert {"labels", "legend", "theme", "values", "ticklabels"} <= set(table.index)
     assert {"options", "show", "render", "explain"}.isdisjoint(table.index)
-    assert table.loc["labels", "options"] == "x, y, title"
+    assert (
+        table.loc["labels", "options"] == "x, y, title, x_style, y_style, title_style"
+    )
 
 
 @pytest.mark.parametrize("verb", list(sp.BarPlot.options().index))

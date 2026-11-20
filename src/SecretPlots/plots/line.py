@@ -153,7 +153,7 @@ def _interval(
 
 
 class LinePlot(SeriesPlot):
-    """Created by :func:`line`."""
+    """Created by [`line`][SecretPlots.line]."""
 
     kind = "line"
     _constructor = "line"
@@ -203,7 +203,7 @@ class LinePlot(SeriesPlot):
         dodge: float = 0.0,
     ) -> Self:
         """How the error bars look; what they show is set with ``error=`` (or
-        ``yerr=``) on :func:`line`.
+        ``yerr=``) on [`line`][SecretPlots.line].
 
         Args:
             display: ``"band"`` (a shaded band along the line) or ``"bars"``

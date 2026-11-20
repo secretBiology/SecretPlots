@@ -16,8 +16,16 @@ All notable changes to this project are documented here. The format follows
   edge (right of a horizontal line, above a vertical one), clear of the data.
 - `BarPlot.ticklabels(show=False)` hides the category labels, e.g. one bar
   per patient in a waterfall plot. The bar guide has a waterfall example.
+- Per-text formatting: `.labels(x_style=, y_style=, title_style=)` and
+  `.chrome(title_style=, subtitle_style=, source_style=, note_style=)` take
+  matplotlib text properties (`weight`, `size`, `color`, `style`, ...) that
+  override the theme for that text, e.g. `title_style={"weight": "normal"}`.
 
 ### Changed
+- Plot titles and headlines use normal weight by default instead of bold.
+  Use `title_style={"weight": "bold"}` on `.labels()`/`.chrome()`, or
+  `sp.Theme(title_weight="bold")`, for the previous look. News presets that
+  set `title_weight` are unchanged.
 - `sp.bar(..., hue=...)` draws full-width bars when every category has a
   single group (a waterfall colored by response, or `hue=` the same as `x`)
   instead of thin bars offset into empty slots.

@@ -89,6 +89,33 @@ increase `.size(height="5in")`, increase the width, or shorten the text. The
 figure retains its requested physical dimensions; export does not silently
 enlarge it to accommodate overflow.
 
+## Format individual text
+
+Each text set by `.labels(...)` and `.chrome(...)` takes a matching `*_style`
+mapping of matplotlib text properties — `weight`, `size`, `color`, `style`,
+`family`, and the rest — that overrides the theme for that text only. Styles
+persist when the text itself is changed later.
+
+```python
+sp.bar({"a": 1, "b": 2}).labels(
+    x="Group",
+    y="Count",
+    title="Lighter title",
+    title_style={"weight": "normal", "size": 10},
+    y_style={"style": "italic"},
+).chrome(
+    title="Headline",
+    title_style={"weight": "medium", "color": "#333333"},
+    note="Preliminary data.",
+    note_style={"style": "italic"},
+)
+```
+
+Layout properties such as alignment and position are rejected because the
+library places these texts itself. Titles are normal weight by default; to
+make every title bold, set the theme instead:
+`sp.use(theme=sp.Theme(title_weight="bold"))`.
+
 
 ## See missing-data policies
 

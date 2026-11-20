@@ -131,7 +131,7 @@ def _check_ratio(value: Any) -> Ratio:
 
 
 class SurvivalPlot(Plot):
-    """Survival curves per group, built by :func:`survival`."""
+    """Survival curves per group, built by [`survival`][SecretPlots.survival]."""
 
     kind = "survival"
     _constructor = "survival"
@@ -282,7 +282,8 @@ class SurvivalPlot(Plot):
         or your own (e.g. a P for interaction from a Cox model). Each call
         adds a line; ``.pvalue(False)`` removes them all.
 
-        With ``strata=`` in :func:`survival`, computed tests are stratified.
+        With ``strata=`` in [`survival`][SecretPlots.survival], computed tests
+        are stratified.
 
         Args:
             value: Your own p-value; no test is run. ``False`` removes the

@@ -79,7 +79,8 @@ def _net_benefit(
 
 
 class DecisionCurvePlot(Plot):
-    """Decision curves per model, built by :func:`decision_curve`."""
+    """Decision curves per model, built by
+    [`decision_curve`][SecretPlots.decision_curve]."""
 
     kind = "decision"
     _constructor = "decision_curve"

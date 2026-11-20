@@ -180,7 +180,7 @@ def _check_stat(stat: str) -> str:
 
 
 class HistogramPlot(Plot):
-    """Created by :func:`histogram`."""
+    """Created by [`histogram`][SecretPlots.histogram]."""
 
     kind = "histogram"
     _constructor = "histogram"

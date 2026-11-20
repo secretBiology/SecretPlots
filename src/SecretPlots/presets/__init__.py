@@ -76,7 +76,8 @@ def load(path: str | PathLike[str]) -> Preset:
 def register(
     preset: Preset | str | PathLike[str], *, overwrite: bool = False
 ) -> Preset:
-    """Register a :class:`Preset` object or a TOML file path; returns the preset."""
+    """Register a [`Preset`][SecretPlots.presets.Preset] object or a TOML file
+    path; returns the preset."""
     _ensure_builtins()
     obj = preset if isinstance(preset, Preset) else load(preset)
     if obj.name in _registry and not overwrite:

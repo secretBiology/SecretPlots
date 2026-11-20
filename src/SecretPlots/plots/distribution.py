@@ -154,7 +154,7 @@ def distributions(
     hue_order: Sequence[Any] | None = None,
     missing: DropPolicy = "raise",
 ) -> Tidy:
-    """Read data for distribution plots into a :class:`Tidy` table.
+    """Read data for distribution plots into a ``Tidy`` table.
 
     Accepts a long DataFrame with ``y=`` (and optional ``x=``/``hue=``)
     columns, a wide DataFrame (one category per numeric column), a Series or
@@ -337,8 +337,8 @@ class _Comparison:
 
 
 class DistributionPlot(Plot):
-    """Base for :class:`~SecretPlots.BoxPlot` and
-    :class:`~SecretPlots.ViolinPlot`."""
+    """Base for [`BoxPlot`][SecretPlots.BoxPlot] and
+    [`ViolinPlot`][SecretPlots.ViolinPlot]."""
 
     #: Below this many values per distribution, a warning suggests .points().
     small_sample: int = 5
@@ -732,8 +732,10 @@ class DistributionPlot(Plot):
         return result
 
     def test_results(self) -> pd.DataFrame:
-        """The comparisons from :meth:`compare`: sizes, test statistic,
-        p-value (adjusted if requested) and the printed label."""
+        """The comparisons from
+        [`compare`][SecretPlots.plots.distribution.DistributionPlot.compare]:
+        sizes, test statistic, p-value (adjusted if requested) and the printed
+        label."""
         if self._compare is None:
             raise DataShapeError("No comparisons; call .compare(...) first")
         options = self._compare
@@ -780,7 +782,7 @@ class DistributionPlot(Plot):
     # --------------------------------------------------------------- caption
     @abstractmethod
     def _caption_marks(self) -> list[str]:
-        """Sentences describing the marks, for :meth:`caption`."""
+        """Sentences describing the marks, for ``caption()``."""
 
     def caption(self) -> str:
         """A sentence or two for the figure legend that defines what is drawn

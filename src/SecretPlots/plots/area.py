@@ -26,7 +26,8 @@ _SEPARATOR = 0.5
 
 
 class FillBetweenPlot(SeriesPlot):
-    """Created by :func:`fill_between` (alias :func:`area`)."""
+    """Created by [`fill_between`][SecretPlots.fill_between] (alias
+    [`area`][SecretPlots.area])."""
 
     kind = "area"
     _constructor = "fill_between"
@@ -494,10 +495,10 @@ def area(
     missing: MissingPolicy = "raise",
 ) -> FillBetweenPlot:
     """Area chart: the area between ``y`` and a ``baseline``. Same as
-    :func:`fill_between` with ``y1=y, y2=baseline``.
+    [`fill_between`][SecretPlots.fill_between] with ``y1=y, y2=baseline``.
 
     Args:
-        data: Same inputs as :func:`fill_between`.
+        data: Same inputs as [`fill_between`][SecretPlots.fill_between].
         x: Column name (or sequence) of numbers, dates or categories.
         y: Column name (or sequence) of the values.
         hue: Column with groups: one area per group.

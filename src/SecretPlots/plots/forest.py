@@ -241,7 +241,7 @@ class _Span(Rectangle):
 
 
 class _Rule(Line2D):
-    """A horizontal line across the whole table, like :class:`_Span` but a
+    """A horizontal line across the whole table, like ``_Span`` but a
     line, so it can be dashed."""
 
     def __init__(
@@ -323,7 +323,7 @@ class _Placed:
 
 @dataclass
 class _Body:
-    """Per-render layout (reset by :meth:`Plot.copy`)."""
+    """Per-render layout (reset by ``Plot.copy``)."""
 
     panels: list[Axes] = field(default_factory=list)
     frame: Transform | None = None
@@ -333,7 +333,7 @@ class _Body:
 
 
 class ForestPlot(Plot):
-    """Forest plot; create with :func:`forest`."""
+    """Forest plot; create with [`forest`][SecretPlots.forest]."""
 
     kind = "forest"
     _constructor = "forest"
@@ -654,7 +654,7 @@ class ForestPlot(Plot):
                 Default: none, so marker area stays exactly proportional to
                 weight and very light rows get tiny markers. Setting it keeps
                 light rows visible but enlarges them beyond their weight; a
-                :class:`PolicyWarning` names the affected rows.
+                ``PolicyWarning`` names the affected rows.
         """
         if min_size is not None and min_size <= 0:
             raise ValueError("min_size must be positive")
@@ -1607,10 +1607,13 @@ class ForestPlot(Plot):
             + ScaledTranslation(dx, body.header + 8 / _PT, fig.dpi_scale_trans),
             ha="left" if left else "center",
             va="bottom",
-            fontsize=style.sizes.title,
-            fontweight=style.theme.title_weight,
-            color=style.theme.text_color,
             clip_on=False,
+            **{
+                "fontsize": style.sizes.title,
+                "fontweight": style.theme.title_weight,
+                "color": style.theme.text_color,
+            }
+            | self._label_styles.get("title", {}),
         )
 
     def _draw_legend(
