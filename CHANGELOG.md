@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-20
+
 ### Added
 - `sp.decision_curve` (alias `sp.dca`): decision curve analysis (Vickers &
   Elkin) of one or more risk models from one row per patient, with "treat
