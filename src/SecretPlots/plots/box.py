@@ -26,7 +26,7 @@ _SINGLE_WIDTH = 0.75
 
 
 class BoxPlot(DistributionPlot):
-    """Created by :func:`box`."""
+    """Created by [`box`][SecretPlots.box]."""
 
     kind = "box"
     _constructor = "box"

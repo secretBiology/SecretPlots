@@ -270,7 +270,7 @@ def _marker_style(theme: Theme, marker: str | None = None) -> dict[str, Any]:
 
 # ------------------------------------------------------------------------ plot
 class ScatterPlot(Plot):
-    """Created by :func:`scatter`."""
+    """Created by [`scatter`][SecretPlots.scatter]."""
 
     kind = "scatter"
     _constructor = "scatter"

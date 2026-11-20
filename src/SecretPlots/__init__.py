@@ -31,6 +31,7 @@ from SecretPlots.errors import (
 from SecretPlots.plots.area import FillBetweenPlot, area, fill_between
 from SecretPlots.plots.bar import BarPlot, bar
 from SecretPlots.plots.box import BoxPlot, box, boxplot
+from SecretPlots.plots.decision import DecisionCurvePlot, dca, decision_curve
 from SecretPlots.plots.forest import ForestPlot, forest
 from SecretPlots.plots.heatmap import HeatmapPlot, heatmap
 from SecretPlots.plots.histogram import HistogramPlot, hist, histogram
@@ -52,6 +53,7 @@ __all__ = [
     "ColormapWarning",
     "ConstraintAdjustedWarning",
     "DataShapeError",
+    "DecisionCurvePlot",
     "DropPolicy",
     "FillBetweenPlot",
     "FontFallbackWarning",
@@ -83,6 +85,8 @@ __all__ = [
     "boxplot",
     "colormaps",
     "config",
+    "dca",
+    "decision_curve",
     "fill_between",
     "fonts",
     "forest",

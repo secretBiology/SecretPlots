@@ -131,6 +131,39 @@ def test_label_position_and_rotation(df: pd.DataFrame) -> None:
     assert default.ax.texts[0].get_ha() == "right"
 
 
+def test_label_outside_the_axes(df: pd.DataFrame) -> None:
+    plot = sp.bar(df, x="g", y="v").refline(5, label=True, label_position="outside")
+    (text,) = plot.ax.texts
+    assert text.xy == (1.0, 5)
+    assert (text.get_ha(), text.get_va()) == ("left", "center")
+    renderer = plot.fig.canvas.get_renderer()  # type: ignore[attr-defined]
+    assert text.get_window_extent(renderer).x0 >= plot.ax.bbox.x1
+    assert text.get_window_extent(renderer).x1 <= plot.fig.bbox.x1
+    vertical = sp.scatter(df, x="v", y="w").refline(
+        10, axis="x", label="cut", label_position="outside"
+    )
+    (text,) = vertical.ax.texts
+    assert text.xy == (10, 1.0)
+    assert (text.get_ha(), text.get_va()) == ("center", "bottom")
+
+
+def test_value_labels_use_the_tick_minus_sign(df: pd.DataFrame) -> None:
+    plot = sp.scatter(df, x="v", y="w").refline(-30, 1e-5, -0.5, label=True)
+    assert [t.get_text() for t in plot.ax.texts] == [
+        "\N{MINUS SIGN}30",
+        "1e-05",
+        "\N{MINUS SIGN}0.5",
+    ]
+    own = sp.scatter(df, x="v", y="w").refline(-30, label="-30 cut")
+    assert own.ax.texts[0].get_text() == "-30 cut"
+    dated = sp.line(
+        pd.DataFrame({"d": pd.date_range("2024-01-01", periods=3), "v": [1, 2, 3]}),
+        x="d",
+        y="v",
+    ).refline("2024-01-02", axis="x", label=True)
+    assert dated.ax.texts[0].get_text() == "2024-01-02"
+
+
 def test_label_side(df: pd.DataFrame) -> None:
     vertical = sp.scatter(df, x="v", y="w").refline(
         10, axis="x", label="cut", label_side="left"

@@ -48,7 +48,8 @@ class _Curve:
 
 
 class ViolinPlot(DistributionPlot):
-    """Created by :func:`violin` and :func:`raincloud`."""
+    """Created by [`violin`][SecretPlots.violin] and
+    [`raincloud`][SecretPlots.raincloud]."""
 
     kind = "violin"
     _constructor = "violin"
@@ -333,7 +334,7 @@ class ViolinPlot(DistributionPlot):
 
 
 class RaincloudPlot(ViolinPlot):
-    """Created by :func:`raincloud`."""
+    """Created by [`raincloud`][SecretPlots.raincloud]."""
 
     kind = "raincloud"
     _constructor = "raincloud"
@@ -363,7 +364,7 @@ def violin(
     mirrored density curve, with a small box plot inside.
 
     Args:
-        data: Same inputs as :func:`box`: a long DataFrame with ``y=`` (and
+        data: Same inputs as [`box`][SecretPlots.box]: a long DataFrame with ``y=`` (and
             ``x=``/``hue=``), a wide DataFrame, a dict, a Series, list or
             array.
         x: Column name for categories.
@@ -432,13 +433,13 @@ def raincloud(
     """Raincloud plot (Allen et al., Wellcome Open Res 4:63, 2019): a half
     violin (the cloud), a small box plot and every value as a dot (the rain).
 
-    Takes the same arguments as :func:`violin` (``edgecolor`` and
+    Takes the same arguments as [`violin`][SecretPlots.violin] (``edgecolor`` and
     ``linewidth`` set the cloud's outline); horizontal by default. Change
     the dots with ``.points(kind=...)`` or remove them with
     ``.points(False)``.
 
     Args:
-        data: Same inputs as :func:`box`: a long DataFrame with ``y=`` (and
+        data: Same inputs as [`box`][SecretPlots.box]: a long DataFrame with ``y=`` (and
             ``x=``/``hue=``), a wide DataFrame, a dict, a Series, list or
             array.
         x: Column name for categories.
@@ -449,7 +450,7 @@ def raincloud(
         cut: How far past the smallest and largest value to draw the cloud,
             in bandwidths (default 0: trimmed at the data).
         scale: ``"area"`` (default), ``"count"`` or ``"width"``, as in
-            :func:`violin`.
+            [`violin`][SecretPlots.violin].
         edgecolor: Color of the cloud's outline.
         linewidth: Width of the cloud's outline in pt; 0 removes it.
         orient: ``"h"`` (values to the right; default) or ``"v"``.

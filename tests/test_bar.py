@@ -3,8 +3,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.axes import Axes
 from matplotlib.colors import to_hex, to_rgb
 from matplotlib.figure import Figure
+from matplotlib.text import Text
 
 import SecretPlots as sp
 
@@ -149,6 +151,59 @@ def test_chrome_reserves_space() -> None:
     titled.draw_without_rendering()
     assert titled.axes[0].get_position().height < plain.axes[0].get_position().height
     assert {"Headline", "Sub", "Source: Lab"} <= {t.get_text() for t in titled.texts}
+
+
+def _title(ax: Axes) -> Text:
+    # The title artist depends on the theme's title alignment.
+    titles = (ax.title, ax._left_title, ax._right_title)  # type: ignore[attr-defined]
+    return next(t for t in titles if t.get_text())
+
+
+def test_label_styles_override_theme() -> None:
+    plot = sp.bar({"a": 1}).labels(
+        x="Group",
+        y="Count",
+        title="Title",
+        title_style={"weight": "normal", "size": 7, "color": "#ff0000"},
+        y_style={"style": "italic"},
+    )
+    ax = plot.ax
+    title = _title(ax)
+    assert title.get_fontweight() == "normal"
+    assert title.get_fontsize() == 7
+    assert to_hex(title.get_color()) == "#ff0000"
+    assert ax.yaxis.label.get_fontstyle() == "italic"
+    assert ax.xaxis.label.get_fontstyle() == "normal"
+
+
+def test_label_style_survives_later_text_change() -> None:
+    plot = sp.bar({"a": 1}).labels(title="Old", title_style={"weight": "normal"})
+    plot.labels(title="New")
+    assert _title(plot.ax).get_fontweight() == "normal"
+
+
+def test_chrome_styles() -> None:
+    plot = sp.bar({"a": 1}).chrome(
+        title="Headline",
+        subtitle="Sub",
+        title_style={"fontweight": "normal", "fontsize": 20},
+        note_style={"style": "italic"},
+    )
+    plot.chrome(note="Note")
+    texts = {t.get_text(): t for t in plot.fig.texts}
+    assert texts["Headline"].get_fontweight() == "normal"
+    assert texts["Headline"].get_fontsize() == 20
+    assert texts["Note"].get_fontstyle() == "italic"
+    assert texts["Sub"].get_fontstyle() == "normal"
+
+
+def test_text_style_validation() -> None:
+    with pytest.raises(ValueError, match="Did you mean 'fontweight'"):
+        sp.bar({"a": 1}).labels(title_style={"fontweigth": "normal"})
+    with pytest.raises(ValueError, match="unknown text property 'horizontalalignment'"):
+        sp.bar({"a": 1}).chrome(title_style={"ha": "right"})
+    with pytest.raises(TypeError, match="mapping"):
+        sp.bar({"a": 1}).labels(title_style="normal")  # type: ignore[arg-type]
 
 
 def test_render_into_existing_axes() -> None:
@@ -348,7 +403,9 @@ def test_options_lists_every_verb() -> None:
     table = sp.bar({"a": 1}).options()
     assert {"labels", "legend", "theme", "values", "ticklabels"} <= set(table.index)
     assert {"options", "show", "render", "explain"}.isdisjoint(table.index)
-    assert table.loc["labels", "options"] == "x, y, title"
+    assert (
+        table.loc["labels", "options"] == "x, y, title, x_style, y_style, title_style"
+    )
 
 
 @pytest.mark.parametrize("verb", list(sp.BarPlot.options().index))
@@ -391,6 +448,7 @@ def test_options_unknown_verb_suggests() -> None:
         sp.HeatmapPlot,
         sp.ForestPlot,
         sp.SurvivalPlot,
+        sp.DecisionCurvePlot,
         sp.BoxPlot,
         sp.ViolinPlot,
         sp.RaincloudPlot,
@@ -463,3 +521,45 @@ def test_outside_legend_clears_axis_decorations(
     for axis in (plot.ax.xaxis, plot.ax.yaxis):
         assert not legend.overlaps(axis.get_tightbbox(renderer))
     assert legend.x1 <= fig.bbox.x1 + 1
+
+
+def _waterfall() -> pd.DataFrame:
+    change = [55.0, 21.0, 8.0, -4.0, -18.0, -35.0, -62.0]
+    response = ["PD", "PD", "SD", "SD", "SD", "PR", "PR"]
+    return pd.DataFrame(
+        {"patient": [f"P{i}" for i in range(7)], "change": change, "response": response}
+    )
+
+
+def test_one_group_per_category_draws_full_width_bars() -> None:
+    plot = sp.bar(_waterfall(), x="patient", y="change", hue="response", sort="desc")
+    bars = [p for p in plot.ax.patches if np.isfinite(p.get_height())]
+    assert len(bars) == 7
+    assert {round(b.get_width(), 6) for b in bars} == {round(bars[0].get_width(), 6)}
+    centers = sorted(b.get_x() + b.get_width() / 2 for b in bars)
+    assert centers == pytest.approx(range(7))
+    assert bars[0].get_width() == pytest.approx(
+        sp.bar(_waterfall(), x="patient", y="change").ax.patches[0].get_width()
+    )
+    assert plot.ax.get_legend() is not None
+
+
+def test_groups_sharing_a_category_still_dodge() -> None:
+    frame = pd.DataFrame(
+        {"x": ["a", "a", "b", "b"], "y": [1.0, 2, 3, 4], "h": ["u", "v", "u", "v"]}
+    )
+    widths = {round(p.get_width(), 6) for p in sp.bar(frame, "x", "y", "h").ax.patches}
+    full = sp.bar(frame, "x", "y").ax.patches[0].get_width()
+    assert widths == {round(full / 2, 6)}
+
+
+@pytest.mark.parametrize("orient", ["v", "h"])
+def test_ticklabels_can_be_hidden(orient: str) -> None:
+    plot = sp.bar(_waterfall(), x="patient", y="change", orient=orient)  # type: ignore[arg-type]
+    plot.ticklabels(show=False)
+    axis = plot.ax.xaxis if orient == "v" else plot.ax.yaxis
+    assert not any(t.get_visible() and t.get_text() for t in axis.get_ticklabels())
+    assert plot.ax.get_xlabel() if orient == "v" else plot.ax.get_ylabel()
+    shown = plot.copy().ticklabels()
+    axis = shown.ax.xaxis if orient == "v" else shown.ax.yaxis
+    assert any(t.get_visible() for t in axis.get_ticklabels())

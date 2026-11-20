@@ -129,7 +129,7 @@ def _secret() -> Theme:
         title_scale=1.45,
         subtitle_scale=1.1,
         note_scale=0.85,
-        title_weight="bold",
+        title_weight="normal",
         text_color=c("gray", 90),
         muted_text_color=c("gray", 60),
         background="#ffffff",

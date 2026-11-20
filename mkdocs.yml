@@ -78,6 +78,7 @@ nav:
       - Heatmap: plots/heatmap.md
       - Forest: plots/forest.md
       - Survival: plots/survival.md
+      - Decision curves: plots/decision.md
       - Box: plots/box.md
       - Violin and raincloud: plots/violin.md
   - Publishing:
@@ -85,6 +86,8 @@ nav:
       - Presets and themes: presets.md
       - Data, formatting and export: usage.md
   - API reference: api.md
+hooks:
+  - scripts/mkdocs_hooks.py
 plugins:
   - search
   - mkdocstrings:
@@ -95,3 +98,14 @@ plugins:
             show_source: false
             show_signature_annotations: true
             docstring_style: google
+            # Page sections are h2; each object gets an h3 with its
+            # signature, and its methods h4, so the table of contents nests.
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 3
+            separate_signature: true
+            signature_crossrefs: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            summary: true

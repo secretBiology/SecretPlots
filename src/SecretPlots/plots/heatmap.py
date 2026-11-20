@@ -350,7 +350,7 @@ class _Body:
 
 # -------------------------------------------------------------------- plot
 class HeatmapPlot(Plot):
-    """Created by :func:`heatmap`."""
+    """Created by [`heatmap`][SecretPlots.heatmap]."""
 
     kind = "heatmap"
     _constructor = "heatmap"
@@ -556,8 +556,9 @@ class HeatmapPlot(Plot):
         split_cols: int | None = None,
     ) -> Self:
         """Order rows and/or columns by hierarchical clustering, with a
-        dendrogram. Within groups (see :meth:`groups`), each group is
-        clustered on its own.
+        dendrogram. Within groups (see
+        [`groups`][SecretPlots.HeatmapPlot.groups]), each group is clustered on
+        its own.
 
         Args:
             rows: Cluster the rows.
@@ -635,12 +636,14 @@ class HeatmapPlot(Plot):
         cols: Mapping[str, AttributeSpec] | None = None,
     ) -> Self:
         """Color bars annotating rows or columns with categories (e.g. tissue,
-        batch), explained in a legend. Unlike :meth:`groups` they don't reorder
-        or split anything.
+        batch), explained in a legend. Unlike
+        [`groups`][SecretPlots.HeatmapPlot.groups] they don't reorder or split
+        anything.
 
         Args:
             rows: ``{track name: categories}``; categories in any form
-                :meth:`groups` accepts (column name, mapping, Series, list).
+                [`groups`][SecretPlots.HeatmapPlot.groups] accepts (column
+                name, mapping, Series, list).
             cols: Same for columns.
         """
         out: dict[str, dict[str, AttributeSpec]] = {"row": {}, "col": {}}

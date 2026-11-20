@@ -17,6 +17,7 @@ from typing import Any, ClassVar, Literal, Self, get_type_hints
 
 import numpy as np
 import pandas as pd
+from matplotlib import rcParams
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import RendererBase
@@ -30,7 +31,7 @@ from matplotlib.transforms import ScaledTranslation
 
 from SecretPlots import presets
 from SecretPlots.core import state
-from SecretPlots.core.chrome import ChromeText, apply_chrome
+from SecretPlots.core.chrome import ChromeText, apply_chrome, text_props
 from SecretPlots.core.colors import extend_palette, with_alpha
 from SecretPlots.core.resolve import Style, checked_size, resolve
 from SecretPlots.core.units import Length
@@ -61,7 +62,7 @@ class _RefLine:
     color: str | None
     linestyle: str
     linewidth: float | None
-    label_position: Literal["start", "center", "end"] = "end"
+    label_position: Literal["start", "center", "end", "outside"] = "end"
     label_rotation: float = 0
     label_side: Literal["left", "right", "above", "below"] | None = None
 
@@ -75,6 +76,35 @@ def _ref_text(value: Any) -> str:
     if isinstance(value, pd.Timestamp | np.datetime64 | date):
         return str(pd.Timestamp(value).date())
     return f"{value:.3g}" if _is_number(value) else str(value)
+
+
+def _ref_label_place(
+    ref: _RefLine, vertical: bool, position: float, stack: float
+) -> tuple[tuple[float, float], tuple[float, float], str, str]:
+    """``(xy, offset in points, ha, va)`` of a reference line's label; ``xy``
+    is in data units along the line's axis and axes units across it."""
+    if ref.label_position == "outside":
+        # Past the axes edge, so bars and data never cover it.
+        if vertical:
+            return (position, 1.0), (0, 2 + stack), "center", "bottom"
+        return (1.0, position), (3, -stack), "left", "center"
+    along, align, offset = {
+        "start": (0.0, "bottom" if vertical else "left", 2),
+        "center": (0.5, "center", 0),
+        "end": (1.0, "top" if vertical else "right", -2),
+    }[ref.label_position]
+    if vertical:
+        left = ref.label_side == "left"
+        dy = offset - stack if offset <= 0 else offset + stack
+        return (
+            (position, along),
+            (-2 if left else 2, dy),
+            ("right" if left else "left"),
+            align,
+        )
+    below = ref.label_side == "below"
+    dy = -2 - stack if below else 2 + stack
+    return (along, position), (offset, dy), align, "top" if below else "bottom"
 
 
 def _is_date_axis(axis: Any) -> bool:
@@ -169,6 +199,8 @@ def _verbs(cls: type) -> dict[str, Callable[..., Any]]:
 
 
 def _plain(text: str) -> str:
+    # Docstrings use mkdocstrings cross-references: [`name`][dotted.path].
+    text = re.sub(r"\[`([^`\]]+)`\]\[[\w.]+\]", r"\1", text)
     return re.sub(r"``(.*?)``", r"\1", text)
 
 
@@ -247,22 +279,23 @@ def _parameter_table(
 
 class Plot(ABC):
     """A lazily drawn figure. Verbs return the plot so calls can be chained;
-    nothing is drawn until :meth:`show`, :meth:`save`, ``.fig``/``.ax`` or
-    notebook display."""
+    nothing is drawn until [`show`][SecretPlots.core.plot.Plot.show],
+    [`save`][SecretPlots.core.plot.Plot.save], ``.fig``/``.ax`` or notebook
+    display."""
 
     kind: ClassVar[str] = "plot"
     #: Reference lines sit behind points and lines; plots of filled marks
     #: (bars, cells) raise this so the lines stay visible.
     _refline_zorder: ClassVar[float] = 1.5
     #: Plots that redraw their body after layout draw reference lines
-    #: themselves (with :meth:`_draw_reflines`) so they are redrawn too.
+    #: themselves (with ``_draw_reflines``) so they are redrawn too.
     _reflines_in_draw: ClassVar[bool] = False
     #: Words a plot's ``.refline()`` accepts besides positions (statistics).
     _refline_words: ClassVar[tuple[str, ...]] = ()
     #: Legend handle length in font sizes; plots of lines need room for dashes.
     _handle_length: ClassVar[float] = 1.0
     #: Name of the function in the plot's module that builds it (``"bar"``
-    #: for ``sp.bar``); :meth:`arguments` describes its parameters.
+    #: for ``sp.bar``); ``arguments()`` describes its parameters.
     _constructor: ClassVar[str | None] = None
 
     def __init__(self) -> None:
@@ -273,6 +306,7 @@ class Plot(ABC):
         ] = {}
         self._overrides: dict[str, Any] = {}
         self._labels: dict[str, str] = {}
+        self._label_styles: dict[str, dict[str, Any]] = {}
         self._legend: LegendPosition | None = None
         self._legend_options: dict[str, Any] = {}
         self._chrome = ChromeText()
@@ -367,21 +401,37 @@ class Plot(ABC):
         return self._changed()
 
     def labels(
-        self, *, x: str | None = None, y: str | None = None, title: str | None = None
+        self,
+        *,
+        x: str | None = None,
+        y: str | None = None,
+        title: str | None = None,
+        x_style: Mapping[str, Any] | None = None,
+        y_style: Mapping[str, Any] | None = None,
+        title_style: Mapping[str, Any] | None = None,
     ) -> Self:
         """Axis titles and plot title.
 
         ``x`` and ``y`` are the axes as drawn, so with horizontal bars ``x`` is
-        the value axis.
+        the value axis. The ``*_style`` mappings take matplotlib text
+        properties (``weight``, ``size``, ``color``, ``style``, ``family``, ...)
+        and override the theme for that text only, e.g.
+        ``title_style={"weight": "normal"}``.
 
         Args:
             x: Bottom axis title. ``""`` hides the automatic one.
             y: Left axis title. ``""`` hides the automatic one.
             title: Title above the axes. A top legend moves right to make room.
+            x_style: Text properties for the bottom axis title.
+            y_style: Text properties for the left axis title.
+            title_style: Text properties for the plot title.
         """
         for key, value in (("x", x), ("y", y), ("title", title)):
             if value is not None:
                 self._labels[key] = value
+        for key, style in (("x", x_style), ("y", y_style), ("title", title_style)):
+            if style is not None:
+                self._label_styles[key] = text_props(style, f"{key}_style")
         return self._changed()
 
     def legend(
@@ -441,22 +491,44 @@ class Plot(ABC):
         subtitle: str | None = None,
         source: str | None = None,
         note: str | None = None,
+        *,
+        title_style: Mapping[str, Any] | None = None,
+        subtitle_style: Mapping[str, Any] | None = None,
+        source_style: Mapping[str, Any] | None = None,
+        note_style: Mapping[str, Any] | None = None,
     ) -> Self:
         """Headline/subtitle above the plot and note/source line below it.
-        Arguments left out keep their current value.
+        Arguments left out keep their current value. The ``*_style`` mappings
+        take matplotlib text properties (``weight``, ``size``, ``color``,
+        ``style``, ``family``, ...), e.g. ``title_style={"weight": "medium"}``;
+        wrapping and spacing follow the styled size.
 
         Args:
             title: Headline above the plot.
             subtitle: Smaller line under the headline.
             source: Data source line below the plot.
             note: Footnote below the plot.
+            title_style: Text properties for the headline.
+            subtitle_style: Text properties for the subtitle.
+            source_style: Text properties for the source line.
+            note_style: Text properties for the note.
         """
         current = self._chrome
+        styles = dict(current.styles)
+        for key, style in (
+            ("title", title_style),
+            ("subtitle", subtitle_style),
+            ("source", source_style),
+            ("note", note_style),
+        ):
+            if style is not None:
+                styles[key] = text_props(style, f"{key}_style")
         self._chrome = ChromeText(
             title=title if title is not None else current.title,
             subtitle=subtitle if subtitle is not None else current.subtitle,
             source=source if source is not None else current.source,
             note=note if note is not None else current.note,
+            styles=styles,
         )
         return self._changed()
 
@@ -604,7 +676,7 @@ class Plot(ABC):
         color: str | None = None,
         linestyle: str = "--",
         linewidth: float | None = None,
-        label_position: Literal["start", "center", "end"] = "end",
+        label_position: Literal["start", "center", "end", "outside"] = "end",
         label_rotation: float = 0,
         label_side: Literal["left", "right", "above", "below"] | None = None,
     ) -> Self:
@@ -628,7 +700,9 @@ class Plot(ABC):
                 ``axis_line_width``).
             label_position: Where along the line the label sits: ``"end"``
                 (default; the top of a vertical line, the right end of a
-                horizontal one), ``"start"`` (bottom / left) or ``"center"``.
+                horizontal one), ``"start"`` (bottom / left), ``"center"`` or
+                ``"outside"`` (just past the axes: right of a horizontal line,
+                above a vertical one; clear of bars and data).
             label_rotation: Label angle in degrees, counter-clockwise (``90``
                 runs the label up along a vertical line).
             label_side: Which side of the line the label sits on: ``"right"``
@@ -637,10 +711,10 @@ class Plot(ABC):
         """
         if axis not in (None, "x", "y"):
             raise ValueError("refline axis must be 'x', 'y' or None (the value axis)")
-        if label_position not in ("start", "center", "end"):
+        if label_position not in ("start", "center", "end", "outside"):
             raise ValueError(
                 f"Unknown refline label_position {label_position!r}; use "
-                "'start', 'center' or 'end'"
+                "'start', 'center', 'end' or 'outside'"
             )
         if not _is_number(label_rotation):
             raise TypeError("refline label_rotation must be a number (degrees)")
@@ -752,7 +826,8 @@ class Plot(ABC):
         """What you pass when creating this plot (``data``, ``x``, ``hue``,
         ``error``...), with allowed values, defaults and descriptions.
 
-        :meth:`options` lists the steps you chain afterwards.
+        [`options`][SecretPlots.core.plot.Plot.options] lists the steps you
+        chain afterwards.
 
         >>> sp.BarPlot.arguments()             # doctest: +SKIP
         >>> sp.bar(df).arguments("error")      # doctest: +SKIP
@@ -804,6 +879,9 @@ class Plot(ABC):
         return self.style().explain(field)
 
     def style_report(self) -> str:
+        """Plain-text summary of the resolved style: preset, figure size, font,
+        text sizes, every style field with the layer it came from, and any
+        values adjusted to fit the preset's limits."""
         return self.style().report()
 
     # ------------------------------------------------------------- rendering
@@ -857,6 +935,8 @@ class Plot(ABC):
 
     @property
     def fig(self) -> Figure:
+        """The matplotlib Figure, rendered on first access. Changing the plot
+        afterwards (any chained verb) discards it and renders a new one."""
         if self._figure is None:
             self.render()
         assert self._figure is not None
@@ -864,6 +944,9 @@ class Plot(ABC):
 
     @property
     def ax(self) -> Axes:
+        """The matplotlib Axes holding the plot, rendered on first access, for
+        edits SecretPlots has no verb for. Such edits are lost when the plot is
+        changed and re-rendered, and are not kept by ``copy()``."""
         if self._axes is None:
             self.render()
         assert self._axes is not None
@@ -995,24 +1078,10 @@ class Plot(ABC):
                 # One value can draw several lines (a median per group):
                 # stack their labels so close lines stay readable.
                 stack = step * i
-                along, align, offset = {
-                    "start": (0.0, "bottom" if vertical else "left", 2),
-                    "center": (0.5, "center", 0),
-                    "end": (1.0, "top" if vertical else "right", -2),
-                }[ref.label_position]
-                if vertical:
-                    left = ref.label_side == "left"
-                    xy = (position, along)
-                    xytext = (
-                        -2 if left else 2,
-                        offset - stack if offset <= 0 else offset + stack,
-                    )
-                    ha, va = "right" if left else "left", align
-                else:
-                    below = ref.label_side == "below"
-                    xy = (along, position)
-                    xytext = (offset, -2 - stack if below else 2 + stack)
-                    ha, va = align, "top" if below else "bottom"
+                xy, xytext, ha, va = _ref_label_place(ref, vertical, position, stack)
+                if not isinstance(ref.label, str) and rcParams["axes.unicode_minus"]:
+                    # Match the tick labels' minus sign, not a hyphen.
+                    text = re.sub(r"(?<![\w.])-(?=[\d.])", "\N{MINUS SIGN}", text)
                 ax.annotate(
                     ref.label if isinstance(ref.label, str) else text,
                     xy=xy,
@@ -1035,9 +1104,9 @@ class Plot(ABC):
         for key, setter in (("x", ax.set_xlabel), ("y", ax.set_ylabel)):
             label = self._labels.get(key, defaults.get(key) if show_defaults else None)
             if label:
-                setter(label)
+                setter(label, **self._label_styles.get(key, {}))
         if self._labels.get("title"):
-            ax.set_title(self._labels["title"])
+            ax.set_title(self._labels["title"], **self._label_styles.get("title", {}))
         for axis, (low, high) in self._limits.items():
             (ax.set_xlim if axis == "x" else ax.set_ylim)(low, high)
         if "x" in self._log_axes:

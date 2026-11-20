@@ -365,3 +365,30 @@ def test_survival_risk_table_nature() -> Figure:
         .preset("nature")
         .fig
     )
+
+
+@pytest.mark.mpl_image_compare(
+    tolerance=TOLERANCE, savefig_kwargs={"facecolor": "auto"}
+)
+def test_decision_curve_ci_nature() -> Figure:
+    rng = np.random.default_rng(7)
+    score = rng.normal(size=400)
+    logit = -1.6 + 1.3 * score
+    biopsy = pd.DataFrame(
+        {
+            "cancer": rng.random(400) < 1 / (1 + np.exp(-logit)),
+            "Full model": 1 / (1 + np.exp(-(logit + rng.normal(0, 0.3, 400)))),
+            "Marker only": 1 / (1 + np.exp(-(-1.6 + 0.6 * score))),
+        }
+    )
+    return (
+        sp.decision_curve(
+            biopsy,
+            outcome="cancer",
+            models=["Full model", "Marker only"],
+            thresholds=np.arange(0.01, 0.61, 0.01),
+        )
+        .ci(n_boot=200)
+        .preset("nature")
+        .fig
+    )

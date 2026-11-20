@@ -6,6 +6,35 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-20
+
+### Added
+- `sp.decision_curve` (alias `sp.dca`): decision curve analysis (Vickers &
+  Elkin) of one or more risk models from one row per patient, with "treat
+  all" and "treat none" references (`.references()`). Net benefit or net
+  interventions avoided per 100 patients (`measure=`), percentile bootstrap
+  bands (`.ci()`), and `.source_data()` with every plotted value.
+- `.refline(label_position="outside")`: the label sits just past the axes
+  edge (right of a horizontal line, above a vertical one), clear of the data.
+- `BarPlot.ticklabels(show=False)` hides the category labels, e.g. one bar
+  per patient in a waterfall plot. The bar guide has a waterfall example.
+- Per-text formatting: `.labels(x_style=, y_style=, title_style=)` and
+  `.chrome(title_style=, subtitle_style=, source_style=, note_style=)` take
+  matplotlib text properties (`weight`, `size`, `color`, `style`, ...) that
+  override the theme for that text, e.g. `title_style={"weight": "normal"}`.
+
+### Changed
+- Plot titles and headlines use normal weight by default instead of bold.
+  Use `title_style={"weight": "bold"}` on `.labels()`/`.chrome()`, or
+  `sp.Theme(title_weight="bold")`, for the previous look. News presets that
+  set `title_weight` are unchanged.
+- `sp.bar(..., hue=...)` draws full-width bars when every category has a
+  single group (a waterfall colored by response, or `hue=` the same as `x`)
+  instead of thin bars offset into empty slots.
+- Reference-line value labels write negative numbers with a minus sign
+  (`−30`) like the tick labels, instead of a hyphen (`-30`). Your own label
+  text is left as written.
+
 ## [3.0.0] - 2026-10-23
 
 First stable release of the 3.x rewrite. Install with `pip install SecretPlots`

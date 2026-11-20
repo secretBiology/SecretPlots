@@ -138,7 +138,7 @@ def series(
     required: Sequence[str] = (),
     missing: MissingPolicy = "raise",
 ) -> _Series:
-    """Read ``data`` into a :class:`_Series`.
+    """Read ``data`` into a ``_Series``.
 
     ``values`` maps numeric columns to what the user passed; the first one is
     the main value. Left out with a DataFrame (or a Series, list or array as
@@ -306,7 +306,8 @@ def _formatter(fmt: str) -> Any:
 
 
 class SeriesPlot(Plot):
-    """Shared steps of :class:`LinePlot` and :class:`FillBetweenPlot`."""
+    """Shared steps of [`LinePlot`][SecretPlots.LinePlot] and
+    [`FillBetweenPlot`][SecretPlots.FillBetweenPlot]."""
 
     _handle_length = 1.8
 
